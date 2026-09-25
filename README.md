@@ -38,6 +38,8 @@ npm start
 
 Poi apri <http://localhost:3100>.
 
+Su Windows, in alternativa, doppio click su **AVVIA.cmd**: usa il Node portatile in `.tools` e non richiede installazioni. Con **AVVIA-E-CONDIVIDI.cmd** genera anche un link temporaneo da mandare a qualcuno per una prova al volo. Istruzioni senza gergo in [ISTRUZIONI.txt](ISTRUZIONI.txt).
+
 Al primo avvio il database si popola da solo con dati demo: 13 bottiglie, 4 cocktail con ricetta, 5 dipendenti, i turni della settimana corrente, task e richieste in attesa.
 
 ## Come si pubblica online
@@ -51,6 +53,10 @@ Due cose da sapere sul piano gratuito di Render:
 
 La chiave di firma dei token (`JWT_SECRET`) non è nel codice: la genera Render. In locale ne viene generata una nuova a ogni riavvio, quindi dopo un restart l'app richiede di nuovo il PIN.
 
+## Lavorare in due
+
+Se siete più di uno sul progetto, leggete **[LAVORARE-IN-DUE.md](LAVORARE-IN-DUE.md)**: ciclo `pull` → modifica → `commit` → `push`, glossario dei termini, comandi di emergenza e cosa non va mai messo nel repo.
+
 ## Com'è fatto
 
 Node 24 ed Express 4 per le API REST, SQLite tramite il modulo nativo `node:sqlite`, frontend in JavaScript, HTML e CSS senza framework. Tre sole dipendenze: `express`, `bcryptjs`, `jsonwebtoken`.
@@ -59,6 +65,7 @@ Node 24 ed Express 4 per le API REST, SQLite tramite il modulo nativo `node:sqli
 server.js      API REST, login a PIN, controllo permessi
 db.js          schema SQLite e dati demo del primo avvio
 public/        frontend (index.html, app.js, style.css, mascot.js)
+AVVIA.cmd      avvio rapido su Windows (Node portatile)
 render.yaml    configurazione di deploy — piano gratuito
 ```
 

@@ -1,0 +1,45 @@
+============================================================
+  BARBACK - Istruzioni semplici
+============================================================
+
+COS'E'
+  Un'app per gestire il bar/ristorante:
+  - conteggio vuoti (bottiglie consumate)
+  - turni e task del personale
+  - drink cost (costo dei cocktail)
+  - magazzino e giacenze
+  - manuale dipendente (regole + ricette)
+
+------------------------------------------------------------
+PER USARLA SOLO SUL TUO PC
+------------------------------------------------------------
+  1. Doppio click su:  AVVIA.cmd
+  2. Apri il browser su:  http://localhost:3100
+
+------------------------------------------------------------
+PER FARLA PROVARE A UN AMICO (link da mandare)
+------------------------------------------------------------
+  1. Doppio click su:  AVVIA-E-CONDIVIDI.cmd
+  2. Aspetta qualche secondo: comparira' un riquadro con un
+     indirizzo tipo:
+        https://qualcosa.trycloudflare.com
+  3. COPIA quell'indirizzo e mandalo al tuo amico (WhatsApp, ecc.)
+  4. NON chiudere quella finestra nera: finche' resta aperta,
+     il link funziona. Quando la chiudi, il link smette.
+
+  NOTA: ogni volta che riavvii, l'indirizzo CAMBIA. E' normale.
+        Il tuo PC deve restare acceso mentre l'amico prova.
+
+------------------------------------------------------------
+PROFILI E PIN (per entrare nell'app)
+------------------------------------------------------------
+  Proprietario .............. PIN 1111  (vede e fa tutto)
+  Admin 1 - Responsabile .... PIN 2222  (turni e task)
+  Admin 2 - Barman .......... PIN 3333  (vuoti, task, manuale)
+  Admin 3 - Bar Manager ..... PIN 4444  (magazzino, drink cost)
+
+------------------------------------------------------------
+PER FERMARE TUTTO
+------------------------------------------------------------
+  Chiudi le finestre nere aperte (server e link).
+============================================================
