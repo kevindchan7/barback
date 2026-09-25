@@ -1,0 +1,94 @@
+============================================================
+  PUBBLICARE BARBACK SU INTERNET (link fisso)
+  Tutto dal browser: NIENTE comandi, NIENTE programmi da installare.
+============================================================
+
+Ci sono 2 passaggi:
+  A) Mettere il codice su GitHub (un "cassetto" online per i file)
+  B) Accendere l'app su Render (che la fa girare e ti da' il link)
+
+
+------------------------------------------------------------
+PARTE A - GITHUB (5 minuti)
+------------------------------------------------------------
+1. Vai su:  https://github.com
+2. Se non hai un account: "Sign up" e creane uno gratis.
+3. In alto a destra clicca il "+"  ->  "New repository".
+4. Nome:  barback
+   Lascia "Public".  Clicca "Create repository".
+5. Nella pagina che appare, clicca la scritta:
+      "uploading an existing file"
+6. Apri la cartella  barback-deploy  sul tuo PC.
+   Seleziona TUTTO quello che c'e' dentro (anche la cartella "public")
+   e TRASCINALO nella pagina di GitHub.
+
+   NON caricare: node_modules, data.db, i file .log
+   (non servono e occupano spazio inutile)
+
+7. In fondo clicca "Commit changes".
+   -> Ora il codice e' online su GitHub.
+
+
+------------------------------------------------------------
+PARTE B - RENDER (5 minuti)
+------------------------------------------------------------
+1. Vai su:  https://render.com
+2. "Get Started" / "Sign up".
+   CONSIGLIO: scegli "Sign in with GitHub" (cosi' sono gia' collegati).
+3. Clicca "New +"  ->  "Web Service".
+4. Scegli il repository  barback  (autorizza GitHub se lo chiede).
+5. Render legge il file render.yaml e compila tutto da solo:
+      Build Command:  npm install
+      Start Command:  node --experimental-sqlite server.js
+   Se chiede il piano, scegli  Free.
+6. Clicca "Create Web Service" e aspetta 2-3 minuti (sta costruendo).
+7. In alto comparira' il TUO LINK FISSO, tipo:
+      https://barback-xxxx.onrender.com
+   Questo link non cambia mai: mandalo a chi vuoi!
+
+
+------------------------------------------------------------
+PROFILI E PIN (per entrare)
+------------------------------------------------------------
+  Proprietario .............. 1111
+  Admin 1 - Responsabile .... 2222
+  Admin 2 - Barman .......... 3333
+  Admin 3 - Bar Manager ..... 4444
+
+  IMPORTANTE: questi sono i PIN della demo e li conoscono tutti.
+  Se pubblichi l'app online e ci metti dati veri del locale,
+  cambiali. Chiedimi pure di farlo, e' una modifica veloce.
+
+
+------------------------------------------------------------
+IMPORTANTISSIMO: I DATI SI AZZERANO (sul piano gratis)
+------------------------------------------------------------
+Sul piano gratuito di Render l'app NON puo' conservare i dati:
+a ogni aggiornamento torna tutto alla demo iniziale.
+Va benissimo per far vedere l'app a qualcuno.
+NON va bene per usarla davvero nel locale: perderesti i conteggi.
+
+PER AVERE I DATI PERMANENTI (serve un piano a pagamento):
+  Costo indicativo: circa 7 $/mese (piano Starter)
+                    + 0,25 $/GB al mese per il disco dei dati.
+
+  Come si fa:
+   1. Nella cartella, prendi il file:  render-DATI-PERMANENTI.yaml
+   2. Rinomina il  render.yaml  attuale in  render-GRATIS.yaml
+   3. Rinomina  render-DATI-PERMANENTI.yaml  in  render.yaml
+   4. Ricarica i file su GitHub.
+   5. Render si aggiorna da solo e ti chiede conferma del piano.
+   -> Da quel momento i dati restano, anche dopo gli aggiornamenti.
+
+
+------------------------------------------------------------
+ALTRE COSE DA SAPERE (piano gratis)
+------------------------------------------------------------
+- Se nessuno usa l'app per 15 minuti, "si addormenta": la prima
+  visita dopo ci mette ~50 secondi a svegliarsi. Poi va veloce.
+- Per aggiornare l'app in futuro: ricarichi i file su GitHub e
+  Render si riaggiorna da solo.
+- La chiave di sicurezza dei login (JWT_SECRET) ora la genera
+  Render da sola: non devi fare niente, e non e' piu' scritta
+  dentro al codice.
+============================================================

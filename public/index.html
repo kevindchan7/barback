@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<!--
+  Barback — frontend mobile-first. La homepage e le sezioni vengono
+  mostrate/nascoste in base ai PERMESSI del profilo che ha fatto login.
+  La mascotte-bottiglia guida l'utente. Tutto il codice è in chiaro.
+-->
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Barback — Magazzino & Turni</title>
+<link rel="stylesheet" href="style.css" />
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- ============ LOGIN A PIN ============ -->
+<div id="login">
+  <div class="login-head" id="login-head"></div>
+  <div id="profiles-wrap">
+    <p class="muted" style="text-align:center">Scegli il tuo profilo</p>
+    <div class="profiles" id="profiles"></div>
+  </div>
+  <div id="pin-wrap" class="hidden">
+    <p class="muted" style="text-align:center" id="pin-for"></p>
+    <div class="pin-dots" id="pin-dots"></div>
+    <div class="pinpad" id="pinpad"></div>
+    <button class="ghost" style="margin:14px auto 0; display:block;" onclick="backToProfiles()">← Cambia profilo</button>
+  </div>
+  <div class="msg" id="login-msg"></div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+  <div class="banner" id="banner">
+    <span id="banner-mascot"></span>
+    <div><h1>Barback</h1><div class="sub" id="banner-sub">Magazzino & Turni</div></div>
+    <span class="spacer"></span>
+    <button class="ghost" onclick="logout()">Esci</button>
+  </div>
+
+  <main>
+    <!-- HOMEPAGE -->
+    <section class="view active" id="home">
+      <div id="home-hello"></div>
+      <div id="home-overview"></div>
+      <div class="home-grid" id="home-grid"></div>
+    </section>
+
+    <!-- SEZ.1 — VUOTI -->
+    <section class="view" id="vuoti">
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Conteggio vuoti</h2></div>
+      <div class="card" id="vuoti-form">
+        <h3>Registra bottiglie consumate</h3>
+        <div class="row c2">
+          <div><label>Prodotto</label><select id="vuoti-prod"></select></div>
+          <div><label>Quantità (vuoti)</label><input id="vuoti-qty" type="number" value="1" min="1"></div>
+        </div>
+        <div class="row c2">
+          <div><label>Origine</label><select id="vuoti-src"><option value="manuale">Manuale</option><option value="scontrino">Da scontrino</option><option value="inventario">Da giacenza iniziale</option></select></div>
+          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addEmpty()">+ Registra vuoti</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="row c3">
+          <div><label>Vista</label><select id="vuoti-period" onchange="loadVuoti()"><option value="month">Mese</option><option value="day">Giorno</option></select></div>
+          <div style="grid-column:span 2;"><label>Data</label><input id="vuoti-date" type="date" onchange="loadVuoti()"></div>
+        </div>
+        <h3>Resoconto <span id="vuoti-key" class="muted"></span></h3>
+        <table><thead><tr><th>Prodotto</th><th>Vuoti</th><th class="right">Prezzo</th><th class="right">Totale</th><th class="right">Residuo</th></tr></thead><tbody id="vuoti-list"></tbody></table>
+        <p class="right" style="margin-top:8px;font-weight:700">Totale consumato: <span id="vuoti-tot">€0</span></p>
+      </div>
+      <div class="card" id="vuoti-grid-card">
+        <h3>Griglia del mese (vuoti giorno per giorno)</h3>
+        <div class="grid-scroll"><table class="shift-grid" id="vuoti-grid"></table></div>
+      </div>
+    </section>
+
+    <!-- SEZ.2 — TURNI & TASK -->
+    <section class="view" id="turni">
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Turni & Task</h2></div>
+      <div class="exports">
+        <button class="ghost" onclick="exportShifts('csv')">⬇ CSV turni</button>
+        <button class="ghost" onclick="exportShifts('xlsx')">⬇ Excel turni</button>
+      </div>
+      <div class="card">
+        <div class="row c3">
+          <div><label>Vista</label><select id="shift-range" onchange="loadShifts()"><option value="week">Settimana</option><option value="day">Giorno</option><option value="month">Mese</option></select></div>
+          <div style="grid-column:span 2;"><label>Riferimento</label><input id="shift-date" type="date" onchange="loadShifts()"></div>
+        </div>
+        <div class="grid-scroll"><table class="shift-grid" id="shift-grid"></table></div>
+      </div>
+      <div class="card" id="sh-form">
+        <h3>Gestione turni</h3>
+        <div class="row c3">
+          <div><label>Dipendente</label><select id="sh-emp"></select></div>
+          <div><label>Data</label><input id="sh-date" type="date"></div>
+          <div><label>Ruolo</label><input id="sh-role" placeholder="es. barista"></div>
+        </div>
+        <div class="row c3">
+          <div><label>Inizio</label><input id="sh-start" type="time" value="16:00"></div>
+          <div><label>Fine</label><input id="sh-end" type="time" value="23:00"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addShift()">+ Aggiungi turno</button></div>
+        </div>
+        <p class="muted">Nella griglia, tocca un turno per eliminarlo.</p>
+      </div>
+      <div class="card">
+        <h3>Task di oggi</h3>
+        <div id="tasks-list"></div>
+        <div id="task-add" class="row c2" style="margin-top:10px;">
+          <div><label>Nuova task</label><input id="task-title" placeholder="es. Pulizia banco"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addTask()">+ Aggiungi</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Cambio turno / Ferie / Permessi</h3>
+        <div id="sc-form" class="row c3">
+          <div><label>Dipendente</label><select id="sc-emp"></select></div>
+          <div><label>Tipo</label><select id="sc-type"><option>cambio</option><option>ferie</option><option>permesso</option></select></div>
+          <div><label>Data</label><input id="sc-date" type="date"></div>
+        </div>
+        <button id="sc-send" class="act gold" onclick="addShiftChange()">↔ Invia richiesta</button>
+        <table style="margin-top:10px;"><thead><tr><th>Dipendente</th><th>Tipo</th><th>Data</th><th>Stato</th><th></th></tr></thead><tbody id="sc-list"></tbody></table>
+      </div>
+    </section>
+
+    <!-- SEZ.3 — DRINK COST -->
+    <section class="view" id="drink">
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Drink Cost</h2></div>
+      <div id="drink-hint"></div>
+      <div class="card">
+        <table><thead><tr><th>Cocktail</th><th class="right">Costo</th><th class="right">Prezzo</th><th class="right">Pour cost</th></tr></thead><tbody id="drink-list"></tbody></table>
+      </div>
+    </section>
+
+    <!-- SEZ.4 — MAGAZZINO -->
+    <section class="view" id="magazzino">
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Magazzino & Giacenze</h2></div>
+      <div class="exports">
+        <button class="ghost" onclick="exportStock('csv')">⬇ CSV magazzino</button>
+        <button class="ghost" onclick="exportStock('xlsx')">⬇ Excel magazzino</button>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="v" id="mz-consumato">€0</div><div class="l">Consumato nel mese</div></div>
+        <div class="kpi"><div class="v" id="mz-low">0</div><div class="l">Sotto soglia</div></div>
+      </div>
+      <div class="card" id="mz-mvform">
+        <h3>Carico / Scarico rapido</h3>
+        <div class="row c3">
+          <div><label>Prodotto</label><select id="mv-prod"></select></div>
+          <div><label>Tipo</label><select id="mv-type"></select></div>
+          <div><label>Quantità</label><input id="mv-qty" type="number" value="1" min="1"></div>
+        </div>
+        <button class="act" onclick="addMovement()">+ Registra movimento</button>
+      </div>
+      <div class="card">
+        <h3>Giacenze e consumi <span id="mz-month" class="muted"></span></h3>
+        <div class="search"><input id="mz-search" placeholder="🔍 Cerca prodotto..." oninput="renderMz()"></div>
+        <table><thead><tr><th>Prodotto</th><th>Entrato</th><th>Uscito</th><th>Netto</th><th class="right">Consumato</th><th class="right">Residua</th><th></th></tr></thead><tbody id="mz-list"></tbody></table>
+      </div>
+    </section>
+
+    <!-- MANUALE DIPENDENTE -->
+    <section class="view" id="manuale">
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Manuale dipendente</h2></div>
+      <div id="manuale-hello"></div>
+      <div class="card"><h3>📋 Regole del locale</h3><ul id="man-rules" style="padding-left:18px;font-size:13px;line-height:1.9"></ul></div>
+      <div class="card"><h3>🍸 Ricettario cocktail</h3><div id="man-recipes"></div></div>
+    </section>
+  </main>
+
+  <!-- Barra di navigazione in basso (come nelle app del telefono) -->
+  <div class="bottomnav" id="bottomnav"></div>
+</div>
+
+<!-- Onboarding guidato al primo accesso (popolato da JS) -->
+<div id="onboarding" class="hidden"></div>
+<!-- Finestra modale (modifica prodotto), popolata da JS -->
+<div id="modal-root"></div>
+
+<script src="mascot.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

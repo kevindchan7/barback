@@ -1,0 +1,19 @@
+# Configurazione per Render (hosting cloud) - VERSIONE GRATUITA.
+# Su Render: New + -> Blueprint -> scegli il repo, e configura tutto da solo.
+#
+# ATTENZIONE: sul piano gratuito i dati si azzerano a ogni aggiornamento
+# dell'app. Per conservarli davvero, usa il file render-DATI-PERMANENTI.yaml
+# (le istruzioni sono dentro COME-PUBBLICARE.txt).
+services:
+  - type: web
+    name: barback
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node --experimental-sqlite server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 24.16.0
+      # Render genera da solo una chiave segreta sicura per i token di accesso.
+      - key: JWT_SECRET
+        generateValue: true

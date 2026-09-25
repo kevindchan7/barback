@@ -1,0 +1,30 @@
+# Configurazione per Render - VERSIONE CON DATI PERMANENTI (a pagamento).
+#
+# I dati NON si azzerano piu': restano su un disco che Render conserva.
+# Costo indicativo: piano Starter ~7 $/mese + disco 0,25 $/GB al mese.
+#
+# COME USARLO:
+#   1. Rinomina questo file in:  render.yaml
+#      (prima rinomina o cancella il render.yaml gratuito che c'e' gia')
+#   2. Ricarica il file su GitHub.
+#   3. Render si aggiorna da solo e chiede conferma del piano a pagamento.
+services:
+  - type: web
+    name: barback
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: node --experimental-sqlite server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 24.16.0
+      # Render genera da solo una chiave segreta sicura per i token di accesso.
+      - key: JWT_SECRET
+        generateValue: true
+      # Il database vive sul disco persistente, non dentro l'app.
+      - key: DB_PATH
+        value: /var/data/data.db
+    disk:
+      name: barback-dati
+      mountPath: /var/data
+      sizeGB: 1
