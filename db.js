@@ -73,7 +73,24 @@ CREATE TABLE IF NOT EXISTS shift_changes (
   status TEXT DEFAULT 'in attesa',     -- in attesa | approvato | rifiutato
   note TEXT
 );
+CREATE TABLE IF NOT EXISTS vendors (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  phone TEXT DEFAULT '',              -- per mandare l'ordine su WhatsApp
+  email TEXT DEFAULT '',
+  note TEXT DEFAULT ''
+);
 `);
+
+/* ---------- migrazione: aggiunge le colonne nuove ai database già esistenti ----------
+   Serve perché un data.db creato da una versione precedente non le ha ancora.
+   Senza questo, aggiornare l'app romperebbe i database con i dati veri.        */
+function addColumn(table, column, decl) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+  if (!cols.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+}
+addColumn('products', 'par_level', 'REAL DEFAULT 0');   // scorta ideale da tenere
+addColumn('products', 'vendor_id', 'INTEGER');          // da chi si compra
 
 /* ---------- helper date per il seed ---------- */
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -170,6 +187,39 @@ function seedIfEmpty() {
     c.run(emps[1].id, 'cambio', today, today, 'in attesa', 'Scambio turno sera con Marco');
   }
 }
+
+/* ---------- fornitori e scorta ideale ----------
+   Gira a ogni avvio ma non sovrascrive niente: riempie solo i campi vuoti,
+   così su un database con dati veri aggiunge senza rovinare.                 */
+function seedVendorsAndPar() {
+  if (db.prepare('SELECT COUNT(*) c FROM vendors').get().c === 0) {
+    const v = db.prepare('INSERT INTO vendors (name,phone,email,note) VALUES (?,?,?,?)');
+    [
+      ['Distribuzione Bevande Srl', '+39 000 0000001', 'ordini@distribuzionebevande.it', 'Liquori, amari, vermouth'],
+      ['Enoteca Fornitori',         '+39 000 0000002', 'ordini@enotecafornitori.it',     'Vini e spumanti'],
+      ['Beverage Point',            '+39 000 0000003', 'ordini@beveragepoint.it',        'Birre, bibite, acqua'],
+    ].forEach(([n, p, e, nt]) => v.run(n, p, e, nt));
+  }
+
+  // scorta ideale: se non impostata, proponi il doppio della soglia di riordino
+  db.exec('UPDATE products SET par_level = threshold * 2 WHERE par_level = 0 AND threshold > 0');
+
+  // assegna un fornitore ai prodotti che non ce l'hanno, indovinando dal nome
+  const byName = {};
+  db.prepare('SELECT id,name FROM vendors').all().forEach(r => byName[r.name] = r.id);
+  const gruppi = [
+    [byName['Enoteca Fornitori'],         ['Prosecco', 'Vino']],
+    [byName['Beverage Point'],            ['Birra', 'Coca', 'Acqua', 'Tonica', 'Soda']],
+    [byName['Distribuzione Bevande Srl'], []],   // tutto il resto: liquori e amari
+  ];
+  const upd = db.prepare('UPDATE products SET vendor_id=? WHERE id=?');
+  db.prepare("SELECT id,name FROM products WHERE category='Bottiglia' AND vendor_id IS NULL").all()
+    .forEach(p => {
+      const g = gruppi.find(([, chiavi]) => chiavi.some(k => p.name.includes(k))) || gruppi[2];
+      if (g[0]) upd.run(g[0], p.id);
+    });
+}
 seedIfEmpty();
+seedVendorsAndPar();
 
 module.exports = db;

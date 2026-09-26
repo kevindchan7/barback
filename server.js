@@ -102,7 +102,8 @@ api.get('/overview', (req, res) => {
 
 /* ---------------- PRODOTTI / GIACENZE ---------------- */
 api.get('/products', (req, res) => {
-  const rows = db.prepare('SELECT * FROM products ORDER BY category,name').all()
+  const rows = db.prepare(`SELECT p.*, v.name AS vendor FROM products p
+    LEFT JOIN vendors v ON v.id=p.vendor_id ORDER BY p.category,p.name`).all()
     .map(p => { p.recipe = JSON.parse(p.recipe || '[]'); return p; });
   ok(res, rows);
 });
@@ -115,10 +116,55 @@ api.post('/products', need('magazzino.view'), (req, res) => {
   ok(res, { id: r.lastInsertRowid });
 });
 api.put('/products/:id', need('magazzino.view'), (req, res) => {
-  const { name, cost, price, threshold } = req.body;
-  db.prepare('UPDATE products SET name=?,cost=?,price=?,threshold=? WHERE id=?')
-    .run(name, +cost, +price, +threshold, req.params.id);
+  const { name, cost, price, threshold, par_level, vendor_id } = req.body;
+  db.prepare('UPDATE products SET name=?,cost=?,price=?,threshold=?,par_level=?,vendor_id=? WHERE id=?')
+    .run(name, +cost, +price, +threshold, +par_level || 0, vendor_id ? +vendor_id : null, req.params.id);
   ok(res, { ok: true });
+});
+
+/* ---------------- FORNITORI ---------------- */
+api.get('/vendors', (req, res) => ok(res, db.prepare('SELECT * FROM vendors ORDER BY name').all()));
+api.post('/vendors', need('magazzino.view'), (req, res) => {
+  const { name, phone, email, note } = req.body;
+  if (!name) return bad(res, 400, 'Serve il nome del fornitore');
+  const r = db.prepare('INSERT INTO vendors (name,phone,email,note) VALUES (?,?,?,?)')
+    .run(name, phone || '', email || '', note || '');
+  ok(res, { id: r.lastInsertRowid });
+});
+api.put('/vendors/:id', need('magazzino.view'), (req, res) => {
+  const { name, phone, email, note } = req.body;
+  db.prepare('UPDATE vendors SET name=?,phone=?,email=?,note=? WHERE id=?')
+    .run(name, phone || '', email || '', note || '', req.params.id);
+  ok(res, { ok: true });
+});
+api.delete('/vendors/:id', need('magazzino.view'), (req, res) => {
+  // i prodotti restano, semplicemente senza fornitore
+  db.prepare('UPDATE products SET vendor_id=NULL WHERE vendor_id=?').run(req.params.id);
+  db.prepare('DELETE FROM vendors WHERE id=?').run(req.params.id);
+  ok(res, { ok: true });
+});
+
+/* ---------------- ORDINE SUGGERITO (raggruppato per fornitore) ----------------
+   Prende i prodotti arrivati alla soglia e calcola quanto ordinare per
+   riportarli alla scorta ideale (par_level). Raggruppa per fornitore, così
+   ogni gruppo diventa un ordine da mandare.                                  */
+api.get('/orders/suggested', need('magazzino.view'), (req, res) => {
+  const rows = db.prepare(`SELECT p.id, p.name, p.format, p.unit, p.cost, p.stock,
+      p.threshold, p.par_level, p.vendor_id,
+      COALESCE(v.name,'Senza fornitore') vendor, COALESCE(v.phone,'') phone, COALESCE(v.email,'') email
+    FROM products p LEFT JOIN vendors v ON v.id=p.vendor_id
+    WHERE p.category='Bottiglia' AND p.stock <= p.threshold AND p.par_level > p.stock
+    ORDER BY vendor, p.name`).all();
+  const gruppi = [];
+  rows.forEach(r => {
+    const qty = Math.ceil(r.par_level - r.stock);
+    let g = gruppi.find(x => x.vendor === r.vendor);
+    if (!g) { g = { vendor: r.vendor, vendor_id: r.vendor_id, phone: r.phone, email: r.email, righe: [], totale: 0 }; gruppi.push(g); }
+    g.righe.push({ id: r.id, name: r.name, format: r.format, unit: r.unit,
+      stock: r.stock, threshold: r.threshold, par_level: r.par_level, qty, costo: qty * r.cost });
+    g.totale += qty * r.cost;
+  });
+  ok(res, { gruppi, totale: gruppi.reduce((s, g) => s + g.totale, 0), prodotti: rows.length });
 });
 
 /* ---------------- MOVIMENTI (permessi per tipo) ---------------- */
@@ -176,13 +222,16 @@ api.get('/empties/grid', need('vuoti.view'), (req, res) => {
 api.get('/reports/monthly', need('magazzino.view'), (req, res) => {
   const m = monthOf(req.query.month);
   const rows = db.prepare(`SELECT p.id, p.name, p.unit, p.price, p.initial_stock, p.stock AS residua,
+      p.threshold, p.par_level, COALESCE(v.name,'') vendor,
       COALESCE(SUM(CASE WHEN mv.type='carico' THEN mv.qty END),0) entrato,
       COALESCE(SUM(CASE WHEN mv.type IN ('scarico','vuoto') THEN mv.qty END),0) uscito
-    FROM products p
+    FROM products p LEFT JOIN vendors v ON v.id=p.vendor_id
     LEFT JOIN movements mv ON mv.product_id=p.id AND substr(mv.created_at,1,7)=?
     WHERE p.category='Bottiglia'
     GROUP BY p.id ORDER BY p.name`).all(m);
-  rows.forEach(r => { r.consumato = r.uscito * r.price; r.netto = r.entrato - r.uscito; });
+  rows.forEach(r => { r.consumato = r.uscito * r.price; r.netto = r.entrato - r.uscito;
+    // quanto ordinare per tornare alla scorta ideale (0 se non serve)
+    r.daOrdinare = (r.residua <= r.threshold && r.par_level > r.residua) ? Math.ceil(r.par_level - r.residua) : 0; });
   ok(res, { month: m, rows,
     totaleConsumato: rows.reduce((s, r) => s + r.consumato, 0),
     sottoSoglia: db.prepare("SELECT COUNT(*) c FROM products WHERE category='Bottiglia' AND stock<=threshold").get().c });

@@ -71,6 +71,7 @@ function buildBottomNav() {
     ['vuoti', '🍾', 'Vuoti', can('vuoti.view')],
     ['turni', '📅', 'Turni', can('turni.view') || can('task.view')],
     ['magazzino', '📦', 'Magazz.', can('magazzino.view')],
+    ['ordini', '🛒', 'Ordini', can('magazzino.view')],
     ['drink', '🍸', 'Drink', can('drinkcost.view')],
     ['manuale', '📖', 'Manuale', can('manuale.view')],
   ].filter(i => i[3]);
@@ -89,6 +90,7 @@ function maybeOnboard() {
     ['🍾', 'Conta i vuoti', 'Registra le bottiglie consumate: la giacenza si aggiorna da sola.'],
     ['📦', 'Magazzino sempre giusto', 'Carichi e scarichi sottratti in automatico, con residuo preciso.'],
     ['📅', 'Turni e task', 'Vedi i turni a griglia e spunta le cose da fare.'],
+    ['🛒', 'Ordini automatici', 'Quando un prodotto scende sotto soglia ti dico quanto ordinare e a chi.'],
     ['👇', 'Spostati al volo', 'Usa la barra in basso per passare da una sezione all\'altra.'],
   ];
   let idx = 0;
@@ -132,6 +134,7 @@ async function loadHome() {
     ['turni', '📅', 'Turni & Task', 'Personale e obiettivi', can('turni.view') || can('task.view')],
     ['drink', '🍸', 'Drink Cost', 'Costo in tempo reale', can('drinkcost.view')],
     ['magazzino', '📦', 'Magazzino', 'Giacenze e consumi', can('magazzino.view')],
+    ['ordini', '🛒', 'Ordini', 'Cosa ordinare e da chi', can('magazzino.view')],
     ['manuale', '📖', 'Manuale dipendente', 'Regole e ricettario', can('manuale.view')],
   ];
   $('#home-grid').innerHTML = btns.filter(b => b[4]).map(b =>
@@ -146,7 +149,8 @@ function go(view, silent) {
   window.scrollTo(0, 0);
   if (pollTimer) clearInterval(pollTimer);
   if (silent) return;
-  const loaders = { home: loadHome, vuoti: loadVuoti, turni: loadTurni, drink: loadDrink, magazzino: loadMagazzino, manuale: loadManuale };
+  const loaders = { home: loadHome, vuoti: loadVuoti, turni: loadTurni, drink: loadDrink,
+    magazzino: loadMagazzino, ordini: loadOrdini, manuale: loadManuale };
   if (loaders[view]) {
     loaders[view]();
     if (['vuoti', 'magazzino', 'turni'].includes(view)) pollTimer = setInterval(loaders[view], 20000);
@@ -187,7 +191,8 @@ async function addEmpty() {
 
 /* ===================== SEZ.4 — MAGAZZINO ===================== */
 async function loadMagazzino() {
-  const prods = await api('/products');
+  const [prods, vendors] = await Promise.all([api('/products'), api('/vendors')]);
+  window._vendors = vendors;
   window._products = prods;
   $('#mv-prod').innerHTML = prods.filter(p => p.category === 'Bottiglia').map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   // tipi di movimento consentiti dai permessi
@@ -211,8 +216,9 @@ function renderMz() {
   $('#mz-list').innerHTML = rows.map(x => `<tr><td>${x.name}</td><td>${x.entrato}</td><td>${x.uscito}</td>
     <td style="color:${x.netto < 0 ? 'var(--red)' : 'var(--green)'}">${x.netto > 0 ? '+' : ''}${x.netto}</td>
     <td class="right">${eur(x.consumato)}</td><td class="right">${x.residua} ${x.unit}</td>
+    <td class="right">${x.daOrdinare ? `<b style="color:var(--gold)">${x.daOrdinare}</b>` : '<span class="muted">—</span>'}</td>
     <td class="right">${editable ? `<button class="iconbtn" onclick="editProduct(${x.id})" title="Modifica">✏️</button>` : ''}</td></tr>`).join('')
-    || '<tr><td colspan="7" class="muted">Nessun prodotto trovato.</td></tr>';
+    || '<tr><td colspan="8" class="muted">Nessun prodotto trovato.</td></tr>';
 }
 function editProduct(id) {
   const p = (window._products || []).find(x => x.id === id); if (!p) return;
@@ -225,7 +231,15 @@ function editProduct(id) {
           <div><label>Costo (€)</label><input id="ep-cost" type="number" step="0.001" value="${p.cost}"></div>
           <div><label>Prezzo (€)</label><input id="ep-price" type="number" step="0.01" value="${p.price}"></div>
         </div>
-        <div class="row"><div><label>Soglia riordino</label><input id="ep-thr" type="number" value="${p.threshold}"></div></div>
+        <div class="row c2">
+          <div><label>Soglia riordino</label><input id="ep-thr" type="number" value="${p.threshold}"></div>
+          <div><label>Scorta ideale</label><input id="ep-par" type="number" value="${p.par_level || 0}"></div>
+        </div>
+        <p class="muted" style="font-size:11px;margin:-4px 0 8px">Sotto la soglia l'app propone l'ordine per tornare alla scorta ideale.</p>
+        <div class="row"><div><label>Fornitore</label><select id="ep-vendor">
+          <option value="">— nessuno —</option>
+          ${(window._vendors || []).map(v => `<option value="${v.id}" ${v.id === p.vendor_id ? 'selected' : ''}>${v.name}</option>`).join('')}
+        </select></div></div>
         <div class="onb-actions">
           <button class="ghost" onclick="closeModal()">Annulla</button>
           <button class="act" onclick="saveProduct(${id})">Salva</button>
@@ -236,7 +250,8 @@ function editProduct(id) {
 function closeModal() { $('#modal-root').innerHTML = ''; }
 async function saveProduct(id) {
   try {
-    await api('/products/' + id, 'PUT', { name: $('#ep-name').value, cost: $('#ep-cost').value, price: $('#ep-price').value, threshold: $('#ep-thr').value });
+    await api('/products/' + id, 'PUT', { name: $('#ep-name').value, cost: $('#ep-cost').value, price: $('#ep-price').value,
+      threshold: $('#ep-thr').value, par_level: $('#ep-par').value, vendor_id: $('#ep-vendor').value });
     closeModal(); loadMagazzino();
   } catch (e) { alert(e.message); }
 }
@@ -247,6 +262,85 @@ async function addMovement() {
       source: type === 'carico' ? 'fornitore' : 'manuale' });
     loadMagazzino();
   } catch (e) { alert(e.message); }
+}
+
+/* ===================== ORDINI AI FORNITORI =====================
+   Mostra cosa e' arrivato alla soglia, quanto ordinare per tornare alla
+   scorta ideale, raggruppato per fornitore. Ogni gruppo si puo' copiare
+   come testo o mandare su WhatsApp: niente integrazioni, solo praticita'. */
+async function loadOrdini() {
+  $('#ordini-hello').innerHTML = mascotSays('Ti dico cosa sta finendo e quanto ordinare. Poi lo mandi al fornitore.', 48);
+  const [o, vendors] = await Promise.all([api('/orders/suggested'), api('/vendors')]);
+  window._vendors = vendors;
+  window._ordini = o;
+  $('#or-prodotti').textContent = o.prodotti;
+  $('#or-totale').textContent = eur(o.totale);
+
+  $('#ordini-list').innerHTML = o.gruppi.length ? o.gruppi.map((g, i) => `
+    <div class="card">
+      <h3>${g.vendor} <span class="muted">— ${g.righe.length} prodotti</span></h3>
+      <table><thead><tr><th>Prodotto</th><th class="right">Giacenza</th><th class="right">Ideale</th>
+        <th class="right">Da ordinare</th><th class="right">Costo</th></tr></thead>
+        <tbody>${g.righe.map(r => `<tr><td>${r.name} <span class="muted">${r.format || ''}</span></td>
+          <td class="right" style="color:var(--red)">${r.stock}</td>
+          <td class="right muted">${r.par_level}</td>
+          <td class="right"><b style="color:var(--gold)">${r.qty}</b> ${r.unit}</td>
+          <td class="right">${eur(r.costo)}</td></tr>`).join('')}</tbody></table>
+      <p class="right" style="margin-top:8px;font-weight:700">Totale: ${eur(g.totale)}</p>
+      <div class="toolbar" style="margin-top:8px">
+        <button class="ghost" onclick="copiaOrdine(${i})">📋 Copia testo</button>
+        ${g.phone ? `<button class="act gold" onclick="whatsappOrdine(${i})">💬 WhatsApp</button>` : ''}
+        <button class="ghost" onclick="exportOrdine(${i},'csv')">⬇ CSV</button>
+        <button class="ghost" onclick="exportOrdine(${i},'xlsx')">⬇ Excel</button>
+      </div>
+    </div>`).join('')
+    : `<div class="card">${mascotSays('Non c\'è niente da ordinare: nessun prodotto è arrivato alla soglia. 👍', 48)}</div>`;
+
+  // elenco fornitori
+  const editable = can('magazzino.view');
+  $('#vendor-list').innerHTML = vendors.map(v => `<tr><td>${v.name}</td><td>${v.phone || '—'}</td><td>${v.email || '—'}</td>
+    <td class="right">${editable ? `<button class="iconbtn" onclick="removeVendor(${v.id}, '${v.name.replace(/'/g, "\'")}')" title="Elimina">🗑</button>` : ''}</td></tr>`).join('')
+    || '<tr><td colspan="4" class="muted">Nessun fornitore. Aggiungine uno qui sotto.</td></tr>';
+}
+
+// testo dell'ordine, leggibile e pronto da incollare
+function testoOrdine(i) {
+  const g = (window._ordini && window._ordini.gruppi[i]); if (!g) return '';
+  const data = new Date().toLocaleDateString('it-IT');
+  return `Ordine Barback — ${data}\nFornitore: ${g.vendor}\n\n`
+    + g.righe.map(r => `• ${r.name}${r.format ? ' ' + r.format : ''} — ${r.qty} ${r.unit}`).join('\n')
+    + `\n\nTotale stimato: ${eur(g.totale)}`;
+}
+async function copiaOrdine(i) {
+  const t = testoOrdine(i);
+  try { await navigator.clipboard.writeText(t); alert('Ordine copiato. Ora incollalo dove vuoi.'); }
+  catch { prompt('Copia il testo qui sotto (Ctrl+C):', t); }
+}
+function whatsappOrdine(i) {
+  const g = window._ordini.gruppi[i];
+  const tel = (g.phone || '').replace(/[^0-9]/g, '');
+  if (!tel) return alert('Questo fornitore non ha un numero di telefono.');
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(testoOrdine(i))}`, '_blank');
+}
+function exportOrdine(i, fmt) {
+  const g = window._ordini.gruppi[i];
+  const aoa = [['Prodotto', 'Formato', 'Giacenza', 'Scorta ideale', 'Da ordinare', 'Unità', 'Costo €']];
+  g.righe.forEach(r => aoa.push([r.name, r.format || '', r.stock, r.par_level, r.qty, r.unit, r.costo.toFixed(2)]));
+  aoa.push([], ['', '', '', '', '', 'Totale', g.totale.toFixed(2)]);
+  const nome = 'ordine-' + g.vendor.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  fmt === 'csv' ? downloadCSV(nome + '.csv', aoa) : downloadXLSX(nome + '.xlsx', aoa, 'Ordine');
+}
+async function addVendor() {
+  const name = $('#vd-name').value.trim(); if (!name) return alert('Serve il nome del fornitore');
+  try {
+    await api('/vendors', 'POST', { name, phone: $('#vd-phone').value.trim(), email: $('#vd-email').value.trim() });
+    $('#vd-name').value = ''; $('#vd-phone').value = ''; $('#vd-email').value = '';
+    loadOrdini();
+  } catch (e) { alert(e.message); }
+}
+async function removeVendor(id, name) {
+  if (!confirm(`Eliminare il fornitore "${name}"?\nI prodotti restano, ma senza fornitore assegnato.`)) return;
+  try { await api('/vendors/' + id, 'DELETE'); loadOrdini(); } catch (e) { alert(e.message); }
 }
 
 /* ===================== SEZ.3 — DRINK COST ===================== */
@@ -398,3 +492,13 @@ async function exportStock(fmt) {
     catch { localStorage.removeItem('bb_token'); TOKEN = null; }
   }
 })();
+
+/* ===================== APP INSTALLABILE SUL TELEFONO =====================
+   Registra il service worker: serve perche' Android/iOS propongano
+   "Aggiungi a schermata Home" e l'app si apra a schermo pieno.
+   Funziona solo su HTTPS (o su localhost): altrove non fa niente.        */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {/* niente: l'app funziona comunque */});
+  });
+}

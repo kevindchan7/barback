@@ -12,6 +12,7 @@ Gestionale web per bar e ristoranti: **magazzino bevande** + **turni del persona
 | **Turni & Task** | Griglia turni giorno/settimana/mese, task giornaliere spuntabili, richieste di cambio turno / ferie / permessi con approvazione. Export CSV ed Excel. |
 | **Drink Cost** | Costo reale di ogni cocktail calcolato dalla ricetta in ml risalendo al costo/ml delle bottiglie, con **pour cost %** sul prezzo di vendita. |
 | **Magazzino & Giacenze** | Carico/scarico rapido, report mensile entrato / uscito / netto / consumato / residua, alert sotto soglia, ricerca e export. |
+| **Ordini ai fornitori** | Ogni prodotto ha una soglia e una **scorta ideale**: quando scende, l'app calcola quanto ordinare e raggruppa tutto per fornitore. L'ordine si copia come testo, si manda su **WhatsApp** con un tocco, o si esporta. |
 | **Manuale dipendente** | Regole del locale (HACCP, divisa, alcolici ai maggiorenni…) e ricettario cocktail con ingredienti e preparazione. |
 
 ## Profili e permessi
@@ -37,6 +38,8 @@ npm start
 ```
 
 Poi apri <http://localhost:3100>.
+
+Dal telefono puoi **installarla come app**: apri il link nel browser e scegli "Aggiungi a schermata Home". Si apre a schermo pieno, con la sua icona, senza passare da App Store (serve un indirizzo **https**).
 
 Su Windows, in alternativa, doppio click su **AVVIA.cmd**: usa il Node portatile in `.tools` e non richiede installazioni. Con **AVVIA-E-CONDIVIDI.cmd** genera anche un link temporaneo da mandare a qualcuno per una prova al volo. Istruzioni senza gergo in [ISTRUZIONI.txt](ISTRUZIONI.txt).
 

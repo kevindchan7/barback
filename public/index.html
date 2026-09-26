@@ -7,8 +7,17 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Barback — Magazzino & Turni</title>
+<!-- Installabile sul telefono: icona in home e apertura a schermo pieno -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#0f1512" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Barback" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
 <link rel="stylesheet" href="style.css" />
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
@@ -156,7 +165,28 @@
       <div class="card">
         <h3>Giacenze e consumi <span id="mz-month" class="muted"></span></h3>
         <div class="search"><input id="mz-search" placeholder="🔍 Cerca prodotto..." oninput="renderMz()"></div>
-        <table><thead><tr><th>Prodotto</th><th>Entrato</th><th>Uscito</th><th>Netto</th><th class="right">Consumato</th><th class="right">Residua</th><th></th></tr></thead><tbody id="mz-list"></tbody></table>
+        <table><thead><tr><th>Prodotto</th><th>Entrato</th><th>Uscito</th><th>Netto</th><th class="right">Consumato</th><th class="right">Residua</th><th class="right">Da ordinare</th><th></th></tr></thead><tbody id="mz-list"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ORDINI AI FORNITORI -->
+    <section class="view" id="ordini">
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Ordini ai fornitori</h2></div>
+      <div id="ordini-hello"></div>
+      <div class="kpis">
+        <div class="kpi"><div class="v" id="or-prodotti">0</div><div class="l">Prodotti da ordinare</div></div>
+        <div class="kpi"><div class="v" id="or-totale">€0</div><div class="l">Spesa prevista</div></div>
+      </div>
+      <div id="ordini-list"></div>
+      <div class="card">
+        <h3>Fornitori</h3>
+        <table><thead><tr><th>Nome</th><th>Telefono</th><th>Email</th><th></th></tr></thead><tbody id="vendor-list"></tbody></table>
+        <div class="row c3" style="margin-top:10px;">
+          <div><label>Nuovo fornitore</label><input id="vd-name" placeholder="es. Distribuzione Rossi"></div>
+          <div><label>Telefono</label><input id="vd-phone" placeholder="+39 ..."></div>
+          <div><label>Email</label><input id="vd-email" placeholder="ordini@..."></div>
+        </div>
+        <button class="act" onclick="addVendor()">+ Aggiungi fornitore</button>
       </div>
     </section>
 

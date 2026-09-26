@@ -1,0 +1,16 @@
+{
+  "name": "Barback — Magazzino & Turni",
+  "short_name": "Barback",
+  "description": "Gestionale magazzino bevande e turni personale per bar e ristoranti.",
+  "lang": "it",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1512",
+  "theme_color": "#0f1512",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
