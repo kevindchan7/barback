@@ -750,3 +750,28 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {/* niente: l'app funziona comunque */});
   });
 }
+
+/* ===================== TEMA CHIARO / SCURO =====================
+   Scuro (verde) e chiaro (bianco, nero, arancione). La scelta resta
+   salvata sul dispositivo: chi usa l'app al banco puo' tenere il chiaro
+   di giorno e lo scuro di sera, indipendentemente dagli altri.      */
+function temaCorrente() {
+  try { return localStorage.getItem('bb_theme') === 'light' ? 'light' : 'dark'; }
+  catch { return 'dark'; }
+}
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  // la barra di sistema del telefono segue il tema
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', t === 'light' ? '#ffffff' : '#0f1512');
+  document.querySelectorAll('.themebtn').forEach(b => {
+    b.textContent = t === 'light' ? '☀' : '🌙';
+    b.title = t === 'light' ? 'Passa al tema scuro' : 'Passa al tema chiaro';
+  });
+}
+function toggleTheme() {
+  const nuovo = temaCorrente() === 'light' ? 'dark' : 'light';
+  try { localStorage.setItem('bb_theme', nuovo); } catch {}
+  applyTheme(nuovo);
+}
+applyTheme(temaCorrente());

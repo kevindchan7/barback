@@ -18,6 +18,12 @@
 <meta name="apple-mobile-web-app-title" content="Barback" />
 <link rel="icon" href="icon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" href="icon.svg" />
+<script>
+  /* Applica il tema salvato PRIMA di disegnare, altrimenti si vedrebbe
+     un lampo scuro passando al tema chiaro. */
+  try { document.documentElement.setAttribute("data-theme",
+    localStorage.getItem("bb_theme") === "light" ? "light" : "dark"); } catch (e) {}
+</script>
 <link rel="stylesheet" href="style.css" />
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
@@ -25,6 +31,7 @@
 
 <!-- ============ LOGIN A PIN ============ -->
 <div id="login">
+  <div style="display:flex;justify-content:flex-end"><button class="themebtn" onclick="toggleTheme()" title="Cambia tema">🌙</button></div>
   <div class="login-head" id="login-head"></div>
   <div id="profiles-wrap">
     <p class="muted" style="text-align:center">Scegli il tuo profilo</p>
@@ -45,6 +52,7 @@
     <span id="banner-mascot"></span>
     <div><h1>Barback</h1><div class="sub" id="banner-sub">Magazzino & Turni</div></div>
     <span class="spacer"></span>
+    <button class="themebtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
     <button class="ghost" onclick="logout()">Esci</button>
   </div>
 
