@@ -80,6 +80,31 @@ CREATE TABLE IF NOT EXISTS vendors (
   email TEXT DEFAULT '',
   note TEXT DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS locations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,                  -- es. Banco, Frigo birre, Cantina
+  sort_index INTEGER DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS inv_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  started_at TEXT,
+  ended_at TEXT,                       -- NULL = sessione ancora aperta
+  status TEXT DEFAULT 'aperta',        -- aperta | chiusa
+  parziale INTEGER DEFAULT 0,          -- 1 = inventario solo di alcune postazioni
+  profile_id INTEGER,
+  note TEXT DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS inv_counts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id INTEGER,
+  location_id INTEGER,
+  product_id INTEGER,
+  qty REAL,                            -- puo' essere decimale: 2.4 = due bottiglie e 4/10
+  atteso REAL,                         -- giacenza che il sistema si aspettava, fotografata al conteggio
+  sort_index INTEGER,                  -- ordine in cui e' stato contato (per ripresentarlo uguale)
+  counted_at TEXT,
+  UNIQUE(session_id, location_id, product_id)
+);
 `);
 
 /* ---------- migrazione: aggiunge le colonne nuove ai database già esistenti ----------
@@ -91,6 +116,7 @@ function addColumn(table, column, decl) {
 }
 addColumn('products', 'par_level', 'REAL DEFAULT 0');   // scorta ideale da tenere
 addColumn('products', 'vendor_id', 'INTEGER');          // da chi si compra
+addColumn('products', 'barcode', 'TEXT');              // codice a barre, letto con la fotocamera
 
 /* ---------- helper date per il seed ---------- */
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -191,6 +217,34 @@ function seedIfEmpty() {
 /* ---------- fornitori e scorta ideale ----------
    Gira a ogni avvio ma non sovrascrive niente: riempie solo i campi vuoti,
    così su un database con dati veri aggiunge senza rovinare.                 */
+/* ---------- postazioni e permessi per l'inventario ----------
+   Le postazioni sono i posti del locale dove si conta separatamente.
+   I permessi nuovi vanno aggiunti anche ai profili che esistono gia',
+   altrimenti dopo l'aggiornamento nessuno vedrebbe l'inventario.      */
+function seedInventario() {
+  if (db.prepare('SELECT COUNT(*) c FROM locations').get().c === 0) {
+    const l = db.prepare('INSERT INTO locations (name,sort_index) VALUES (?,?)');
+    ['Banco', 'Frigo birre e bibite', 'Magazzino', 'Cantina'].forEach((n, i) => l.run(n, i));
+  }
+
+  // aggiunge le capacita' nuove ai profili, senza toccare quelle che hanno gia'
+  const nuovi = {
+    'Proprietario':            [],   // ha 'all', non serve aggiungere niente
+    'Admin 1 · Responsabile':  ['inventario.view'],
+    'Admin 2 · Barman':        ['inventario.view', 'inventario.do'],
+    'Admin 3 · Bar Manager':   ['inventario.view', 'inventario.do', 'inventario.close'],
+  };
+  const upd = db.prepare('UPDATE profiles SET permissions=? WHERE id=?');
+  db.prepare('SELECT id,name,permissions FROM profiles').all().forEach(p => {
+    const da = nuovi[p.name]; if (!da || !da.length) return;
+    const ora = JSON.parse(p.permissions || '[]');
+    if (ora.includes('all')) return;
+    const dopo = ora.slice();
+    da.forEach(c => { if (!dopo.includes(c)) dopo.push(c); });
+    if (dopo.length !== ora.length) upd.run(JSON.stringify(dopo), p.id);
+  });
+}
+
 function seedVendorsAndPar() {
   if (db.prepare('SELECT COUNT(*) c FROM vendors').get().c === 0) {
     const v = db.prepare('INSERT INTO vendors (name,phone,email,note) VALUES (?,?,?,?)');
@@ -221,5 +275,6 @@ function seedVendorsAndPar() {
 }
 seedIfEmpty();
 seedVendorsAndPar();
+seedInventario();
 
 module.exports = db;

@@ -171,6 +171,8 @@ api.get('/orders/suggested', need('magazzino.view'), (req, res) => {
 api.post('/movements', (req, res) => {
   const { productId, type, qty, source, note } = req.body;
   // permessi: carico -> carico.do ; vuoto/scarico -> vuoti.do
+  // solo questi tre tipi a mano: 'rettifica' la crea solo la chiusura dell'inventario
+  if (!['carico', 'scarico', 'vuoto'].includes(type)) return bad(res, 400, 'Tipo di movimento non valido');
   const needed = type === 'carico' ? 'carico.do' : 'vuoti.do';
   if (!can(req, needed)) return bad(res, 403, 'Permesso negato (' + needed + ')');
   const p = product(productId);
@@ -237,6 +239,245 @@ api.get('/reports/monthly', need('magazzino.view'), (req, res) => {
     sottoSoglia: db.prepare("SELECT COUNT(*) c FROM products WHERE category='Bottiglia' AND stock<=threshold").get().c });
 });
 
+/* ---------------- POSTAZIONI ----------------
+   I posti del locale dove si conta separatamente: banco, frigo, cantina.  */
+api.get('/locations', (req, res) =>
+  ok(res, db.prepare('SELECT * FROM locations ORDER BY sort_index, name').all()));
+api.post('/locations', need('magazzino.view'), (req, res) => {
+  const { name } = req.body;
+  if (!name) return bad(res, 400, 'Serve il nome della postazione');
+  const max = db.prepare('SELECT COALESCE(MAX(sort_index),-1) m FROM locations').get().m;
+  const r = db.prepare('INSERT INTO locations (name,sort_index) VALUES (?,?)').run(name, max + 1);
+  ok(res, { id: r.lastInsertRowid });
+});
+api.delete('/locations/:id', need('magazzino.view'), (req, res) => {
+  if (db.prepare('SELECT COUNT(*) c FROM inv_counts WHERE location_id=?').get(req.params.id).c)
+    return bad(res, 409, 'Postazione usata in un inventario: non si puo\' eliminare');
+  db.prepare('DELETE FROM locations WHERE id=?').run(req.params.id);
+  ok(res, { ok: true });
+});
+
+/* ---------------- INVENTARIO: SESSIONE DI CONTEGGIO ----------------
+   Un inventario e' una sessione: si apre, si gira postazione per postazione,
+   si rivede e solo alla fine si chiude applicando le rettifiche.
+   Finche' e' aperta si puo' interrompere e riprendere.                    */
+
+// la sessione aperta, se c'e' (ce n'e' al massimo una alla volta)
+function sessioneAperta() {
+  return db.prepare("SELECT * FROM inv_sessions WHERE status='aperta' ORDER BY id DESC").get() || null;
+}
+api.get('/inventory/open', need('inventario.view'), (req, res) => {
+  const s = sessioneAperta();
+  if (!s) return ok(res, { sessione: null });
+  const fatte = db.prepare(`SELECT location_id, COUNT(*) n FROM inv_counts
+    WHERE session_id=? GROUP BY location_id`).all(s.id);
+  ok(res, { sessione: s, perPostazione: fatte,
+    contati: db.prepare('SELECT COUNT(DISTINCT product_id) c FROM inv_counts WHERE session_id=?').get(s.id).c });
+});
+
+api.post('/inventory/start', need('inventario.do'), (req, res) => {
+  const aperta = sessioneAperta();
+  if (aperta) return ok(res, { id: aperta.id, ripresa: true });   // non se ne aprono due
+  const r = db.prepare(`INSERT INTO inv_sessions (started_at,status,profile_id,note)
+    VALUES (?, 'aperta', ?, ?)`).run(now(), req.user.id, req.body.note || '');
+  ok(res, { id: r.lastInsertRowid, ripresa: false });
+});
+
+/* lista prodotti da contare in una postazione.
+   Ordine: 'ultimo' ripresenta la sequenza dell'ultimo inventario chiuso in
+   quella postazione (si cammina lungo gli scaffali), altrimenti alfabetico. */
+api.get('/inventory/:id/items', need('inventario.view'), (req, res) => {
+  const sid = +req.params.id, lid = +req.query.location_id;
+  if (!lid) return bad(res, 400, 'Serve la postazione');
+  const ordine = req.query.sort === 'ultimo' ? 'ultimo' : 'nome';
+  const prods = db.prepare(`SELECT p.id, p.name, p.format, p.unit, p.stock, p.barcode,
+      p.volume_ml, COALESCE(v.name,'') vendor
+    FROM products p LEFT JOIN vendors v ON v.id=p.vendor_id
+    WHERE p.category='Bottiglia' ORDER BY p.name`).all();
+
+  // conteggi gia' inseriti in questa sessione/postazione
+  const gia = {};
+  db.prepare('SELECT product_id, qty FROM inv_counts WHERE session_id=? AND location_id=?')
+    .all(sid, lid).forEach(r => gia[r.product_id] = r.qty);
+
+  // ordine dell'ultimo inventario chiuso nella stessa postazione
+  const memoria = {};
+  const ultima = db.prepare(`SELECT s.id FROM inv_sessions s JOIN inv_counts c ON c.session_id=s.id
+    WHERE s.status='chiusa' AND c.location_id=? ORDER BY s.id DESC LIMIT 1`).get(lid);
+  if (ultima) db.prepare('SELECT product_id, sort_index FROM inv_counts WHERE session_id=? AND location_id=?')
+    .all(ultima.id, lid).forEach(r => memoria[r.product_id] = r.sort_index);
+
+  prods.forEach(p => {
+    p.contato = (p.id in gia) ? gia[p.id] : null;
+    p.ordineMemoria = (p.id in memoria) ? memoria[p.id] : 9999;
+  });
+  if (ordine === 'ultimo') prods.sort((a, b) => a.ordineMemoria - b.ordineMemoria || a.name.localeCompare(b.name));
+  ok(res, { sort: ordine, haMemoria: !!ultima, rows: prods });
+});
+
+// registra (o corregge) il conteggio di un prodotto in una postazione
+api.post('/inventory/:id/count', need('inventario.do'), (req, res) => {
+  const sid = +req.params.id;
+  const s = db.prepare("SELECT * FROM inv_sessions WHERE id=? AND status='aperta'").get(sid);
+  if (!s) return bad(res, 409, 'Sessione non aperta');
+  const { location_id, product_id, qty } = req.body;
+  const p = product(product_id);
+  if (!p) return bad(res, 404, 'Prodotto non trovato');
+  const n = Math.max(0, Number(qty) || 0);
+
+  // "atteso" = giacenza che il sistema si aspettava, fotografata al primo
+  // conteggio di questo prodotto nella sessione (le postazioni si sommano)
+  const esistente = db.prepare('SELECT atteso FROM inv_counts WHERE session_id=? AND product_id=? LIMIT 1').get(sid, product_id);
+  const atteso = esistente ? esistente.atteso : p.stock;
+  const max = db.prepare('SELECT COALESCE(MAX(sort_index),-1) m FROM inv_counts WHERE session_id=? AND location_id=?').get(sid, location_id).m;
+  const precedente = db.prepare('SELECT id, sort_index FROM inv_counts WHERE session_id=? AND location_id=? AND product_id=?').get(sid, location_id, product_id);
+
+  if (precedente) {
+    db.prepare('UPDATE inv_counts SET qty=?, counted_at=? WHERE id=?').run(n, now(), precedente.id);
+  } else {
+    db.prepare(`INSERT INTO inv_counts (session_id,location_id,product_id,qty,atteso,sort_index,counted_at)
+      VALUES (?,?,?,?,?,?,?)`).run(sid, location_id, product_id, n, atteso, max + 1, now());
+  }
+  ok(res, { ok: true, atteso });
+});
+
+api.delete('/inventory/:id/count', need('inventario.do'), (req, res) => {
+  db.prepare('DELETE FROM inv_counts WHERE session_id=? AND location_id=? AND product_id=?')
+    .run(req.params.id, req.body.location_id, req.body.product_id);
+  ok(res, { ok: true });
+});
+
+/* revisione: cosa hai contato, cosa si aspettava il sistema, e la differenza.
+   Qui nasce il punto 3 (scostamento): la differenza fra atteso e contato e'
+   consumo non registrato — spreco, bicchieri pesanti, ammanchi, errori.    */
+api.get('/inventory/:id/review', need('inventario.view'), (req, res) => {
+  const sid = +req.params.id;
+  const s = db.prepare('SELECT * FROM inv_sessions WHERE id=?').get(sid);
+  if (!s) return bad(res, 404, 'Sessione non trovata');
+
+  const contati = db.prepare(`SELECT c.product_id, p.name, p.unit, p.format, p.cost, p.price,
+      SUM(c.qty) contato, MAX(c.atteso) atteso,
+      GROUP_CONCAT(l.name, ' + ') postazioni
+    FROM inv_counts c JOIN products p ON p.id=c.product_id
+    LEFT JOIN locations l ON l.id=c.location_id
+    WHERE c.session_id=? GROUP BY c.product_id ORDER BY p.name`).all(sid);
+
+  contati.forEach(r => {
+    r.differenza = +(r.contato - r.atteso).toFixed(2);
+    r.valore = +(r.differenza * r.cost).toFixed(2);     // quanto vale lo scostamento
+    r.segnala = r.differenza !== 0;
+  });
+
+  // prodotti che non sono stati contati affatto: in revisione vanno in rosso
+  const nonContati = db.prepare(`SELECT p.id, p.name, p.unit, p.stock FROM products p
+    WHERE p.category='Bottiglia' AND p.id NOT IN (SELECT product_id FROM inv_counts WHERE session_id=?)
+    ORDER BY p.name`).all(sid);
+
+  const mancanti = contati.filter(r => r.differenza < 0);
+  const eccedenze = contati.filter(r => r.differenza > 0);
+  ok(res, { sessione: s, rows: contati, nonContati,
+    riepilogo: {
+      contati: contati.length,
+      nonContati: nonContati.length,
+      conScostamento: contati.filter(r => r.segnala).length,
+      valoreMancante: +mancanti.reduce((t, r) => t + r.valore, 0).toFixed(2),
+      valoreEccedenza: +eccedenze.reduce((t, r) => t + r.valore, 0).toFixed(2),
+      valoreNetto: +contati.reduce((t, r) => t + r.valore, 0).toFixed(2),
+    } });
+});
+
+/* chiusura: allinea le giacenze a quanto hai contato e registra le rettifiche.
+   I prodotti non contati si possono lasciare come stanno ('tieni') o azzerare.
+   Le rettifiche sono movimenti di tipo 'rettifica': NON entrano nei consumi
+   del report mensile, altrimenti falserebbero il venduto.                  */
+api.post('/inventory/:id/close', need('inventario.close'), (req, res) => {
+  const sid = +req.params.id;
+  const s = db.prepare("SELECT * FROM inv_sessions WHERE id=? AND status='aperta'").get(sid);
+  if (!s) return bad(res, 409, 'Sessione non aperta');
+  const nonContati = req.body.nonContati === 'azzera' ? 'azzera' : 'tieni';
+
+  const righe = db.prepare(`SELECT c.product_id, SUM(c.qty) contato, MAX(c.atteso) atteso
+    FROM inv_counts c WHERE c.session_id=? GROUP BY c.product_id`).all(sid);
+
+  const mv = db.prepare(`INSERT INTO movements (product_id,type,qty,unit_price,total,source,note,profile_id,created_at)
+    VALUES (?,'rettifica',?,?,?,'inventario',?,?,?)`);
+  const setStock = db.prepare('UPDATE products SET stock=? WHERE id=?');
+  let rettifiche = 0;
+
+  righe.forEach(r => {
+    const diff = +(r.contato - r.atteso).toFixed(2);
+    setStock.run(r.contato, r.product_id);
+    if (diff !== 0) {
+      const p = product(r.product_id);
+      mv.run(r.product_id, Math.abs(diff), p.cost, Math.abs(diff) * p.cost,
+        `Inventario #${sid}: atteso ${r.atteso}, contato ${r.contato}`, req.user.id, now());
+      rettifiche++;
+    }
+  });
+
+  if (nonContati === 'azzera') {
+    const zero = db.prepare(`SELECT id, stock FROM products WHERE category='Bottiglia'
+      AND id NOT IN (SELECT product_id FROM inv_counts WHERE session_id=?)`).all(sid);
+    zero.forEach(p => {
+      if (p.stock !== 0) {
+        const pr = product(p.id);
+        mv.run(p.id, p.stock, pr.cost, p.stock * pr.cost, `Inventario #${sid}: non contato, azzerato`, req.user.id, now());
+        rettifiche++;
+      }
+      setStock.run(0, p.id);
+    });
+  }
+
+  db.prepare("UPDATE inv_sessions SET status='chiusa', ended_at=?, parziale=?, note=? WHERE id=?")
+    .run(req.body.data || now(), nonContati === 'tieni' ? 1 : 0, req.body.note || s.note, sid);
+  ok(res, { ok: true, prodotti: righe.length, rettifiche });
+});
+
+api.delete('/inventory/:id', need('inventario.close'), (req, res) => {
+  const s = db.prepare("SELECT * FROM inv_sessions WHERE id=? AND status='aperta'").get(req.params.id);
+  if (!s) return bad(res, 409, 'Si possono annullare solo le sessioni aperte');
+  db.prepare('DELETE FROM inv_counts WHERE session_id=?').run(req.params.id);
+  db.prepare('DELETE FROM inv_sessions WHERE id=?').run(req.params.id);
+  ok(res, { ok: true });
+});
+
+/* ---------------- STORICO INVENTARI (punto 6) ----------------
+   Ogni conteggio chiuso resta qui, con il suo scostamento in valore, per
+   confrontare nel tempo. Nessun limite di mesi.                            */
+api.get('/inventory/history', need('inventario.view'), (req, res) => {
+  const rows = db.prepare(`SELECT s.*, pr.name AS operatore,
+      (SELECT COUNT(DISTINCT product_id) FROM inv_counts WHERE session_id=s.id) prodotti
+    FROM inv_sessions s LEFT JOIN profiles pr ON pr.id=s.profile_id
+    WHERE s.status='chiusa' ORDER BY s.id DESC LIMIT 60`).all();
+  rows.forEach(s => {
+    // le postazioni si sommano PRIMA del confronto: un prodotto contato in due
+    // posti ha un solo "atteso", altrimenti lo sottrarremmo due volte
+    const v = db.prepare(`SELECT COALESCE(SUM(d.diff * d.cost),0) v,
+        COALESCE(SUM(CASE WHEN d.diff <> 0 THEN 1 ELSE 0 END),0) n
+      FROM (SELECT c.product_id, (SUM(c.qty) - MAX(c.atteso)) diff, MAX(p.cost) cost
+            FROM inv_counts c JOIN products p ON p.id=c.product_id
+            WHERE c.session_id=? GROUP BY c.product_id) d`).get(s.id);
+    s.valoreScostamento = +v.v.toFixed(2);
+    s.conScostamento = v.n;
+  });
+  ok(res, rows);
+});
+
+/* ---------------- CODICE A BARRE (punto 1) ----------------
+   La prima volta si associa il codice al prodotto, poi viene riconosciuto. */
+api.get('/products/barcode/:code', need('inventario.view'), (req, res) => {
+  const p = db.prepare("SELECT * FROM products WHERE barcode=? AND barcode<>''").get(req.params.code);
+  if (!p) return bad(res, 404, 'Codice non associato a nessun prodotto');
+  ok(res, p);
+});
+api.put('/products/:id/barcode', need('inventario.do'), (req, res) => {
+  const code = String(req.body.barcode || '').trim();
+  if (!code) return bad(res, 400, 'Codice vuoto');
+  const altro = db.prepare('SELECT id,name FROM products WHERE barcode=? AND id<>?').get(code, req.params.id);
+  if (altro) return bad(res, 409, 'Codice già associato a: ' + altro.name);
+  db.prepare('UPDATE products SET barcode=? WHERE id=?').run(code, req.params.id);
+  ok(res, { ok: true });
+});
 /* ---------------- SEZ.3 — DRINK COST (solo bar manager/proprietario) ---------------- */
 api.get('/drinkcost', need('drinkcost.view'), (req, res) => {
   const drinks = db.prepare("SELECT * FROM products WHERE category='Cocktail' ORDER BY name").all();

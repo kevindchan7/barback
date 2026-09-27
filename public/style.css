@@ -154,3 +154,40 @@ button.act{box-shadow:0 4px 14px rgba(62,207,142,.25);}
 .iconbtn{background:transparent; border:1px solid var(--line); color:var(--txt); border-radius:8px;
   padding:5px 9px; font-size:13px; cursor:pointer;}
 .iconbtn:hover{border-color:var(--green);}
+
+/* ===== Inventario: righe di conteggio ===== */
+.inv-row{background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  padding:10px 12px; margin-bottom:8px;}
+.inv-row.done{border-color:var(--green);}
+.inv-row .top{display:flex; align-items:baseline; gap:8px;}
+.inv-row .nm{font-weight:700; font-size:14px;}
+.inv-row .fm{font-size:11px; color:var(--muted);}
+.inv-row .att{margin-left:auto; font-size:11px; color:var(--muted); white-space:nowrap;}
+.inv-row .tot{font-size:13px; font-weight:800; color:var(--green); white-space:nowrap;}
+
+/* comandi quantita': meno / numero / piu' */
+.qty-ctl{display:flex; align-items:center; gap:8px; margin-top:8px;}
+.qty-ctl button{width:38px; height:38px; font-size:20px; font-weight:700; flex:0 0 auto;
+  background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:10px; cursor:pointer;}
+.qty-ctl button:active{border-color:var(--green);}
+.qty-ctl input{width:70px; text-align:center; font-size:16px; font-weight:700;}
+.qty-ctl .u{font-size:11px; color:var(--muted);}
+
+/* cursore della bottiglia aperta: stima i decimi senza bilancia */
+.partial{margin-top:8px; display:flex; align-items:center; gap:10px;}
+.partial input[type=range]{flex:1; accent-color:var(--gold); height:26px;}
+.partial .lab{font-size:11px; color:var(--muted); white-space:nowrap; min-width:104px;}
+.partial .val{font-weight:800; color:var(--gold); min-width:34px; text-align:right;}
+
+/* differenze in revisione */
+.diff-neg{color:var(--red); font-weight:800;}
+.diff-pos{color:var(--yellow); font-weight:800;}
+.diff-ok{color:var(--muted);}
+.missing-chip{display:inline-block; background:rgba(255,107,107,.14); border:1px solid var(--red);
+  color:var(--red); border-radius:999px; padding:3px 9px; font-size:11px; margin:0 5px 5px 0;}
+
+/* con 8 sezioni la barra in basso non ci sta piu' su un telefono:
+   la rendiamo scorrevole in orizzontale invece di schiacciare le voci */
+.bottomnav{overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;}
+.bottomnav::-webkit-scrollbar{display:none;}
+.bottomnav button{flex:0 0 auto; min-width:64px;}

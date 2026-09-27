@@ -71,6 +71,7 @@ function buildBottomNav() {
     ['vuoti', '🍾', 'Vuoti', can('vuoti.view')],
     ['turni', '📅', 'Turni', can('turni.view') || can('task.view')],
     ['magazzino', '📦', 'Magazz.', can('magazzino.view')],
+    ['inventario', '📋', 'Invent.', can('inventario.view')],
     ['ordini', '🛒', 'Ordini', can('magazzino.view')],
     ['drink', '🍸', 'Drink', can('drinkcost.view')],
     ['manuale', '📖', 'Manuale', can('manuale.view')],
@@ -134,6 +135,7 @@ async function loadHome() {
     ['turni', '📅', 'Turni & Task', 'Personale e obiettivi', can('turni.view') || can('task.view')],
     ['drink', '🍸', 'Drink Cost', 'Costo in tempo reale', can('drinkcost.view')],
     ['magazzino', '📦', 'Magazzino', 'Giacenze e consumi', can('magazzino.view')],
+    ['inventario', '📋', 'Inventario', 'Conta e verifica le giacenze', can('inventario.view')],
     ['ordini', '🛒', 'Ordini', 'Cosa ordinare e da chi', can('magazzino.view')],
     ['manuale', '📖', 'Manuale dipendente', 'Regole e ricettario', can('manuale.view')],
   ];
@@ -150,7 +152,7 @@ function go(view, silent) {
   if (pollTimer) clearInterval(pollTimer);
   if (silent) return;
   const loaders = { home: loadHome, vuoti: loadVuoti, turni: loadTurni, drink: loadDrink,
-    magazzino: loadMagazzino, ordini: loadOrdini, manuale: loadManuale };
+    magazzino: loadMagazzino, inventario: loadInventario, ordini: loadOrdini, manuale: loadManuale };
   if (loaders[view]) {
     loaders[view]();
     if (['vuoti', 'magazzino', 'turni'].includes(view)) pollTimer = setInterval(loaders[view], 20000);
@@ -264,6 +266,274 @@ async function addMovement() {
   } catch (e) { alert(e.message); }
 }
 
+/* ===================== INVENTARIO =====================
+   Conteggio guidato: si apre una sessione, si gira postazione per
+   postazione, si rivede e si chiude. Il cursore stima la bottiglia
+   aperta ai decimi, cosi' non serve la bilancia.                     */
+let invSess = null, invMode = 'cursore', invItems = [], invLocName = '';
+
+async function loadInventario() {
+  $('#inv-hello').innerHTML = mascotSays('Conta una postazione alla volta. Puoi fermarti e riprendere: non perdi niente.', 48);
+  show('#inv-loc-card', can('magazzino.view'));
+  await Promise.all([loadLocations(), loadInvHistory()]);
+  const r = await api('/inventory/open');
+  invSess = r.sessione;
+  if (invSess) { await invEnterCount(); } else { invShow('start'); }
+}
+
+// mostra uno dei tre stati: start | run | review
+function invShow(stato) {
+  show('#inv-start', stato === 'start');
+  show('#inv-run', stato === 'run');
+  show('#inv-review', stato === 'review');
+}
+
+async function invStart() {
+  try {
+    const r = await api('/inventory/start', 'POST', {});
+    invSess = { id: r.id };
+    await invEnterCount();
+  } catch (e) { alert(e.message); }
+}
+
+async function invEnterCount() {
+  $('#inv-num').textContent = '#' + invSess.id;
+  const locs = await api('/locations');
+  if (!locs.length) { alert('Aggiungi almeno una postazione prima di contare.'); return invShow('start'); }
+  const sel = $('#inv-loc');
+  if (sel.options.length !== locs.length) sel.innerHTML = locs.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+  invShow('run');
+  await invLoadItems();
+}
+
+async function invLoadItems() {
+  const lid = +$('#inv-loc').value, sort = $('#inv-sort').value;
+  invLocName = $('#inv-loc').selectedOptions[0] ? $('#inv-loc').selectedOptions[0].textContent : '';
+  const r = await api(`/inventory/${invSess.id}/items?location_id=${lid}&sort=${sort}`);
+  if (sort === 'ultimo' && !r.haMemoria) $('#inv-sort').value = 'nome';
+  invItems = r.rows.map(p => {
+    const c = p.contato;
+    return { ...p,
+      whole: c === null ? null : Math.floor(c),
+      partial: c === null ? 0 : Math.round((c - Math.floor(c)) * 10) / 10 };
+  });
+  invRenderItems();
+}
+
+function invRenderItems() {
+  const q = (($('#inv-search') && $('#inv-search').value) || '').toLowerCase();
+  const vis = invItems.filter(p => p.name.toLowerCase().includes(q) || (p.format || '').toLowerCase().includes(q));
+  const fatti = invItems.filter(p => p.whole !== null).length;
+  $('#inv-progress').textContent = `${fatti} / ${invItems.length} contati`;
+  $('#inv-mode').textContent = invMode === 'cursore' ? '🎚 Cursore' : '⌨ Tastierino';
+
+  $('#inv-items').innerHTML = vis.map(p => {
+    const tot = p.whole === null ? null : +(p.whole + p.partial).toFixed(1);
+    return `<div class="inv-row ${p.whole !== null ? 'done' : ''}" id="ir-${p.id}">
+      <div class="top">
+        <span class="nm">${p.name}</span><span class="fm">${p.format || ''}</span>
+        <span class="att">in memoria: ${p.stock}</span>
+      </div>
+      <div class="qty-ctl">
+        <button onclick="invStep(${p.id},-1)">−</button>
+        <input type="number" inputmode="decimal" step="0.1" min="0" value="${tot === null ? '' : tot}"
+               placeholder="—" onchange="invTyped(${p.id}, this.value)">
+        <button onclick="invStep(${p.id},1)">+</button>
+        <span class="u">${p.unit}</span>
+        <span class="spacer" style="flex:1"></span>
+        ${tot !== null ? `<span class="tot">${tot}</span>` : ''}
+      </div>
+      ${invMode === 'cursore' ? `<div class="partial">
+        <span class="lab">bottiglia aperta</span>
+        <input type="range" min="0" max="0.9" step="0.1" value="${p.partial}" oninput="invPartial(${p.id}, this.value)">
+        <span class="val">${Math.round(p.partial * 10)}/10</span>
+      </div>` : ''}
+    </div>`;
+  }).join('') || '<div class="card"><p class="muted">Nessun prodotto trovato.</p></div>';
+}
+
+function invToggleMode() { invMode = invMode === 'cursore' ? 'tastierino' : 'cursore'; invRenderItems(); }
+
+// +1 / −1 bottiglia intera
+function invStep(id, d) {
+  const p = invItems.find(x => x.id === id); if (!p) return;
+  p.whole = Math.max(0, (p.whole === null ? 0 : p.whole) + d);
+  invSave(p); invRenderItems();
+}
+// cursore: decimi della bottiglia aperta
+function invPartial(id, v) {
+  const p = invItems.find(x => x.id === id); if (!p) return;
+  p.partial = Number(v) || 0;
+  if (p.whole === null) p.whole = 0;
+  invSave(p); invRenderItems();
+}
+// numero digitato a mano
+function invTyped(id, v) {
+  const p = invItems.find(x => x.id === id); if (!p) return;
+  if (v === '') { invClear(p); return; }
+  const n = Math.max(0, Number(v) || 0);
+  p.whole = Math.floor(n); p.partial = Math.round((n - p.whole) * 10) / 10;
+  invSave(p); invRenderItems();
+}
+
+let invTimers = {};
+function invSave(p) {
+  clearTimeout(invTimers[p.id]);
+  invTimers[p.id] = setTimeout(async () => {
+    try { await api(`/inventory/${invSess.id}/count`, 'POST',
+      { location_id: +$('#inv-loc').value, product_id: p.id, qty: +(p.whole + p.partial).toFixed(1) }); }
+    catch (e) { alert(e.message); }
+  }, 350);
+}
+async function invClear(p) {
+  p.whole = null; p.partial = 0; invRenderItems();
+  try { await api(`/inventory/${invSess.id}/count`, 'DELETE',
+    { location_id: +$('#inv-loc').value, product_id: p.id }); } catch {}
+}
+
+async function invCancel() {
+  if (!confirm('Annullare l\'inventario in corso?\nTutti i conteggi di questa sessione vanno persi.')) return;
+  try { await api('/inventory/' + invSess.id, 'DELETE'); invSess = null; loadInventario(); }
+  catch (e) { alert(e.message); }
+}
+
+/* --- revisione: cosa non torna, prima di applicare --- */
+async function invReview() {
+  const r = await api(`/inventory/${invSess.id}/review`);
+  window._review = r;
+  $('#rv-contati').textContent = r.riepilogo.contati;
+  $('#rv-noncontati').textContent = r.riepilogo.nonContati;
+  $('#rv-scost').textContent = r.riepilogo.conScostamento;
+
+  $('#rv-list').innerHTML = r.rows.map(x => {
+    const cls = x.differenza < 0 ? 'diff-neg' : x.differenza > 0 ? 'diff-pos' : 'diff-ok';
+    const seg = x.differenza > 0 ? '+' : '';
+    return `<tr><td>${x.name}<div class="muted" style="font-size:11px">${x.postazioni || ''}</div></td>
+      <td class="right muted">${x.atteso}</td><td class="right">${x.contato}</td>
+      <td class="right ${cls}">${seg}${x.differenza}</td></tr>`;
+  }).join('') || '<tr><td colspan="4" class="muted">Non hai contato niente.</td></tr>';
+
+  show('#rv-missing-card', r.nonContati.length > 0);
+  $('#rv-missing').innerHTML = r.nonContati.map(p => `<span class="missing-chip">${p.name}</span>`).join('');
+  show('#rv-close', can('inventario.close'));
+  invShow('review');
+  window.scrollTo(0, 0);
+}
+function invBackToCount() { invShow('run'); invLoadItems(); }
+
+async function invClose() {
+  const nc = $('#rv-uncounted') ? $('#rv-uncounted').value : 'tieni';
+  const r = window._review;
+  let msg = `Chiudere l'inventario?\n\nLe giacenze di ${r.riepilogo.contati} prodotti verranno allineate a quanto hai contato.`;
+  if (r.riepilogo.conScostamento) msg += `\n${r.riepilogo.conScostamento} prodotti non tornano: verrà registrata una rettifica.`;
+  if (r.nonContati.length) msg += `\n${r.nonContati.length} non contati: ${nc === 'azzera' ? 'verranno AZZERATI' : 'resteranno come sono'}.`;
+  if (!confirm(msg)) return;
+  try {
+    const out = await api(`/inventory/${invSess.id}/close`, 'POST', { nonContati: nc });
+    alert(`Inventario chiuso.\n${out.prodotti} prodotti allineati, ${out.rettifiche} rettifiche registrate.`);
+    invSess = null; loadInventario();
+  } catch (e) { alert(e.message); }
+}
+
+/* --- storico: ogni conteggio resta, senza limiti di mesi --- */
+async function loadInvHistory() {
+  const h = await api('/inventory/history');
+  const fmt = (s) => s ? new Date(s).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  $('#inv-history').innerHTML = h.map(s => `<tr>
+      <td>${fmt(s.ended_at)}${s.parziale ? '<div class="muted" style="font-size:11px">parziale</div>' : ''}</td>
+      <td>${s.operatore || '—'}</td><td class="right">${s.prodotti}</td>
+      <td class="right ${s.conScostamento ? 'diff-pos' : 'diff-ok'}">${s.conScostamento}</td></tr>`).join('')
+    || '<tr><td colspan="4" class="muted">Nessun inventario ancora. Il primo che chiudi finisce qui.</td></tr>';
+}
+
+/* --- postazioni --- */
+async function loadLocations() {
+  const locs = await api('/locations');
+  const editable = can('magazzino.view');
+  $('#loc-list').innerHTML = locs.map(l => `<tr><td>${l.name}</td>
+    <td class="right">${editable ? `<button class="iconbtn" onclick="removeLocation(${l.id}, '${l.name.replace(/'/g, "\\'")}')" title="Elimina">🗑</button>` : ''}</td></tr>`).join('')
+    || '<tr><td colspan="2" class="muted">Nessuna postazione.</td></tr>';
+}
+async function addLocation() {
+  const name = $('#loc-name').value.trim(); if (!name) return;
+  try { await api('/locations', 'POST', { name }); $('#loc-name').value = ''; loadLocations(); }
+  catch (e) { alert(e.message); }
+}
+async function removeLocation(id, name) {
+  if (!confirm(`Eliminare la postazione "${name}"?`)) return;
+  try { await api('/locations/' + id, 'DELETE'); loadLocations(); } catch (e) { alert(e.message); }
+}
+
+/* --- codice a barre: inquadri, e il prodotto salta su ---
+   Usa il lettore integrato del browser (BarcodeDetector). Se il telefono
+   non ce l'ha, si continua a mano: nessuna libreria esterna da caricare. */
+let bcStream = null, bcLoop = null;
+async function invScan() {
+  if (!('BarcodeDetector' in window)) return alert('Questo browser non sa leggere i codici a barre.\nSu Android usa Chrome; su iPhone conta a mano.');
+  let det;
+  try { det = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] }); }
+  catch { return alert('Lettore codici non disponibile su questo telefono.'); }
+
+  $('#modal-root').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)bcStop()">
+      <div class="modal">
+        <h3>Inquadra il codice a barre</h3>
+        <video id="bc-video" playsinline muted style="width:100%;border-radius:12px;background:#000;aspect-ratio:4/3;object-fit:cover"></video>
+        <p class="muted" id="bc-msg" style="font-size:12px;margin-top:8px">Avvicina la bottiglia…</p>
+        <div class="onb-actions"><button class="ghost" onclick="bcStop()">Chiudi</button></div>
+      </div>
+    </div>`;
+  try {
+    bcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  } catch { $('#bc-msg').textContent = 'Fotocamera negata. Consenti l accesso e riprova.'; return; }
+  const v = $('#bc-video'); v.srcObject = bcStream; await v.play();
+
+  bcLoop = setInterval(async () => {
+    let codici = [];
+    try { codici = await det.detect(v); } catch { return; }
+    if (!codici.length) return;
+    const code = codici[0].rawValue;
+    clearInterval(bcLoop); bcLoop = null;
+    try {
+      const p = await api('/products/barcode/' + encodeURIComponent(code));
+      bcStop(); invStep(p.id, 1);
+      const row = $('#ir-' + p.id); if (row) row.scrollIntoView({ block: 'center' });
+      $('#inv-progress').textContent = '+1 ' + p.name;
+    } catch {
+      bcStop(); invAssociate(code);
+    }
+  }, 400);
+}
+function bcStop() {
+  if (bcLoop) { clearInterval(bcLoop); bcLoop = null; }
+  if (bcStream) { bcStream.getTracks().forEach(t => t.stop()); bcStream = null; }
+  closeModal();
+}
+// codice sconosciuto: lo si lega a un prodotto, cosi' la volta dopo e' automatico
+function invAssociate(code) {
+  $('#modal-root').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <h3>Codice nuovo</h3>
+        <p class="muted" style="font-size:12px">Il codice <b>${code}</b> non è ancora legato a nessun prodotto. Scegli quale è, e da domani lo riconosco da solo.</p>
+        <div class="row" style="margin-top:10px"><div><label>Prodotto</label><select id="bc-prod">
+          ${invItems.map(p => `<option value="${p.id}">${p.name} ${p.format || ''}</option>`).join('')}
+        </select></div></div>
+        <div class="onb-actions">
+          <button class="ghost" onclick="closeModal()">Annulla</button>
+          <button class="act" onclick="bcLink('${code}')">Collega</button>
+        </div>
+      </div>
+    </div>`;
+}
+async function bcLink(code) {
+  const id = +$('#bc-prod').value;
+  try {
+    await api(`/products/${id}/barcode`, 'PUT', { barcode: code });
+    closeModal(); const p = invItems.find(x => x.id === id);
+    if (p) { p.barcode = code; invStep(id, 1); }
+  } catch (e) { alert(e.message); }
+}
 /* ===================== ORDINI AI FORNITORI =====================
    Mostra cosa e' arrivato alla soglia, quanto ordinare per tornare alla
    scorta ideale, raggruppato per fornitore. Ogni gruppo si puo' copiare
@@ -274,19 +544,18 @@ async function loadOrdini() {
   window._vendors = vendors;
   window._ordini = o;
   $('#or-prodotti').textContent = o.prodotti;
-  $('#or-totale').textContent = eur(o.totale);
+  
 
   $('#ordini-list').innerHTML = o.gruppi.length ? o.gruppi.map((g, i) => `
     <div class="card">
       <h3>${g.vendor} <span class="muted">— ${g.righe.length} prodotti</span></h3>
       <table><thead><tr><th>Prodotto</th><th class="right">Giacenza</th><th class="right">Ideale</th>
-        <th class="right">Da ordinare</th><th class="right">Costo</th></tr></thead>
+        <th class="right">Da ordinare</th></tr></thead>
         <tbody>${g.righe.map(r => `<tr><td>${r.name} <span class="muted">${r.format || ''}</span></td>
           <td class="right" style="color:var(--red)">${r.stock}</td>
           <td class="right muted">${r.par_level}</td>
           <td class="right"><b style="color:var(--gold)">${r.qty}</b> ${r.unit}</td>
-          <td class="right">${eur(r.costo)}</td></tr>`).join('')}</tbody></table>
-      <p class="right" style="margin-top:8px;font-weight:700">Totale: ${eur(g.totale)}</p>
+          </tr>`).join('')}</tbody></table>
       <div class="toolbar" style="margin-top:8px">
         <button class="ghost" onclick="copiaOrdine(${i})">📋 Copia testo</button>
         ${g.phone ? `<button class="act gold" onclick="whatsappOrdine(${i})">💬 WhatsApp</button>` : ''}
@@ -308,8 +577,7 @@ function testoOrdine(i) {
   const g = (window._ordini && window._ordini.gruppi[i]); if (!g) return '';
   const data = new Date().toLocaleDateString('it-IT');
   return `Ordine Barback — ${data}\nFornitore: ${g.vendor}\n\n`
-    + g.righe.map(r => `• ${r.name}${r.format ? ' ' + r.format : ''} — ${r.qty} ${r.unit}`).join('\n')
-    + `\n\nTotale stimato: ${eur(g.totale)}`;
+    + g.righe.map(r => `• ${r.name}${r.format ? ' ' + r.format : ''} — ${r.qty} ${r.unit}`).join('\n');
 }
 async function copiaOrdine(i) {
   const t = testoOrdine(i);
@@ -324,9 +592,8 @@ function whatsappOrdine(i) {
 }
 function exportOrdine(i, fmt) {
   const g = window._ordini.gruppi[i];
-  const aoa = [['Prodotto', 'Formato', 'Giacenza', 'Scorta ideale', 'Da ordinare', 'Unità', 'Costo €']];
-  g.righe.forEach(r => aoa.push([r.name, r.format || '', r.stock, r.par_level, r.qty, r.unit, r.costo.toFixed(2)]));
-  aoa.push([], ['', '', '', '', '', 'Totale', g.totale.toFixed(2)]);
+  const aoa = [['Prodotto', 'Formato', 'Giacenza', 'Scorta ideale', 'Da ordinare', 'Unità']];
+  g.righe.forEach(r => aoa.push([r.name, r.format || '', r.stock, r.par_level, r.qty, r.unit]));
   const nome = 'ordine-' + g.vendor.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   fmt === 'csv' ? downloadCSV(nome + '.csv', aoa) : downloadXLSX(nome + '.xlsx', aoa, 'Ordine');
 }

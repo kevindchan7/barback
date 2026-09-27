@@ -169,13 +169,99 @@
       </div>
     </section>
 
+    <!-- INVENTARIO: sessione guidata, revisione, storico -->
+    <section class="view" id="inventario">
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Inventario</h2></div>
+      <div id="inv-hello"></div>
+
+      <!-- nessuna sessione aperta: si parte da qui -->
+      <div class="card hidden" id="inv-start">
+        <h3>Nessun inventario in corso</h3>
+        <p class="muted" style="font-size:12px;margin:6px 0 12px">Si conta una postazione alla volta. Puoi interromperti e riprendere quando vuoi: niente si perde.</p>
+        <button class="act gold" onclick="invStart()">▶ Inizia inventario</button>
+      </div>
+
+      <!-- sessione in corso: conteggio -->
+      <div class="hidden" id="inv-run">
+        <div class="card">
+          <h3>Inventario in corso <span class="muted" id="inv-num"></span></h3>
+          <div class="row c2" style="margin-top:8px">
+            <div><label>Postazione</label><select id="inv-loc" onchange="invLoadItems()"></select></div>
+            <div><label>Ordine</label><select id="inv-sort" onchange="invLoadItems()">
+              <option value="ultimo">Come l'ultima volta</option>
+              <option value="nome">Alfabetico</option>
+            </select></div>
+          </div>
+          <div class="search" style="margin-top:8px"><input id="inv-search" placeholder="🔍 Cerca prodotto..." oninput="invRenderItems()"></div>
+          <div class="toolbar" style="margin-top:8px">
+            <button class="ghost" id="inv-mode" onclick="invToggleMode()">🎚 Cursore</button>
+            <button class="ghost" onclick="invScan()">📷 Codice a barre</button>
+            <span class="spacer"></span>
+            <span class="muted" id="inv-progress"></span>
+          </div>
+        </div>
+        <div id="inv-items"></div>
+        <div class="card">
+          <button class="act" onclick="invReview()">✓ Rivedi e chiudi</button>
+          <button class="ghost" style="margin-top:8px" onclick="invCancel()">Annulla inventario</button>
+        </div>
+      </div>
+
+      <!-- revisione prima della chiusura -->
+      <div class="hidden" id="inv-review">
+        <div class="card">
+          <h3>Revisione</h3>
+          <div class="kpis" style="margin-top:8px">
+            <div class="kpi"><div class="v" id="rv-contati">0</div><div class="l">Contati</div></div>
+            <div class="kpi"><div class="v" id="rv-noncontati">0</div><div class="l">Non contati</div></div>
+            <div class="kpi"><div class="v" id="rv-scost">0</div><div class="l">Con scostamento</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Differenze</h3>
+          <div class="grid-scroll"><table><thead><tr><th>Prodotto</th><th class="right">Atteso</th><th class="right">Contato</th>
+            <th class="right">Differenza</th></tr></thead><tbody id="rv-list"></tbody></table></div>
+        </div>
+        <div class="card hidden" id="rv-missing-card">
+          <h3 style="color:var(--red)">Non contati</h3>
+          <p class="muted" style="font-size:12px;margin:4px 0 8px">Questi prodotti non li hai contati. Decidi cosa farne.</p>
+          <div id="rv-missing"></div>
+          <div class="row" style="margin-top:10px"><div><label>Cosa faccio con i non contati</label><select id="rv-uncounted">
+            <option value="tieni">Lascia la giacenza com'è (consigliato)</option>
+            <option value="azzera">Azzera la giacenza</option>
+          </select></div></div>
+        </div>
+        <div class="card">
+          <button class="act gold" id="rv-close" onclick="invClose()">🔒 Chiudi inventario e allinea le giacenze</button>
+          <button class="ghost" style="margin-top:8px" onclick="invBackToCount()">← Torna al conteggio</button>
+        </div>
+      </div>
+
+      <!-- storico -->
+      <div class="card">
+        <h3>Storico inventari</h3>
+        <div class="grid-scroll"><table><thead><tr><th>Quando</th><th>Chi</th><th class="right">Prodotti</th>
+          <th class="right">Differenze</th></tr></thead><tbody id="inv-history"></tbody></table></div>
+      </div>
+
+      <!-- postazioni -->
+      <div class="card" id="inv-loc-card">
+        <h3>Postazioni</h3>
+        <p class="muted" style="font-size:12px;margin:4px 0 8px">I posti dove conti separatamente: banco, frigo, cantina.</p>
+        <table><thead><tr><th>Nome</th><th></th></tr></thead><tbody id="loc-list"></tbody></table>
+        <div class="row c2" style="margin-top:10px">
+          <div><label>Nuova postazione</label><input id="loc-name" placeholder="es. Frigo vini"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addLocation()">+ Aggiungi</button></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ORDINI AI FORNITORI -->
     <section class="view" id="ordini">
       <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Ordini ai fornitori</h2></div>
       <div id="ordini-hello"></div>
       <div class="kpis">
         <div class="kpi"><div class="v" id="or-prodotti">0</div><div class="l">Prodotti da ordinare</div></div>
-        <div class="kpi"><div class="v" id="or-totale">€0</div><div class="l">Spesa prevista</div></div>
       </div>
       <div id="ordini-list"></div>
       <div class="card">
