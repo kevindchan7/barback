@@ -53,6 +53,7 @@
     <div><h1>Barback</h1><div class="sub" id="banner-sub">Magazzino & Turni</div></div>
     <span class="spacer"></span>
     <button class="themebtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
+    <button class="themebtn" onclick="openSettings()" title="Impostazioni">⚙</button>
     <button class="ghost" onclick="logout()">Esci</button>
   </div>
 
@@ -105,6 +106,16 @@
           <div style="grid-column:span 2;"><label>Riferimento</label><input id="shift-date" type="date" onchange="loadShifts()"></div>
         </div>
         <div class="grid-scroll"><table class="shift-grid" id="shift-grid"></table></div>
+      </div>
+      <div class="card hidden" id="personale-card">
+        <h3>Personale</h3>
+        <p class="muted" style="font-size:12px;margin:4px 0 8px">Chi lavora nel locale. Servono per assegnare turni e task.</p>
+        <table><thead><tr><th>Nome</th><th>Ruolo</th><th></th></tr></thead><tbody id="emp-list"></tbody></table>
+        <div class="row c3" style="margin-top:10px">
+          <div><label>Nome</label><input id="ne-name" placeholder="es. Chiara"></div>
+          <div><label>Ruolo</label><input id="ne-role" placeholder="es. barista"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addEmployee()">+ Aggiungi</button></div>
+        </div>
       </div>
       <div class="card" id="sh-form">
         <h3>Gestione turni</h3>
@@ -182,6 +193,24 @@
       <div class="kpis">
         
         <div class="kpi"><div class="v" id="mz-low">0</div><div class="l">Sotto soglia</div></div>
+      </div>
+      <div class="card hidden" id="mz-newprod">
+        <h3>Aggiungi un prodotto</h3>
+        <p class="muted" style="font-size:12px;margin:4px 0 10px">Serve solo il nome. Il resto lo puoi mettere dopo con la matita.</p>
+        <div class="row c2">
+          <div><label>Nome *</label><input id="np-name" placeholder="es. Gin Mare"></div>
+          <div><label>Formato</label><input id="np-format" placeholder="es. 70cl"></div>
+        </div>
+        <div class="row c3">
+          <div><label>Giacenza iniziale</label><input id="np-stock" type="number" min="0" value="0"></div>
+          <div><label>Soglia riordino</label><input id="np-thr" type="number" min="0" value="0"></div>
+          <div><label>Scorta ideale</label><input id="np-par" type="number" min="0" placeholder="doppio soglia"></div>
+        </div>
+        <div class="row c2">
+          <div><label>Unità</label><input id="np-unit" placeholder="bott."></div>
+          <div><label>Fornitore</label><select id="np-vendor"></select></div>
+        </div>
+        <button class="act" onclick="addProduct()">+ Aggiungi prodotto</button>
       </div>
       <div class="card" id="mz-mvform">
         <h3>Carico / Scarico rapido</h3>

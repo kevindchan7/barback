@@ -108,11 +108,23 @@ api.get('/products', (req, res) => {
   ok(res, rows);
 });
 api.post('/products', need('magazzino.view'), (req, res) => {
-  const { name, category, format, volume_ml, cost, price, stock, threshold, unit } = req.body;
-  const r = db.prepare(`INSERT INTO products (name,category,format,volume_ml,cost,price,stock,initial_stock,threshold,unit,recipe)
-    VALUES (?,?,?,?,?,?,?,?,?,?, '[]')`)
-    .run(name, category || 'Bottiglia', format || '', +volume_ml || 0, +cost || 0, +price || 0,
-      +stock || 0, +stock || 0, +threshold || 0, unit || 'bott.');
+  const { category, format, volume_ml, stock, threshold, par_level, unit, vendor_id, barcode } = req.body;
+  const name = String(req.body.name || '').trim();
+  if (!name) return bad(res, 400, 'Serve il nome del prodotto');
+  if (db.prepare('SELECT 1 FROM products WHERE lower(name)=lower(?)').get(name))
+    return bad(res, 409, 'C\'e\' gia\' un prodotto con questo nome');
+  const code = String(barcode || '').trim();
+  if (code && db.prepare('SELECT name FROM products WHERE barcode=?').get(code))
+    return bad(res, 409, 'Codice a barre già usato da un altro prodotto');
+  // la scorta ideale, se non la dici, la propongo al doppio della soglia
+  const soglia = +threshold || 0;
+  const ideale = par_level === undefined || par_level === '' ? soglia * 2 : +par_level || 0;
+  const r = db.prepare(`INSERT INTO products
+    (name,category,format,volume_ml,cost,price,stock,initial_stock,threshold,par_level,unit,vendor_id,barcode,recipe)
+    VALUES (?,?,?,?,0,0,?,?,?,?,?,?,?, '[]')`)
+    .run(name, category || 'Bottiglia', String(format || '').trim(), +volume_ml || 0,
+      +stock || 0, +stock || 0, soglia, ideale, String(unit || 'bott.').trim(),
+      vendor_id ? +vendor_id : null, code || null);
   ok(res, { id: r.lastInsertRowid });
 });
 api.put('/products/:id', need('magazzino.view'), (req, res) => {
@@ -122,6 +134,126 @@ api.put('/products/:id', need('magazzino.view'), (req, res) => {
   ok(res, { ok: true });
 });
 
+
+/* ---------------- ELIMINARE UN PRODOTTO ----------------
+   Si rifiuta se il prodotto ha una storia: cancellarlo falserebbe
+   inventari e report gia' chiusi. Meglio dire perche' non si puo'.   */
+api.delete('/products/:id', need('magazzino.view'), (req, res) => {
+  const p = product(req.params.id);
+  if (!p) return bad(res, 404, 'Prodotto non trovato');
+  const mv = db.prepare('SELECT COUNT(*) c FROM movements WHERE product_id=?').get(p.id).c;
+  const co = db.prepare('SELECT COUNT(*) c FROM inv_counts WHERE product_id=?').get(p.id).c;
+  if (mv || co) return bad(res, 409,
+    `"${p.name}" ha ${mv} movimenti e ${co} conteggi: eliminarlo falserebbe lo storico. Puoi portare la giacenza a zero.`);
+  // se e' ingrediente di un cocktail, va togliato prima dalla ricetta
+  const usato = db.prepare("SELECT name FROM products WHERE category='Cocktail' AND recipe LIKE ?").all('%"ing":' + p.id + ',%');
+  if (usato.length) return bad(res, 409, 'Usato nella ricetta di: ' + usato.map(x => x.name).join(', '));
+  db.prepare('DELETE FROM products WHERE id=?').run(p.id);
+  ok(res, { ok: true });
+});
+
+/* ---------------- PERSONALE ----------------
+   Finora i dipendenti si potevano solo leggere: un locale nuovo non
+   riusciva a inserire i propri. Ora si aggiungono e si modificano.   */
+api.post('/employees', need('turni.manage'), (req, res) => {
+  const name = String(req.body.name || '').trim();
+  if (!name) return bad(res, 400, 'Serve il nome');
+  if (db.prepare('SELECT 1 FROM employees WHERE lower(name)=lower(?)').get(name))
+    return bad(res, 409, 'C\'e\' gia\' un dipendente con questo nome');
+  const r = db.prepare('INSERT INTO employees (name,role) VALUES (?,?)')
+    .run(name, String(req.body.role || 'barista').trim());
+  ok(res, { id: r.lastInsertRowid });
+});
+api.put('/employees/:id', need('turni.manage'), (req, res) => {
+  const name = String(req.body.name || '').trim();
+  if (!name) return bad(res, 400, 'Serve il nome');
+  db.prepare('UPDATE employees SET name=?, role=? WHERE id=?')
+    .run(name, String(req.body.role || '').trim(), req.params.id);
+  ok(res, { ok: true });
+});
+api.delete('/employees/:id', need('turni.manage'), (req, res) => {
+  const e = db.prepare('SELECT * FROM employees WHERE id=?').get(req.params.id);
+  if (!e) return bad(res, 404, 'Dipendente non trovato');
+  const t = db.prepare('SELECT COUNT(*) c FROM shifts WHERE employee_id=?').get(e.id).c;
+  const r = db.prepare('SELECT COUNT(*) c FROM shift_changes WHERE employee_id=?').get(e.id).c;
+  if (t || r) return bad(res, 409,
+    `${e.name} ha ${t} turni e ${r} richieste. Elimina prima quelli, oppure lascialo: non fa danno.`);
+  db.prepare('DELETE FROM tasks WHERE assignee_id=?').run(e.id);
+  db.prepare('DELETE FROM employees WHERE id=?').run(e.id);
+  ok(res, { ok: true });
+});
+
+/* ---------------- PROFILI DI ACCESSO E PIN ----------------
+   Prima i PIN erano scritti nel codice e nessuno poteva cambiarli.
+   Ora: ognuno cambia il proprio (dicendo quello attuale) e il
+   proprietario puo' reimpostarli, crearne e rinominarli.            */
+const RUOLI = {
+  'proprietario': ['all'],
+  'responsabile': ['turni.manage','turni.view','task.manage','task.view','ferie.view','ferie.approve','inventario.view'],
+  'barman':       ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
+  'bar manager':  ['turni.view','task.view','vuoti.view','vuoti.do','carico.do','magazzino.view','manuale.view','ferie.view','inventario.view','inventario.do','inventario.close'],
+};
+const pinValido = (p) => /^[0-9]{4}$/.test(String(p || ''));
+
+api.get('/ruoli', (req, res) => ok(res, Object.keys(RUOLI)));
+
+api.post('/profiles', need('all'), (req, res) => {
+  const name = String(req.body.name || '').trim();
+  const ruolo = String(req.body.ruolo || '').toLowerCase();
+  if (!name) return bad(res, 400, 'Serve il nome del profilo');
+  if (!RUOLI[ruolo]) return bad(res, 400, 'Ruolo non valido');
+  if (!pinValido(req.body.pin)) return bad(res, 400, 'Il PIN deve essere di 4 cifre');
+  if (db.prepare('SELECT 1 FROM profiles WHERE lower(name)=lower(?)').get(name))
+    return bad(res, 409, 'C\'e\' gia\' un profilo con questo nome');
+  const r = db.prepare('INSERT INTO profiles (name,pin_hash,permissions) VALUES (?,?,?)')
+    .run(name, bcrypt.hashSync(String(req.body.pin), 10), JSON.stringify(RUOLI[ruolo]));
+  ok(res, { id: r.lastInsertRowid });
+});
+
+api.put('/profiles/:id', need('all'), (req, res) => {
+  const name = String(req.body.name || '').trim();
+  if (!name) return bad(res, 400, 'Serve il nome');
+  const p = db.prepare('SELECT * FROM profiles WHERE id=?').get(req.params.id);
+  if (!p) return bad(res, 404, 'Profilo non trovato');
+  if (req.body.ruolo) {
+    const ruolo = String(req.body.ruolo).toLowerCase();
+    if (!RUOLI[ruolo]) return bad(res, 400, 'Ruolo non valido');
+    // non si toglie l'ultimo accesso completo, o nessuno potrebbe piu' amministrare
+    const perms = JSON.parse(p.permissions || '[]');
+    if (perms.includes('all') && !RUOLI[ruolo].includes('all')) {
+      const altri = db.prepare("SELECT COUNT(*) c FROM profiles WHERE id<>? AND permissions LIKE '%\"all\"%'").get(p.id).c;
+      if (!altri) return bad(res, 409, 'E\' l\'unico profilo con accesso completo: non puoi declassarlo');
+    }
+    db.prepare('UPDATE profiles SET name=?, permissions=? WHERE id=?').run(name, JSON.stringify(RUOLI[ruolo]), p.id);
+  } else {
+    db.prepare('UPDATE profiles SET name=? WHERE id=?').run(name, p.id);
+  }
+  ok(res, { ok: true });
+});
+
+// cambio PIN: il proprio richiede quello attuale, il proprietario reimposta
+api.put('/profiles/:id/pin', (req, res) => {
+  const id = +req.params.id;
+  const p = db.prepare('SELECT * FROM profiles WHERE id=?').get(id);
+  if (!p) return bad(res, 404, 'Profilo non trovato');
+  const proprio = req.user.id === id;
+  if (!proprio && !can(req, 'all')) return bad(res, 403, 'Puoi cambiare solo il tuo PIN');
+  if (!pinValido(req.body.nuovo)) return bad(res, 400, 'Il nuovo PIN deve essere di 4 cifre');
+  if (proprio && !bcrypt.compareSync(String(req.body.attuale || ''), p.pin_hash))
+    return bad(res, 401, 'Il PIN attuale non e\' giusto');
+  db.prepare('UPDATE profiles SET pin_hash=? WHERE id=?').run(bcrypt.hashSync(String(req.body.nuovo), 10), id);
+  ok(res, { ok: true });
+});
+
+api.delete('/profiles/:id', need('all'), (req, res) => {
+  const id = +req.params.id;
+  if (req.user.id === id) return bad(res, 409, 'Non puoi eliminare il profilo con cui sei entrato');
+  const p = db.prepare('SELECT * FROM profiles WHERE id=?').get(id);
+  if (!p) return bad(res, 404, 'Profilo non trovato');
+  if (db.prepare('SELECT COUNT(*) c FROM profiles').get().c <= 1) return bad(res, 409, 'Deve restare almeno un profilo');
+  db.prepare('DELETE FROM profiles WHERE id=?').run(id);
+  ok(res, { ok: true });
+});
 /* ---------------- FORNITORI ---------------- */
 api.get('/vendors', (req, res) => ok(res, db.prepare('SELECT * FROM vendors ORDER BY name').all()));
 api.post('/vendors', need('magazzino.view'), (req, res) => {

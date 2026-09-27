@@ -27,7 +27,7 @@ L'accesso è a **PIN** e genera un token valido 12 ore. I permessi sono *capacit
 | Admin 2 · Barman | `3333` | vuoti, spunta task, richiede ferie, manuale |
 | Admin 3 · Bar Manager | `4444` | vuoti, carico, magazzino, drink cost, manuale |
 
-> ⚠️ **Questi sono i PIN della demo.** Prima di usare l'app con i dati veri del locale, cambiali in `db.js`.
+> ⚠️ **Questi sono i PIN della demo.** Cambiali dall’app stessa: bottone **⚙** in alto a destra → *Il tuo PIN*. Il proprietario può anche reimpostare i PIN degli altri e creare nuovi profili.
 
 ## Come si avvia in locale
 

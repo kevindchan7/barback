@@ -201,6 +201,10 @@ async function loadMagazzino() {
   if (can('vuoti.do')) types.push(['scarico', 'Scarico'], ['vuoto', 'Vuoto']);
   $('#mv-type').innerHTML = types.map(t => `<option value="${t[0]}">${t[1]}</option>`).join('');
   show('#mz-mvform', types.length > 0);
+  // form per aggiungere un prodotto nuovo
+  show('#mz-newprod', can('magazzino.view'));
+  $('#np-vendor').innerHTML = '<option value="">— nessuno —</option>'
+    + vendors.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
 
   const r = await api('/reports/monthly');
   window._stockRows = r.rows;
@@ -216,7 +220,8 @@ function renderMz() {
     <td style="color:${x.netto < 0 ? 'var(--red)' : 'var(--green)'}">${x.netto > 0 ? '+' : ''}${x.netto}</td>
     <td class="right">${x.residua} ${x.unit}</td>
     <td class="right">${x.daOrdinare ? `<b style="color:var(--gold)">${x.daOrdinare}</b>` : '<span class="muted">—</span>'}</td>
-    <td class="right">${editable ? `<button class="iconbtn" onclick="editProduct(${x.id})" title="Modifica">✏️</button>` : ''}</td></tr>`).join('')
+    <td class="right">${editable ? `<button class="iconbtn" onclick="editProduct(${x.id})" title="Modifica">✏️</button>
+      <button class="iconbtn" onclick="removeProduct(${x.id})" title="Elimina">🗑</button>` : ""}</td></tr>`).join("")
     || '<tr><td colspan="7" class="muted">Nessun prodotto trovato.</td></tr>';
 }
 function editProduct(id) {
@@ -564,7 +569,7 @@ async function loadOrdini() {
   // elenco fornitori
   const editable = can('magazzino.view');
   $('#vendor-list').innerHTML = vendors.map(v => `<tr><td>${v.name}</td><td>${v.phone || '—'}</td><td>${v.email || '—'}</td>
-    <td class="right">${editable ? `<button class="iconbtn" onclick="removeVendor(${v.id}, '${v.name.replace(/'/g, "\'")}')" title="Elimina">🗑</button>` : ''}</td></tr>`).join('')
+    <td class="right">${editable ? `<button class="iconbtn" onclick="removeVendor(${v.id})" title="Elimina">🗑</button>` : ""}</td></tr>`).join("")
     || '<tr><td colspan="4" class="muted">Nessun fornitore. Aggiungine uno qui sotto.</td></tr>';
 }
 
@@ -601,7 +606,9 @@ async function addVendor() {
     loadOrdini();
   } catch (e) { alert(e.message); }
 }
-async function removeVendor(id, name) {
+async function removeVendor(id) {
+  const v = (window._vendors || []).find(x => x.id === id) || {};
+  const name = v.name || "questo fornitore";
   if (!confirm(`Eliminare il fornitore "${name}"?\nI prodotti restano, ma senza fornitore assegnato.`)) return;
   try { await api('/vendors/' + id, 'DELETE'); loadOrdini(); } catch (e) { alert(e.message); }
 }
@@ -630,6 +637,9 @@ async function loadTurni() {
   }
   if (can('task.view')) await loadTasks();
   show('#task-add', can('task.manage'));          // aggiungere task: solo chi gestisce
+  // anagrafica del personale: la gestisce chi fa i turni
+  show('#personale-card', can('turni.manage'));
+  if (can('turni.manage')) await loadEmployees();
 }
 async function loadShifts() {
   const { from, to, days } = rangeDates();
@@ -851,6 +861,152 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+
+/* ===================== CONFIGURARE IL PROPRIO LOCALE =====================
+   Prodotti, personale e PIN si inseriscono dall'app. Prima si potevano
+   solo leggere: un locale nuovo non riusciva a mettere la sua roba e
+   serviva mettere le mani nel database.                               */
+
+/* --- prodotti --- */
+async function addProduct() {
+  const name = $('#np-name').value.trim();
+  if (!name) return alert('Serve almeno il nome del prodotto.');
+  try {
+    await api('/products', 'POST', {
+      name, format: $('#np-format').value.trim(),
+      stock: $('#np-stock').value, threshold: $('#np-thr').value,
+      par_level: $('#np-par').value, unit: $('#np-unit').value.trim() || 'bott.',
+      vendor_id: $('#np-vendor').value,
+    });
+    ['#np-name', '#np-format', '#np-par'].forEach(s => $(s).value = '');
+    $('#np-stock').value = '0'; $('#np-thr').value = '0';
+    loadMagazzino();
+  } catch (e) { alert(e.message); }
+}
+async function removeProduct(id) {
+  // il nome lo cerchiamo qui: passarlo nell onclick si rompe con gli apostrofi
+  const p = (window._products || []).find(x => x.id === id) || {};
+  const name = p.name || "questo prodotto";
+  if (!confirm(`Eliminare "${name}"?\nSi puo' solo se non ha movimenti né conteggi.`)) return;
+  try { await api('/products/' + id, 'DELETE'); loadMagazzino(); }
+  catch (e) { alert(e.message); }
+}
+
+/* --- personale --- */
+async function loadEmployees() {
+  const emps = await api('/employees');
+  window._employees = emps;
+  $('#emp-list').innerHTML = emps.map(e => `<tr>
+    <td>${e.name}</td><td class="muted">${e.role || ''}</td>
+    <td class="right">
+      <button class="iconbtn" onclick="editEmployee(${e.id})" title="Modifica">✏️</button>
+      <button class="iconbtn" onclick="removeEmployee(${e.id})" title="Elimina">🗑</button>
+    </td></tr>`).join('') || '<tr><td colspan="3" class="muted">Nessun dipendente. Aggiungine uno qui sotto.</td></tr>';
+}
+async function addEmployee() {
+  const name = $('#ne-name').value.trim();
+  if (!name) return alert('Serve il nome.');
+  try {
+    await api('/employees', 'POST', { name, role: $('#ne-role').value.trim() || 'barista' });
+    $('#ne-name').value = ''; $('#ne-role').value = '';
+    loadTurni();
+  } catch (e) { alert(e.message); }
+}
+function editEmployee(id) {
+  const e = (window._employees || []).find(x => x.id === id); if (!e) return;
+  const nome = prompt('Nome del dipendente:', e.name); if (nome === null) return;
+  const ruolo = prompt('Ruolo:', e.role || ''); if (ruolo === null) return;
+  api('/employees/' + id, 'PUT', { name: nome.trim(), role: ruolo.trim() })
+    .then(loadTurni).catch(err => alert(err.message));
+}
+async function removeEmployee(id) {
+  const e = (window._employees || []).find(x => x.id === id) || {};
+  const name = e.name || "questo dipendente";
+  if (!confirm(`Eliminare ${name}?`)) return;
+  try { await api('/employees/' + id, 'DELETE'); loadTurni(); }
+  catch (e) { alert(e.message); }
+}
+
+/* --- impostazioni: PIN e profili di accesso --- */
+async function openSettings() {
+  let profili = [], ruoli = [];
+  try { [profili, ruoli] = await Promise.all([api('/profiles'), api('/ruoli')]); } catch {}
+  const admin = can('all');
+
+  $('#modal-root').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="width:440px">
+        <h3>Impostazioni</h3>
+
+        <h3 style="margin-top:14px">Il tuo PIN</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:8px">Sei entrato come <b>${PROFILE.name}</b>.</p>
+        <div class="row c2">
+          <div><label>PIN attuale</label><input id="pin-old" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
+          <div><label>Nuovo PIN</label><input id="pin-new" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
+        </div>
+        <button class="act" onclick="changeOwnPin()">Cambia il mio PIN</button>
+
+        ${admin ? `
+        <h3 style="margin-top:20px">Profili di accesso</h3>
+        <table><thead><tr><th>Nome</th><th>Accesso</th><th></th></tr></thead><tbody>
+          ${profili.map(p => `<tr>
+            <td>${p.name}</td>
+            <td class="muted">${p.permissions.includes('all') ? 'completo' : p.permissions.length + ' permessi'}</td>
+            <td class="right">
+              <button class="iconbtn" onclick="resetPin(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="Reimposta PIN">🔑</button>
+              ${p.id !== PROFILE.id ? `<button class="iconbtn" onclick="deleteProfile(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="Elimina">🗑</button>` : ''}
+            </td></tr>`).join('')}
+        </tbody></table>
+
+        <h3 style="margin-top:16px">Nuovo profilo</h3>
+        <div class="row c2">
+          <div><label>Nome</label><input id="npf-name" placeholder="es. Barman sera"></div>
+          <div><label>Ruolo</label><select id="npf-role">
+            ${ruoli.map(r => `<option value="${r}">${r}</option>`).join('')}
+          </select></div>
+        </div>
+        <div class="row"><div><label>PIN (4 cifre)</label><input id="npf-pin" inputmode="numeric" maxlength="4" placeholder="es. 5555"></div></div>
+        <button class="act" onclick="addProfile()">+ Crea profilo</button>
+        ` : ''}
+
+        <div class="onb-actions" style="margin-top:20px">
+          <button class="ghost" onclick="closeModal()">Chiudi</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function changeOwnPin() {
+  const attuale = $('#pin-old').value, nuovo = $('#pin-new').value;
+  if (!/^[0-9]{4}$/.test(nuovo)) return alert('Il nuovo PIN deve essere di 4 cifre.');
+  try {
+    await api(`/profiles/${PROFILE.id}/pin`, 'PUT', { attuale, nuovo });
+    alert('PIN cambiato. La prossima volta entra con quello nuovo.');
+    closeModal();
+  } catch (e) { alert(e.message); }
+}
+async function resetPin(id, nome) {
+  const nuovo = prompt(`Nuovo PIN per "${nome}" (4 cifre):`);
+  if (nuovo === null) return;
+  if (!/^[0-9]{4}$/.test(nuovo)) return alert('Il PIN deve essere di 4 cifre.');
+  try { await api(`/profiles/${id}/pin`, 'PUT', { nuovo }); alert(`PIN di ${nome} reimpostato.`); }
+  catch (e) { alert(e.message); }
+}
+async function addProfile() {
+  const name = $('#npf-name').value.trim(), pin = $('#npf-pin').value;
+  if (!name) return alert('Serve il nome del profilo.');
+  if (!/^[0-9]{4}$/.test(pin)) return alert('Il PIN deve essere di 4 cifre.');
+  try {
+    await api('/profiles', 'POST', { name, ruolo: $('#npf-role').value, pin });
+    alert(`Profilo "${name}" creato.`);
+    openSettings();
+  } catch (e) { alert(e.message); }
+}
+async function deleteProfile(id, nome) {
+  if (!confirm(`Eliminare il profilo "${nome}"?\nChi lo usava non potrà più entrare.`)) return;
+  try { await api('/profiles/' + id, 'DELETE'); openSettings(); }
+  catch (e) { alert(e.message); }
+}
 /* ===================== TEMA CHIARO / SCURO =====================
    Scuro (verde) e chiaro (bianco, nero, arancione). La scelta resta
    salvata sul dispositivo: chi usa l'app al banco puo' tenere il chiaro
