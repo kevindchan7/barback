@@ -82,3 +82,13 @@ render.yaml    configurazione di deploy — piano gratuito
 | `PORT` | Porta del server (default `3100`). |
 | `JWT_SECRET` | Chiave di firma dei token. Se manca, ne viene generata una nuova a ogni avvio. |
 | `DB_PATH` | Percorso del file SQLite, per puntarlo a un disco persistente. |
+
+## Provare che tutto funzioni
+
+```bash
+npm test
+```
+
+Avvia un server suo su una porta libera con un database usa-e-getta — **non tocca i dati veri** — e percorre tutta l'app con tutti e quattro i profili: accesso, prodotti, movimenti, vuoti, ordini, inventario completo con scostamento e chiusura, codice a barre, turni, task, personale, ferie e permessi, profili e PIN, manuale.
+
+Sono 93 controlli. Verifica anche che i permessi valgano davvero: che il barman **non** possa fare un carico, chiudere un inventario o approvare ferie, e che nessuno possa eliminare il profilo con cui è entrato. Se cambi qualcosa nel codice, lancialo prima di pubblicare.
