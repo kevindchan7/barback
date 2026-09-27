@@ -3,7 +3,6 @@
    Mostra/nasconde funzioni in base ai PERMESSI del profilo (can()).
    ===================================================================== */
 const $ = (s) => document.querySelector(s);
-const eur = (n) => '€' + (Number(n) || 0).toFixed(2);
 const todayISO = () => new Date().toISOString().slice(0, 10);
 let TOKEN = localStorage.getItem('bb_token') || null;
 let PROFILE = JSON.parse(localStorage.getItem('bb_profile') || 'null');
@@ -73,7 +72,6 @@ function buildBottomNav() {
     ['magazzino', '📦', 'Magazz.', can('magazzino.view')],
     ['inventario', '📋', 'Invent.', can('inventario.view')],
     ['ordini', '🛒', 'Ordini', can('magazzino.view')],
-    ['drink', '🍸', 'Drink', can('drinkcost.view')],
     ['manuale', '📖', 'Manuale', can('manuale.view')],
   ].filter(i => i[3]);
   $('#bottomnav').innerHTML = items.map(i =>
@@ -123,7 +121,6 @@ async function loadHome() {
       ${ov.primoAvvio ? mascotSays('Primo avvio: questo è lo stato iniziale del magazzino.', 48) : ''}
       <div class="kpis">
         <div class="kpi"><div class="v">${ov.giacenzaPezzi}</div><div class="l">Giacenza (bott.)</div></div>
-        <div class="kpi"><div class="v">${eur(ov.giacenzaValore)}</div><div class="l">Valore giacenza</div></div>
         <div class="kpi"><div class="v">${ov.entrate}</div><div class="l">Entrate (mese)</div></div>
         <div class="kpi"><div class="v">${ov.uscite}</div><div class="l">Uscite (mese)</div></div>
       </div>`;
@@ -133,7 +130,6 @@ async function loadHome() {
   const btns = [
     ['vuoti', '🍾', 'Conteggio vuoti', 'Bottiglie consumate', can('vuoti.view')],
     ['turni', '📅', 'Turni & Task', 'Personale e obiettivi', can('turni.view') || can('task.view')],
-    ['drink', '🍸', 'Drink Cost', 'Costo in tempo reale', can('drinkcost.view')],
     ['magazzino', '📦', 'Magazzino', 'Giacenze e consumi', can('magazzino.view')],
     ['inventario', '📋', 'Inventario', 'Conta e verifica le giacenze', can('inventario.view')],
     ['ordini', '🛒', 'Ordini', 'Cosa ordinare e da chi', can('magazzino.view')],
@@ -151,7 +147,7 @@ function go(view, silent) {
   window.scrollTo(0, 0);
   if (pollTimer) clearInterval(pollTimer);
   if (silent) return;
-  const loaders = { home: loadHome, vuoti: loadVuoti, turni: loadTurni, drink: loadDrink,
+  const loaders = { home: loadHome, vuoti: loadVuoti, turni: loadTurni,
     magazzino: loadMagazzino, inventario: loadInventario, ordini: loadOrdini, manuale: loadManuale };
   if (loaders[view]) {
     loaders[view]();
@@ -172,8 +168,7 @@ async function loadVuoti() {
   const r = await api(`/empties?period=${period}&date=${date}`);
   $('#vuoti-key').textContent = '(' + r.key + ')';
   $('#vuoti-list').innerHTML = r.rows.map(x => `<tr><td>${x.name}</td><td>${x.qty}</td>
-    <td class="right">${eur(x.price)}</td><td class="right">${eur(x.total)}</td><td class="right">${x.residuo} ${x.unit}</td></tr>`).join('');
-  $('#vuoti-tot').textContent = eur(r.totale);
+    <td class="right">${x.residuo} ${x.unit}</td></tr>`).join("");
   // griglia del mese
   const grid = await api('/empties/grid?month=' + date.slice(0, 7));
   let html = '<tr><th>Prodotto</th>' + grid.days.map(d => `<th>${d}</th>`).join('') + '</tr>';
@@ -207,7 +202,6 @@ async function loadMagazzino() {
   const r = await api('/reports/monthly');
   window._stockRows = r.rows;
   $('#mz-month').textContent = '(' + r.month + ')';
-  $('#mz-consumato').textContent = eur(r.totaleConsumato);
   $('#mz-low').textContent = r.sottoSoglia;
   renderMz();
 }
@@ -217,10 +211,10 @@ function renderMz() {
   const editable = can('magazzino.view');
   $('#mz-list').innerHTML = rows.map(x => `<tr><td>${x.name}</td><td>${x.entrato}</td><td>${x.uscito}</td>
     <td style="color:${x.netto < 0 ? 'var(--red)' : 'var(--green)'}">${x.netto > 0 ? '+' : ''}${x.netto}</td>
-    <td class="right">${eur(x.consumato)}</td><td class="right">${x.residua} ${x.unit}</td>
+    <td class="right">${x.residua} ${x.unit}</td>
     <td class="right">${x.daOrdinare ? `<b style="color:var(--gold)">${x.daOrdinare}</b>` : '<span class="muted">—</span>'}</td>
     <td class="right">${editable ? `<button class="iconbtn" onclick="editProduct(${x.id})" title="Modifica">✏️</button>` : ''}</td></tr>`).join('')
-    || '<tr><td colspan="8" class="muted">Nessun prodotto trovato.</td></tr>';
+    || '<tr><td colspan="7" class="muted">Nessun prodotto trovato.</td></tr>';
 }
 function editProduct(id) {
   const p = (window._products || []).find(x => x.id === id); if (!p) return;
@@ -229,10 +223,6 @@ function editProduct(id) {
       <div class="modal">
         <h3>Modifica: ${p.name}</h3>
         <div class="row"><div><label>Nome</label><input id="ep-name" value="${p.name.replace(/"/g, '&quot;')}"></div></div>
-        <div class="row c2">
-          <div><label>Costo (€)</label><input id="ep-cost" type="number" step="0.001" value="${p.cost}"></div>
-          <div><label>Prezzo (€)</label><input id="ep-price" type="number" step="0.01" value="${p.price}"></div>
-        </div>
         <div class="row c2">
           <div><label>Soglia riordino</label><input id="ep-thr" type="number" value="${p.threshold}"></div>
           <div><label>Scorta ideale</label><input id="ep-par" type="number" value="${p.par_level || 0}"></div>
@@ -252,7 +242,10 @@ function editProduct(id) {
 function closeModal() { $('#modal-root').innerHTML = ''; }
 async function saveProduct(id) {
   try {
-    await api('/products/' + id, 'PUT', { name: $('#ep-name').value, cost: $('#ep-cost').value, price: $('#ep-price').value,
+    // costo e prezzo non si modificano piu' da qui: li rimandiamo identici
+    // cosi' il dato resta nel database senza comparire a schermo
+    const p = (window._products || []).find(x => x.id === id) || {};
+    await api('/products/' + id, 'PUT', { name: $('#ep-name').value, cost: p.cost || 0, price: p.price || 0,
       threshold: $('#ep-thr').value, par_level: $('#ep-par').value, vendor_id: $('#ep-vendor').value });
     closeModal(); loadMagazzino();
   } catch (e) { alert(e.message); }
@@ -610,18 +603,6 @@ async function removeVendor(id, name) {
   try { await api('/vendors/' + id, 'DELETE'); loadOrdini(); } catch (e) { alert(e.message); }
 }
 
-/* ===================== SEZ.3 — DRINK COST ===================== */
-async function loadDrink() {
-  $('#drink-hint').innerHTML = mascotSays('Il costo si aggiorna se cambi i costi delle bottiglie nel magazzino.', 48);
-  const drinks = await api('/drinkcost');
-  $('#drink-list').innerHTML = drinks.map(d => {
-    const col = d.pourCost > 30 ? 'var(--red)' : d.pourCost > 22 ? 'var(--yellow)' : 'var(--green)';
-    return `<tr><td>${d.name}<div class="muted">${d.recipe.map(r => r.name + ' ' + r.q + 'ml').join(' · ')}</div></td>
-      <td class="right">${eur(d.cost)}</td><td class="right">${eur(d.price)}</td>
-      <td class="right" style="color:${col};font-weight:700">${d.pourCost}%</td></tr>`;
-  }).join('');
-}
-
 /* ===================== SEZ.2 — TURNI & TASK ===================== */
 function rangeDates() {
   const ref = $('#shift-date').value || todayISO();
@@ -720,7 +701,7 @@ async function loadManuale() {
   $('#man-rules').innerHTML = m.regole.map(r => `<li>${r}</li>`).join('');
   $('#man-recipes').innerHTML = m.ricettario.map(c => `
     <div style="border-bottom:1px solid var(--line);padding:8px 0">
-      <b>${c.name}</b> <span class="muted">— ${eur(c.price)}</span>
+      <b>${c.name}</b>
       <div class="muted" style="margin:4px 0">${c.ingredienti.map(i => i.name + ' ' + i.q + 'ml').join(' · ')}</div>
       <div style="font-size:12px">${c.preparazione}</div>
     </div>`).join('');
@@ -746,8 +727,8 @@ async function exportShifts(fmt) {
 }
 async function exportStock(fmt) {
   const rows = window._stockRows || (await api('/reports/monthly')).rows;
-  const aoa = [['Prodotto', 'Entrato', 'Uscito', 'Netto', 'Consumato €', 'Giacenza residua', 'Prezzo €']];
-  rows.forEach(r => aoa.push([r.name, r.entrato, r.uscito, r.netto, r.consumato.toFixed(2), r.residua, r.price.toFixed(2)]));
+  const aoa = [['Prodotto', 'Entrato', 'Uscito', 'Netto', 'Giacenza residua', 'Scorta ideale', 'Da ordinare', 'Fornitore']];
+  rows.forEach(r => aoa.push([r.name, r.entrato, r.uscito, r.netto, r.residua, r.par_level, r.daOrdinare, r.vendor || '']));
   fmt === 'csv' ? downloadCSV('magazzino.csv', aoa) : downloadXLSX('magazzino.xlsx', aoa, 'Magazzino');
 }
 

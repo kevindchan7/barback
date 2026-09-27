@@ -191,3 +191,60 @@ button.act{box-shadow:0 4px 14px rgba(62,207,142,.25);}
 .bottomnav{overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;}
 .bottomnav::-webkit-scrollbar{display:none;}
 .bottomnav button{flex:0 0 auto; min-width:64px;}
+
+/* =====================================================================
+   SCHERMI LARGHI (PC, tablet in orizzontale)
+   Sotto i 900px resta l'app da telefono: barra in basso, una colonna.
+   Sopra, la barra in basso diventa un menu laterale e il contenuto si
+   allarga su due colonne, cosi' lo spazio orizzontale viene usato.
+   ===================================================================== */
+@media (min-width: 900px) {
+
+  #app{max-width:1240px; display:grid;
+    grid-template-columns:220px minmax(0,1fr);
+    grid-template-rows:auto 1fr;
+    grid-template-areas:"banner banner" "nav main";}
+
+  .banner{grid-area:banner;}
+  .banner h1{font-size:22px;}
+
+  main{grid-area:main; min-width:0; padding:22px 26px 34px;}
+
+  /* la barra di navigazione passa da sotto a sinistra */
+  .bottomnav{grid-area:nav; position:static; max-width:none; margin:0; z-index:auto;
+    flex-direction:column; align-items:stretch; gap:4px;
+    border-top:none; border-right:1px solid var(--line);
+    padding:14px 10px 20px; overflow:visible;}
+  .bottomnav button{flex:0 0 auto; min-width:0; min-height:44px; border-radius:10px;
+    flex-direction:row; justify-content:flex-start; gap:12px; padding:10px 12px;}
+  .bottomnav button:hover{background:var(--panel2);}
+  .bottomnav button .bi{font-size:18px;}
+  .bottomnav button .bl{font-size:13px; font-weight:600;}
+  .bottomnav button.active{background:var(--panel2);}
+
+  /* le schede si affiancano; tutto il resto occupa la riga intera */
+  .view.active{display:grid; gap:16px; align-items:start;
+    grid-template-columns:repeat(auto-fit, minmax(400px, 1fr));}
+  .view.active > *{grid-column:1 / -1;}
+  .view.active > .card{grid-column:auto; margin-bottom:0;}
+  /* le tabelle che scorrono in orizzontale vogliono tutta la larghezza */
+  .view.active > .card:has(.grid-scroll){grid-column:1 / -1;}
+
+  .kpis{grid-template-columns:repeat(4, 1fr);}
+  .home-grid{grid-template-columns:repeat(3, 1fr); padding:0;}
+  table{font-size:13px;}
+  th,td{padding:8px 10px;}
+
+  /* il conteggio dell'inventario: due righe prodotto affiancate */
+  #inv-items{display:grid; gap:8px; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); align-items:start;}
+  .inv-row{margin-bottom:0;}
+
+  /* login: resta una colonna centrata, non serve allargarlo */
+  #login{max-width:440px;}
+}
+
+/* schermi molto larghi: tre colonne di schede */
+@media (min-width: 1500px) {
+  #app{max-width:1560px;}
+  .view.active{grid-template-columns:repeat(auto-fit, minmax(420px, 1fr));}
+}

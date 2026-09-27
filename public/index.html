@@ -76,8 +76,7 @@
           <div style="grid-column:span 2;"><label>Data</label><input id="vuoti-date" type="date" onchange="loadVuoti()"></div>
         </div>
         <h3>Resoconto <span id="vuoti-key" class="muted"></span></h3>
-        <table><thead><tr><th>Prodotto</th><th>Vuoti</th><th class="right">Prezzo</th><th class="right">Totale</th><th class="right">Residuo</th></tr></thead><tbody id="vuoti-list"></tbody></table>
-        <p class="right" style="margin-top:8px;font-weight:700">Totale consumato: <span id="vuoti-tot">€0</span></p>
+        <table><thead><tr><th>Prodotto</th><th>Vuoti</th><th class="right">Residuo</th></tr></thead><tbody id="vuoti-list"></tbody></table>
       </div>
       <div class="card" id="vuoti-grid-card">
         <h3>Griglia del mese (vuoti giorno per giorno)</h3>
@@ -133,15 +132,6 @@
       </div>
     </section>
 
-    <!-- SEZ.3 — DRINK COST -->
-    <section class="view" id="drink">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Drink Cost</h2></div>
-      <div id="drink-hint"></div>
-      <div class="card">
-        <table><thead><tr><th>Cocktail</th><th class="right">Costo</th><th class="right">Prezzo</th><th class="right">Pour cost</th></tr></thead><tbody id="drink-list"></tbody></table>
-      </div>
-    </section>
-
     <!-- SEZ.4 — MAGAZZINO -->
     <section class="view" id="magazzino">
       <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Magazzino & Giacenze</h2></div>
@@ -150,7 +140,7 @@
         <button class="ghost" onclick="exportStock('xlsx')">⬇ Excel magazzino</button>
       </div>
       <div class="kpis">
-        <div class="kpi"><div class="v" id="mz-consumato">€0</div><div class="l">Consumato nel mese</div></div>
+        
         <div class="kpi"><div class="v" id="mz-low">0</div><div class="l">Sotto soglia</div></div>
       </div>
       <div class="card" id="mz-mvform">
@@ -165,7 +155,7 @@
       <div class="card">
         <h3>Giacenze e consumi <span id="mz-month" class="muted"></span></h3>
         <div class="search"><input id="mz-search" placeholder="🔍 Cerca prodotto..." oninput="renderMz()"></div>
-        <table><thead><tr><th>Prodotto</th><th>Entrato</th><th>Uscito</th><th>Netto</th><th class="right">Consumato</th><th class="right">Residua</th><th class="right">Da ordinare</th><th></th></tr></thead><tbody id="mz-list"></tbody></table>
+        <table><thead><tr><th>Prodotto</th><th>Entrato</th><th>Uscito</th><th>Netto</th><th class="right">Residua</th><th class="right">Da ordinare</th><th></th></tr></thead><tbody id="mz-list"></tbody></table>
       </div>
     </section>
 
