@@ -550,13 +550,13 @@ async function loadOrdini() {
   $('#ordini-list').innerHTML = o.gruppi.length ? o.gruppi.map((g, i) => `
     <div class="card">
       <h3>${g.vendor} <span class="muted">— ${g.righe.length} prodotti</span></h3>
-      <table><thead><tr><th>Prodotto</th><th class="right">Giacenza</th><th class="right">Ideale</th>
+      <div class="grid-scroll"><table><thead><tr><th>Prodotto</th><th class="right">Giacenza</th><th class="right">Ideale</th>
         <th class="right">Da ordinare</th></tr></thead>
         <tbody>${g.righe.map(r => `<tr><td>${r.name} <span class="muted">${r.format || ''}</span></td>
           <td class="right" style="color:var(--red)">${r.stock}</td>
           <td class="right muted">${r.par_level}</td>
           <td class="right"><b style="color:var(--gold)">${r.qty}</b> ${r.unit}</td>
-          </tr>`).join('')}</tbody></table>
+          </tr>`).join('')}</tbody></table></div>
       <div class="toolbar" style="margin-top:8px">
         <button class="ghost" onclick="copiaOrdine(${i})">📋 Copia testo</button>
         ${g.phone ? `<button class="act gold" onclick="whatsappOrdine(${i})">💬 WhatsApp</button>` : ''}

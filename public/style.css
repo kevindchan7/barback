@@ -336,3 +336,13 @@ button.act{box-shadow:0 4px 14px var(--accent-glow);}
 .rq-warn{background:var(--yellow-soft); border:1px solid var(--yellow); border-radius:10px;
   padding:9px 11px; font-size:12px; line-height:1.9; margin-top:6px;}
 .rq-warn b{color:var(--yellow);}
+
+/* Tabelle con molte colonne: meglio farle scorrere che schiacciarle.
+   Su un telefono da 360px sette colonne diventano 40px l'una. */
+table.wide{min-width:520px;}
+
+/* il cursore della bottiglia aperta non deve allargare la riga:
+   senza min-width:0 il campo range non scende sotto la sua misura
+   naturale (~129px) e su un telefono da 320px la riga sborda */
+.partial input[type=range]{flex:1 1 0; min-width:0;}
+.partial .lab{min-width:0;}
