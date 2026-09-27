@@ -1,94 +1,95 @@
 ============================================================
-  PUBBLICARE BARBACK SU INTERNET (link fisso)
-  Tutto dal browser: NIENTE comandi, NIENTE programmi da installare.
+  METTERE BARBACK ONLINE (link fisso, dati che restano)
+  Tutto dal browser. Niente comandi.
 ============================================================
 
-Ci sono 2 passaggi:
-  A) Mettere il codice su GitHub (un "cassetto" online per i file)
-  B) Accendere l'app su Render (che la fa girare e ti da' il link)
+Il codice e' gia' su GitHub:
+    https://github.com/kevindchan7/barback
+
+Manca solo accendere l'app su Render, che la fa girare su un computer
+suo e ti da' un indirizzo fisso. Il tuo PC puo' stare spento.
 
 
 ------------------------------------------------------------
-PARTE A - GITHUB (5 minuti)
+PASSO 1 - REGISTRATI SU RENDER (3 minuti)
 ------------------------------------------------------------
-1. Vai su:  https://github.com
-2. Se non hai un account: "Sign up" e creane uno gratis.
-3. In alto a destra clicca il "+"  ->  "New repository".
-4. Nome:  barback
-   Lascia "Public".  Clicca "Create repository".
-5. Nella pagina che appare, clicca la scritta:
-      "uploading an existing file"
-6. Apri la cartella  barback-deploy  sul tuo PC.
-   Seleziona TUTTO quello che c'e' dentro (anche la cartella "public")
-   e TRASCINALO nella pagina di GitHub.
-
-   NON caricare: node_modules, data.db, i file .log
-   (non servono e occupano spazio inutile)
-
-7. In fondo clicca "Commit changes".
-   -> Ora il codice e' online su GitHub.
+1. Vai su:  https://dashboard.render.com/register
+2. Scegli "GitHub" per registrarti, cosi' sono gia' collegati.
+3. Quando chiede a quali repository dare accesso, puoi sceglierne
+   uno solo:  barback.
 
 
 ------------------------------------------------------------
-PARTE B - RENDER (5 minuti)
+PASSO 2 - ACCENDI L'APP (3 minuti)
 ------------------------------------------------------------
-1. Vai su:  https://render.com
-2. "Get Started" / "Sign up".
-   CONSIGLIO: scegli "Sign in with GitHub" (cosi' sono gia' collegati).
-3. Clicca "New +"  ->  "Web Service".
-4. Scegli il repository  barback  (autorizza GitHub se lo chiede).
-5. Render legge il file render.yaml e compila tutto da solo:
-      Build Command:  npm install
-      Start Command:  node --experimental-sqlite server.js
-   Se chiede il piano, scegli  Free.
-6. Clicca "Create Web Service" e aspetta 2-3 minuti (sta costruendo).
-7. In alto comparira' il TUO LINK FISSO, tipo:
+1. "New +"  in alto a destra  ->  "Blueprint"
+2. Scegli il repository  barback
+3. Render legge il file  render.yaml  e compila tutto da solo:
+      piano:          Starter
+      build:          npm install
+      avvio:          node --experimental-sqlite server.js
+      disco dati:     1 GB su /var/data
+      chiave token:   la genera Render, non e' scritta nel codice
+4. Ti chiede conferma del piano a pagamento. Confermi.
+5. "Apply" e aspetti 2-3 minuti: sta costruendo.
+
+
+------------------------------------------------------------
+PASSO 3 - IL TUO LINK
+------------------------------------------------------------
+In alto comparira' il TUO indirizzo fisso, tipo:
       https://barback-xxxx.onrender.com
-   Questo link non cambia mai: mandalo a chi vuoi!
+
+Questo link non cambia mai. Mandalo a chi vuoi.
+Dal telefono: aprilo e scegli "Aggiungi a schermata Home": diventa
+un'app con la sua icona, a schermo pieno.
 
 
 ------------------------------------------------------------
-PROFILI E PIN (per entrare)
+QUANTO COSTA
 ------------------------------------------------------------
+  Piano Starter .......... circa 7 $/mese
+  Disco dati (1 GB) ...... circa 0,25 $/mese
+                           ------------------
+                           circa 7,25 $/mese
+
+Perche' non il piano gratuito: sul gratis i dati si AZZERANO a ogni
+aggiornamento dell'app. Perderesti i conteggi dei vuoti, i turni, le
+giacenze. Va bene solo per far vedere l'app a qualcuno.
+
+Se ti serve solo una demo e non ti importa dei dati, nel repo c'e'
+render-GRATIS.yaml: si attiva rinominandolo in render.yaml (e
+rinominando l'attuale render.yaml in render-DATI-PERMANENTI.yaml).
+
+
+------------------------------------------------------------
+PRIMA COSA DA FARE APPENA E' ONLINE
+------------------------------------------------------------
+CAMBIA I PIN. Quelli di partenza sono:
+
   Proprietario .............. 1111
   Admin 1 - Responsabile .... 2222
   Admin 2 - Barman .......... 3333
   Admin 3 - Bar Manager ..... 4444
 
-  IMPORTANTE: questi sono i PIN della demo e li conoscono tutti.
-  Se pubblichi l'app online e ci metti dati veri del locale,
-  cambiali. Chiedimi pure di farlo, e' una modifica veloce.
+Sono scritti qui dentro e nel codice, quindi li conoscono tutti.
+Entra come Proprietario, premi l'ingranaggio in alto a destra e
+cambiali. Da lì puoi anche creare profili nuovi per le persone vere
+del locale e reimpostare i PIN degli altri.
 
 
 ------------------------------------------------------------
-IMPORTANTISSIMO: I DATI SI AZZERANO (sul piano gratis)
+COME SI AGGIORNA IN FUTURO
 ------------------------------------------------------------
-Sul piano gratuito di Render l'app NON puo' conservare i dati:
-a ogni aggiornamento torna tutto alla demo iniziale.
-Va benissimo per far vedere l'app a qualcuno.
-NON va bene per usarla davvero nel locale: perderesti i conteggi.
-
-PER AVERE I DATI PERMANENTI (serve un piano a pagamento):
-  Costo indicativo: circa 7 $/mese (piano Starter)
-                    + 0,25 $/GB al mese per il disco dei dati.
-
-  Come si fa:
-   1. Nella cartella, prendi il file:  render-DATI-PERMANENTI.yaml
-   2. Rinomina il  render.yaml  attuale in  render-GRATIS.yaml
-   3. Rinomina  render-DATI-PERMANENTI.yaml  in  render.yaml
-   4. Ricarica i file su GitHub.
-   5. Render si aggiorna da solo e ti chiede conferma del piano.
-   -> Da quel momento i dati restano, anche dopo gli aggiornamenti.
+Ogni volta che una modifica arriva su GitHub, Render la installa da
+solo in pochi minuti. Non devi fare niente, e i dati restano.
 
 
 ------------------------------------------------------------
-ALTRE COSE DA SAPERE (piano gratis)
+ALTRE COSE DA SAPERE
 ------------------------------------------------------------
-- Se nessuno usa l'app per 15 minuti, "si addormenta": la prima
-  visita dopo ci mette ~50 secondi a svegliarsi. Poi va veloce.
-- Per aggiornare l'app in futuro: ricarichi i file su GitHub e
-  Render si riaggiorna da solo.
-- La chiave di sicurezza dei login (JWT_SECRET) ora la genera
-  Render da sola: non devi fare niente, e non e' piu' scritta
-  dentro al codice.
+- Sul piano Starter l'app NON si addormenta: risponde sempre subito.
+- Il disco da 1 GB e' abbondante: il database di un locale pesa pochi
+  megabyte. Se un giorno servisse, si allarga dalle impostazioni.
+- Render tiene i log: se qualcosa non va, l'errore si legge lì.
 ============================================================

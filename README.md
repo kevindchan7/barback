@@ -52,10 +52,9 @@ Al primo avvio il database si popola da solo con dati demo: 13 bottiglie, 4 cock
 
 Istruzioni passo-passo, senza comandi, in **[COME-PUBBLICARE.txt](COME-PUBBLICARE.txt)**. In sintesi: colleghi questo repo a [Render](https://render.com), che legge `render.yaml` e configura tutto da solo.
 
-Due cose da sapere sul piano gratuito di Render:
+`render.yaml` è configurato per il piano **Starter** (~7 $/mese + ~0,25 $/mese di disco): i dati vivono su un disco che Render conserva a ogni aggiornamento, e l'app non si addormenta mai.
 
-- **I dati si azzerano a ogni aggiornamento dell'app.** Va bene per una demo, non per l'uso reale nel locale. Per conservarli serve il piano a pagamento: rinomina `render-DATI-PERMANENTI.yaml` in `render.yaml` (dettagli nelle istruzioni).
-- Dopo 15 minuti di inattività l'app si addormenta e la prima visita successiva impiega ~50 secondi.
+Il piano gratuito resta disponibile come `render-GRATIS.yaml`, ma **azzera i dati a ogni aggiornamento**: va bene per una demo, non per usare l'app nel locale.
 
 La chiave di firma dei token (`JWT_SECRET`) non è nel codice: la genera Render. In locale ne viene generata una nuova a ogni riavvio, quindi dopo un restart l'app richiede di nuovo il PIN.
 
@@ -72,7 +71,8 @@ server.js      API REST, login a PIN, controllo permessi
 db.js          schema SQLite e dati demo del primo avvio
 public/        frontend (index.html, app.js, style.css, mascot.js)
 AVVIA.cmd      avvio rapido su Windows (Node portatile)
-render.yaml    configurazione di deploy — piano gratuito
+render.yaml    configurazione di deploy — piano Starter con disco dati
+test/          la prova completa (npm test)
 ```
 
 ## Variabili d'ambiente

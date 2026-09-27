@@ -1,14 +1,18 @@
-# Configurazione per Render (hosting cloud) - VERSIONE GRATUITA.
-# Su Render: New + -> Blueprint -> scegli il repo, e configura tutto da solo.
+# Configurazione per Render — VERSIONE ATTIVA: dati permanenti (a pagamento).
 #
-# ATTENZIONE: sul piano gratuito i dati si azzerano a ogni aggiornamento
-# dell'app. Per conservarli davvero, usa il file render-DATI-PERMANENTI.yaml
-# (le istruzioni sono dentro COME-PUBBLICARE.txt).
+# E' questo il file che Render legge. I dati NON si azzerano: vivono su un
+# disco che Render conserva a ogni aggiornamento dell'app.
+# Costo indicativo: piano Starter ~7 $/mese + disco 0,25 $/GB al mese.
+#
+# Se un giorno vuoi tornare al piano gratuito (i dati si azzererebbero):
+#   1. Rinomina questo file in  render-DATI-PERMANENTI.yaml
+#   2. Rinomina  render-GRATIS.yaml  in  render.yaml
+#   3. Ricarica su GitHub: Render si aggiorna da solo.
 services:
   - type: web
     name: barback
     runtime: node
-    plan: free
+    plan: starter
     buildCommand: npm install
     startCommand: node --experimental-sqlite server.js
     envVars:
@@ -17,3 +21,10 @@ services:
       # Render genera da solo una chiave segreta sicura per i token di accesso.
       - key: JWT_SECRET
         generateValue: true
+      # Il database vive sul disco persistente, non dentro l'app.
+      - key: DB_PATH
+        value: /var/data/data.db
+    disk:
+      name: barback-dati
+      mountPath: /var/data
+      sizeGB: 1

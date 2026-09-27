@@ -1,0 +1,20 @@
+# Configurazione per Render — VERSIONE GRATUITA, NON attiva.
+#
+# Render NON legge questo file: legge render.yaml, che ora e' quello con i
+# dati permanenti. Questo resta qui come alternativa.
+#
+# ATTENZIONE: sul piano gratuito i dati si azzerano a ogni aggiornamento
+# dell'app. Va bene per una demo, non per usarla nel locale.
+services:
+  - type: web
+    name: barback
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node --experimental-sqlite server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 24.16.0
+      # Render genera da solo una chiave segreta sicura per i token di accesso.
+      - key: JWT_SECRET
+        generateValue: true
