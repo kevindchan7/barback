@@ -9,7 +9,8 @@ Gestionale web per bar e ristoranti: **magazzino bevande** + **turni del persona
 | Sezione | A cosa serve |
 |---|---|
 | **Conteggio vuoti** | Registra le bottiglie consumate (manuale, da scontrino o da giacenza), vista giorno/mese e griglia mensile prodotto × giorno. Scala la giacenza in tempo reale. |
-| **Turni & Task** | Griglia turni giorno/settimana/mese, task giornaliere spuntabili, richieste di cambio turno / ferie / permessi con approvazione. Export CSV ed Excel. |
+| **Turni & Task** | Griglia turni giorno/settimana/mese e task giornaliere spuntabili. Export CSV ed Excel. |
+| **Ferie e permessi** | Chi lavora chiede ferie, permessi o cambi turno indicando periodo e motivo. Chi gestisce approva o rifiuta, e **vede quali turni resterebbero scoperti** in quei giorni. |
 | **Drink Cost** | Costo reale di ogni cocktail calcolato dalla ricetta in ml risalendo al costo/ml delle bottiglie, con **pour cost %** sul prezzo di vendita. |
 | **Magazzino & Giacenze** | Carico/scarico rapido, report mensile entrato / uscito / netto / consumato / residua, alert sotto soglia, ricerca e export. |
 | **Ordini ai fornitori** | Ogni prodotto ha una soglia e una **scorta ideale**: quando scende, l'app calcola quanto ordinare e raggruppa tutto per fornitore. L'ordine si copia come testo, si manda su **WhatsApp** con un tocco, o si esporta. |

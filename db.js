@@ -117,6 +117,11 @@ function addColumn(table, column, decl) {
 addColumn('products', 'par_level', 'REAL DEFAULT 0');   // scorta ideale da tenere
 addColumn('products', 'vendor_id', 'INTEGER');          // da chi si compra
 addColumn('products', 'barcode', 'TEXT');              // codice a barre, letto con la fotocamera
+// richieste di ferie e cambio turno: chi ha deciso, quando e perche'
+addColumn('shift_changes', 'created_at', 'TEXT');
+addColumn('shift_changes', 'decided_at', 'TEXT');
+addColumn('shift_changes', 'decided_by', 'INTEGER');
+addColumn('shift_changes', 'motivo', "TEXT DEFAULT ''");
 
 /* ---------- helper date per il seed ---------- */
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -230,7 +235,7 @@ function seedInventario() {
   // aggiunge le capacita' nuove ai profili, senza toccare quelle che hanno gia'
   const nuovi = {
     'Proprietario':            [],   // ha 'all', non serve aggiungere niente
-    'Admin 1 · Responsabile':  ['inventario.view'],
+    'Admin 1 · Responsabile':  ['inventario.view', 'ferie.approve'],
     'Admin 2 · Barman':        ['inventario.view', 'inventario.do'],
     'Admin 3 · Bar Manager':   ['inventario.view', 'inventario.do', 'inventario.close'],
   };

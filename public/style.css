@@ -328,3 +328,11 @@ button.act{box-shadow:0 4px 14px var(--accent-glow);}
   transition:border-color .15s, transform .08s;}
 .themebtn:hover{border-color:var(--accent);}
 .themebtn:active{transform:scale(.94);}
+
+/* ===== Schede delle richieste di ferie e permessi ===== */
+.rq-head{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;}
+.rq-who{font-size:15px; font-weight:800;}
+/* i turni che resterebbero scoperti: e' l'avviso che serve a chi decide */
+.rq-warn{background:var(--yellow-soft); border:1px solid var(--yellow); border-radius:10px;
+  padding:9px 11px; font-size:12px; line-height:1.9; margin-top:6px;}
+.rq-warn b{color:var(--yellow);}

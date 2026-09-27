@@ -534,17 +534,79 @@ api.put('/tasks/:id', (req, res) => {
   ok(res, { ok: true });
 });
 
-api.get('/shift-changes', need('ferie.view'), (req, res) => ok(res, db.prepare(`SELECT c.*, e.name employee
-  FROM shift_changes c JOIN employees e ON e.id=c.employee_id ORDER BY c.id DESC`).all()));
+/* ---------------- RICHIESTE: FERIE, PERMESSI, CAMBI TURNO ----------------
+   Due ruoli. Chi chiede compila tipo, periodo e motivo. Chi approva vede
+   anche QUALI TURNI resterebbero scoperti in quel periodo: e' l'unica
+   informazione che serve davvero per decidere, e prima non c'era.      */
+
+// i turni del dipendente che cadono nel periodo richiesto
+function turniNelPeriodo(employee_id, from_date, to_date) {
+  return db.prepare(`SELECT date, start, end, role FROM shifts
+    WHERE employee_id=? AND date BETWEEN ? AND ? ORDER BY date, start`)
+    .all(employee_id, from_date, to_date || from_date);
+}
+
+// chi puo' chiedere deve poter vedere lo stato di cio' che ha chiesto:
+// non basta 'ferie.view', altrimenti il barman invia e poi riceve 403
+api.get('/shift-changes', (req, res) => {
+  if (!can(req, 'ferie.view') && !can(req, 'ferie.request')) return bad(res, 403, 'Permesso negato (ferie.view)');
+  const rows = db.prepare(`SELECT c.*, e.name employee, e.role employee_role,
+      p.name AS deciso_da
+    FROM shift_changes c
+    JOIN employees e ON e.id=c.employee_id
+    LEFT JOIN profiles p ON p.id=c.decided_by
+    ORDER BY (c.status='in attesa') DESC, c.id DESC`).all();
+  rows.forEach(r => {
+    r.giorni = giorniTra(r.from_date, r.to_date);
+    r.turniScoperti = r.status === 'rifiutato' ? [] : turniNelPeriodo(r.employee_id, r.from_date, r.to_date);
+  });
+  ok(res, { rows, inAttesa: rows.filter(r => r.status === 'in attesa').length });
+});
+
+// quanti giorni copre la richiesta, estremi inclusi
+function giorniTra(a, b) {
+  if (!a) return 0;
+  const d1 = new Date(a + 'T00:00'), d2 = new Date((b || a) + 'T00:00');
+  return Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
+}
+
 api.post('/shift-changes', need('ferie.request'), (req, res) => {
   const { employee_id, type, from_date, to_date, note } = req.body;
-  const r = db.prepare(`INSERT INTO shift_changes (employee_id,type,from_date,to_date,note) VALUES (?,?,?,?,?)`)
-    .run(employee_id, type, from_date, to_date || from_date, note || '');
-  ok(res, { id: r.lastInsertRowid });
+  if (!employee_id) return bad(res, 400, 'Scegli il dipendente');
+  if (!['cambio', 'ferie', 'permesso'].includes(type)) return bad(res, 400, 'Tipo non valido');
+  if (!from_date) return bad(res, 400, 'Serve la data di inizio');
+  const fine = to_date || from_date;
+  if (fine < from_date) return bad(res, 400, 'La data di fine viene prima di quella di inizio');
+  if (!db.prepare('SELECT 1 FROM employees WHERE id=?').get(employee_id)) return bad(res, 404, 'Dipendente non trovato');
+
+  // due richieste sovrapposte in attesa per la stessa persona sono un errore
+  const sovrapposta = db.prepare(`SELECT id FROM shift_changes
+    WHERE employee_id=? AND status='in attesa' AND from_date<=? AND to_date>=?`).get(employee_id, fine, from_date);
+  if (sovrapposta) return bad(res, 409, 'C\'e\' gia\' una richiesta in attesa che copre quei giorni');
+
+  const r = db.prepare(`INSERT INTO shift_changes (employee_id,type,from_date,to_date,note,status,created_at)
+    VALUES (?,?,?,?,?, 'in attesa', ?)`).run(employee_id, type, from_date, fine, note || '', now());
+  ok(res, { id: r.lastInsertRowid, turniScoperti: turniNelPeriodo(employee_id, from_date, fine).length });
 });
-// approvare/rifiutare: solo chi ha 'ferie.approve' (proprietario)
+
+// approvare o rifiutare, con la possibilita' di spiegare perche'
 api.put('/shift-changes/:id', need('ferie.approve'), (req, res) => {
-  db.prepare('UPDATE shift_changes SET status=? WHERE id=?').run(req.body.status, req.params.id);
+  const { status, motivo } = req.body;
+  if (!['approvato', 'rifiutato'].includes(status)) return bad(res, 400, 'Decisione non valida');
+  const c = db.prepare('SELECT * FROM shift_changes WHERE id=?').get(req.params.id);
+  if (!c) return bad(res, 404, 'Richiesta non trovata');
+  if (c.status !== 'in attesa') return bad(res, 409, 'Richiesta gia\' decisa (' + c.status + ')');
+  db.prepare('UPDATE shift_changes SET status=?, motivo=?, decided_at=?, decided_by=? WHERE id=?')
+    .run(status, motivo || '', now(), req.user.id, req.params.id);
+  ok(res, { ok: true });
+});
+
+// chi ha chiesto puo' ritirare la richiesta finche' nessuno ha deciso
+api.delete('/shift-changes/:id', need('ferie.request'), (req, res) => {
+  const c = db.prepare('SELECT * FROM shift_changes WHERE id=?').get(req.params.id);
+  if (!c) return bad(res, 404, 'Richiesta non trovata');
+  if (c.status !== 'in attesa') return bad(res, 409, 'Si possono ritirare solo le richieste in attesa');
+  db.prepare('DELETE FROM shift_changes WHERE id=?').run(req.params.id);
   ok(res, { ok: true });
 });
 

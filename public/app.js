@@ -69,6 +69,7 @@ function buildBottomNav() {
     ['home', '🏠', 'Home', true],
     ['vuoti', '🍾', 'Vuoti', can('vuoti.view')],
     ['turni', '📅', 'Turni', can('turni.view') || can('task.view')],
+    ['richieste', '🏖', 'Ferie', can('ferie.view') || can('ferie.request')],
     ['magazzino', '📦', 'Magazz.', can('magazzino.view')],
     ['inventario', '📋', 'Invent.', can('inventario.view')],
     ['ordini', '🛒', 'Ordini', can('magazzino.view')],
@@ -130,6 +131,7 @@ async function loadHome() {
   const btns = [
     ['vuoti', '🍾', 'Conteggio vuoti', 'Bottiglie consumate', can('vuoti.view')],
     ['turni', '📅', 'Turni & Task', 'Personale e obiettivi', can('turni.view') || can('task.view')],
+    ['richieste', '🏖', 'Ferie e permessi', 'Chiedi e approva', can('ferie.view') || can('ferie.request')],
     ['magazzino', '📦', 'Magazzino', 'Giacenze e consumi', can('magazzino.view')],
     ['inventario', '📋', 'Inventario', 'Conta e verifica le giacenze', can('inventario.view')],
     ['ordini', '🛒', 'Ordini', 'Cosa ordinare e da chi', can('magazzino.view')],
@@ -148,7 +150,8 @@ function go(view, silent) {
   if (pollTimer) clearInterval(pollTimer);
   if (silent) return;
   const loaders = { home: loadHome, vuoti: loadVuoti, turni: loadTurni,
-    magazzino: loadMagazzino, inventario: loadInventario, ordini: loadOrdini, manuale: loadManuale };
+    magazzino: loadMagazzino, inventario: loadInventario, ordini: loadOrdini,
+    richieste: loadRichieste, manuale: loadManuale };
   if (loaders[view]) {
     loaders[view]();
     if (['vuoti', 'magazzino', 'turni'].includes(view)) pollTimer = setInterval(loaders[view], 20000);
@@ -627,15 +630,6 @@ async function loadTurni() {
   }
   if (can('task.view')) await loadTasks();
   show('#task-add', can('task.manage'));          // aggiungere task: solo chi gestisce
-  // sezione ferie/permessi
-  show('#sc-form', can('ferie.request'));
-  show('#sc-send', can('ferie.request'));
-  if (can('ferie.view') || can('ferie.request')) await loadShiftChanges();
-  if (can('ferie.request')) {
-    const emps = await api('/employees');
-    $('#sc-emp').innerHTML = emps.map(e => `<option value="${e.id}">${e.name} (${e.role})</option>`).join('');
-    if (!$('#sc-date').value) $('#sc-date').value = todayISO();
-  }
 }
 async function loadShifts() {
   const { from, to, days } = rangeDates();
@@ -680,20 +674,126 @@ async function addTask() {
   $('#task-title').value = ''; notify('Nuova task', title); loadTasks();
 }
 async function toggleTask(id, done) { try { await api('/tasks/' + id, 'PUT', { done }); } catch (e) { alert(e.message); loadTasks(); } }
-async function loadShiftChanges() {
-  const list = await api('/shift-changes');
-  const canApprove = can('ferie.approve');
-  $('#sc-list').innerHTML = list.map(c => `<tr><td>${c.employee}</td><td>${c.type}</td><td>${c.from_date}</td>
-    <td><span class="pill ${c.status === 'in attesa' ? 'wait' : 'ok'}">${c.status}</span></td>
-    <td class="right">${canApprove && c.status === 'in attesa'
-      ? `<button class="ghost" onclick="decide(${c.id},'approvato')">✓</button> <button class="ghost" onclick="decide(${c.id},'rifiutato')">✕</button>` : ''}</td></tr>`).join('');
-}
-async function decide(id, status) { await api('/shift-changes/' + id, 'PUT', { status }); loadShiftChanges(); }
-async function addShiftChange() {
-  await api('/shift-changes', 'POST', { employee_id: +$('#sc-emp').value, type: $('#sc-type').value, from_date: $('#sc-date').value });
-  loadShiftChanges();
+
+
+/* ===================== FERIE, PERMESSI, CAMBI TURNO =====================
+   Due ruoli nella stessa schermata, e ognuno vede solo la sua parte:
+   chi chiede compila il periodo e il motivo; chi approva vede anche
+   quali turni resterebbero scoperti in quei giorni.                    */
+const RQ_ETICHETTE = { ferie: '🏖 Ferie', permesso: '🕒 Permesso', cambio: '↔ Cambio turno' };
+const rqData = (s) => s ? new Date(s + 'T00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+
+async function loadRichieste() {
+  const puoChiedere = can('ferie.request'), puoApprovare = can('ferie.approve');
+  $('#rq-hello').innerHTML = mascotSays(puoApprovare
+    ? 'Qui decidi le richieste del personale. Ti dico anche quali turni restano scoperti.'
+    : 'Chiedi ferie, un permesso o un cambio turno. Il responsabile riceve la richiesta.', 48);
+
+  show('#rq-form-card', puoChiedere);
+  show('#rq-approve-card', puoApprovare);
+
+  if (puoChiedere) {
+    const emps = await api('/employees');
+    if ($('#rq-emp').options.length !== emps.length)
+      $('#rq-emp').innerHTML = emps.map(e => `<option value="${e.id}">${e.name} (${e.role})</option>`).join('');
+    if (!$('#rq-from').value) $('#rq-from').value = todayISO();
+    if (!$('#rq-to').value) $('#rq-to').value = todayISO();
+  }
+
+  const r = await api('/shift-changes');
+  window._richieste = r;
+  const attesa = r.rows.filter(x => x.status === 'in attesa');
+  $('#rq-count').textContent = attesa.length;
+
+  // le richieste da decidere, una scheda per ognuna
+  if (puoApprovare) {
+    $('#rq-pending').innerHTML = attesa.length ? attesa.map(c => {
+      const scoperti = c.turniScoperti || [];
+      return `<div class="card">
+        <div class="rq-head">
+          <span class="rq-who">${c.employee}</span>
+          <span class="muted">${c.employee_role || ''}</span>
+          <span class="spacer" style="flex:1"></span>
+          <span class="pill wait">${RQ_ETICHETTE[c.type] || c.type}</span>
+        </div>
+        <p style="font-size:13px;margin:8px 0 4px"><b>${rqData(c.from_date)}</b>${c.to_date !== c.from_date ? ` → <b>${rqData(c.to_date)}</b>` : ''}
+          <span class="muted">· ${c.giorni} ${c.giorni === 1 ? 'giorno' : 'giorni'}</span></p>
+        ${c.note ? `<p class="muted" style="font-size:12px;margin-bottom:6px">“${c.note}”</p>` : ''}
+        ${scoperti.length ? `<div class="rq-warn">
+            <b>${scoperti.length} ${scoperti.length === 1 ? 'turno' : 'turni'} da coprire:</b>
+            ${scoperti.map(t => `<span class="chip">${rqData(t.date)} ${t.start}–${t.end}</span>`).join(' ')}
+          </div>` : '<p class="muted" style="font-size:12px">Nessun turno assegnato in quei giorni.</p>'}
+        <div class="onb-actions" style="margin-top:12px">
+          <button class="ghost" onclick="rqDecide(${c.id},'rifiutato')">✕ Rifiuta</button>
+          <button class="act" onclick="rqDecide(${c.id},'approvato')">✓ Approva</button>
+        </div>
+      </div>`;
+    }).join('') : '<div class="card"><p class="muted">Nessuna richiesta in attesa. 👍</p></div>';
+  }
+
+  // lo storico completo
+  const puoRitirare = can('ferie.request');
+  $('#rq-list').innerHTML = r.rows.map(c => {
+    const cls = c.status === 'in attesa' ? 'wait' : c.status === 'approvato' ? 'ok' : 'low';
+    return `<tr>
+      <td>${c.employee}</td>
+      <td>${RQ_ETICHETTE[c.type] || c.type}</td>
+      <td>${rqData(c.from_date)}${c.to_date !== c.from_date ? ' → ' + rqData(c.to_date) : ''}
+        <div class="muted" style="font-size:11px">${c.giorni} ${c.giorni === 1 ? 'giorno' : 'giorni'}</div></td>
+      <td><span class="pill ${cls}">${c.status}</span>
+        ${c.motivo ? `<div class="muted" style="font-size:11px">“${c.motivo}”</div>` : ''}</td>
+      <td class="muted">${c.deciso_da || '—'}</td>
+      <td class="right">${c.status === 'in attesa' && puoRitirare
+        ? `<button class="iconbtn" onclick="rqRitira(${c.id}, '${c.employee.replace(/'/g, "\\'")}')" title="Ritira la richiesta">🗑</button>` : ''}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" class="muted">Nessuna richiesta.</td></tr>';
 }
 
+// mentre compili, ti dico subito quanti turni toccheresti
+async function rqPreview() {
+  const from = $('#rq-from').value, to = $('#rq-to').value || from;
+  const el = $('#rq-preview');
+  if (!from) { el.textContent = ''; return; }
+  if (to < from) { el.innerHTML = '<span style="color:var(--red)">La data di fine viene prima di quella di inizio.</span>'; return; }
+  const g = Math.round((new Date(to + 'T00:00') - new Date(from + 'T00:00')) / 86400000) + 1;
+  // i turni li sappiamo gia' dalla griglia: li chiediamo al server
+  try {
+    const turni = await api(`/shifts?from=${from}&to=${to}`);
+    const miei = turni.filter(t => t.employee_id === +$('#rq-emp').value);
+    el.innerHTML = `${g} ${g === 1 ? 'giorno' : 'giorni'}` +
+      (miei.length ? ` · <b>${miei.length} ${miei.length === 1 ? 'turno' : 'turni'} già assegnati</b> in quel periodo` : ' · nessun turno assegnato');
+  } catch { el.textContent = `${g} ${g === 1 ? 'giorno' : 'giorni'}`; }
+}
+
+async function rqSend() {
+  const body = { employee_id: +$('#rq-emp').value, type: $('#rq-type').value,
+    from_date: $('#rq-from').value, to_date: $('#rq-to').value, note: $('#rq-note').value.trim() };
+  try {
+    const out = await api('/shift-changes', 'POST', body);
+    $('#rq-note').value = '';
+    notify('Richiesta inviata', `${RQ_ETICHETTE[body.type]} · ${rqData(body.from_date)}`);
+    alert('Richiesta inviata.' + (out.turniScoperti ? `\nAttenzione: ${out.turniScoperti} turni sono già assegnati in quei giorni.` : ''));
+    loadRichieste();
+  } catch (e) { alert(e.message); }
+}
+
+async function rqDecide(id, status) {
+  const c = (window._richieste.rows || []).find(x => x.id === id);
+  let motivo = '';
+  if (status === 'rifiutato') {
+    motivo = prompt('Perché la rifiuti? (facoltativo, lo vedrà chi ha chiesto)') || '';
+  } else if (c && c.turniScoperti && c.turniScoperti.length) {
+    if (!confirm(`Approvando, ${c.turniScoperti.length} turni di ${c.employee} restano da coprire.\nProcedo?`)) return;
+  }
+  try { await api('/shift-changes/' + id, 'PUT', { status, motivo }); loadRichieste(); }
+  catch (e) { alert(e.message); }
+}
+
+async function rqRitira(id, chi) {
+  if (!confirm(`Ritirare la richiesta di ${chi}?`)) return;
+  try { await api('/shift-changes/' + id, 'DELETE'); loadRichieste(); }
+  catch (e) { alert(e.message); }
+}
 /* ===================== MANUALE DIPENDENTE ===================== */
 async function loadManuale() {
   $('#manuale-hello').innerHTML = mascotSays('Tutto quello che ti serve per il turno: regole del locale e ricette.', 48);

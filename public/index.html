@@ -128,15 +128,47 @@
           <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addTask()">+ Aggiungi</button></div>
         </div>
       </div>
-      <div class="card">
-        <h3>Cambio turno / Ferie / Permessi</h3>
-        <div id="sc-form" class="row c3">
-          <div><label>Dipendente</label><select id="sc-emp"></select></div>
-          <div><label>Tipo</label><select id="sc-type"><option>cambio</option><option>ferie</option><option>permesso</option></select></div>
-          <div><label>Data</label><input id="sc-date" type="date"></div>
+    </section>
+
+    <!-- RICHIESTE: ferie, permessi, cambi turno -->
+    <section class="view" id="richieste">
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Ferie e permessi</h2></div>
+      <div id="rq-hello"></div>
+
+      <!-- chi chiede -->
+      <div class="card hidden" id="rq-form-card">
+        <h3>Nuova richiesta</h3>
+        <div class="row c2">
+          <div><label>Dipendente</label><select id="rq-emp"></select></div>
+          <div><label>Tipo</label><select id="rq-type" onchange="rqPreview()">
+            <option value="ferie">Ferie</option>
+            <option value="permesso">Permesso</option>
+            <option value="cambio">Cambio turno</option>
+          </select></div>
         </div>
-        <button id="sc-send" class="act gold" onclick="addShiftChange()">↔ Invia richiesta</button>
-        <table style="margin-top:10px;"><thead><tr><th>Dipendente</th><th>Tipo</th><th>Data</th><th>Stato</th><th></th></tr></thead><tbody id="sc-list"></tbody></table>
+        <div class="row c2">
+          <div><label>Dal giorno</label><input id="rq-from" type="date" onchange="rqPreview()"></div>
+          <div><label>Al giorno</label><input id="rq-to" type="date" onchange="rqPreview()"></div>
+        </div>
+        <div class="row"><div><label>Motivo (facoltativo)</label><input id="rq-note" placeholder="es. matrimonio, visita medica, scambio con Marco"></div></div>
+        <p class="muted" id="rq-preview" style="font-size:12px;margin:-2px 0 10px"></p>
+        <button class="act gold" onclick="rqSend()">↔ Invia richiesta</button>
+      </div>
+
+      <!-- chi approva -->
+      <div class="hidden" id="rq-approve-card">
+        <div class="card">
+          <h3>Da approvare <span class="pill wait" id="rq-count" style="margin-left:6px">0</span></h3>
+          <p class="muted" style="font-size:12px;margin:4px 0 0">Per ogni richiesta vedi i turni che resterebbero scoperti.</p>
+        </div>
+        <div id="rq-pending"></div>
+      </div>
+
+      <!-- tutte -->
+      <div class="card">
+        <h3>Tutte le richieste</h3>
+        <div class="grid-scroll"><table><thead><tr><th>Dipendente</th><th>Tipo</th><th>Periodo</th>
+          <th>Stato</th><th>Deciso da</th><th></th></tr></thead><tbody id="rq-list"></tbody></table></div>
       </div>
     </section>
 
