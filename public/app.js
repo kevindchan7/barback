@@ -15,7 +15,8 @@ function can(cap) { const p = (PROFILE && PROFILE.permissions) || []; return p.i
 async function api(path, method = 'GET', body) {
   const res = await fetch('/api' + path, {
     method,
-    headers: { 'Content-Type': 'application/json', ...(TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {}) },
+    headers: { 'Content-Type': 'application/json', 'X-Lang': (typeof LANG !== 'undefined' ? LANG : 'it'),
+      ...(TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
@@ -27,18 +28,18 @@ const show = (sel, on) => { const e = $(sel); if (e) e.classList.toggle('hidden'
 /* ===================== LOGIN A PIN ===================== */
 let selProfile = null, pinBuf = '';
 async function initLogin() {
-  $('#login-head').innerHTML = mascotSays('Ciao! Sono Barback. Scegli un profilo per entrare.');
+  $('#login-head').innerHTML = mascotSays(t('ciao'));
   const profiles = await api('/profiles');
   $('#profiles').innerHTML = profiles.map(p => `
     <div class="profile" onclick="selectProfile(${p.id}, '${p.name.replace(/'/g, "\\'")}')">
       ${mascot(40)}
-      <div><div class="pn">${p.name}</div><div class="pr">${p.permissions.includes('all') ? 'accesso completo' : p.permissions.length + ' permessi'}</div></div>
+      <div><div class="pn">${p.name}</div><div class="pr">${p.permissions.includes('all') ? t('accesso_completo') : t('permessi_n', { n: p.permissions.length })}</div></div>
     </div>`).join('');
 }
 function selectProfile(id, name) {
   selProfile = { id, name }; pinBuf = '';
   $('#profiles-wrap').classList.add('hidden'); $('#pin-wrap').classList.remove('hidden');
-  $('#pin-for').textContent = 'PIN per ' + name;
+  $('#pin-for').textContent = t('pin_per') + ' ' + name;
   $('#pinpad').innerHTML = [1,2,3,4,5,6,7,8,9].map(d => `<button onclick="pinPress('${d}')">${d}</button>`).join('')
     + `<button onclick="pinDel()">⌫</button><button onclick="pinPress('0')">0</button><button onclick="submitPin()">✓</button>`;
   renderDots(); $('#login-msg').textContent = '';
@@ -60,20 +61,21 @@ function enterApp() {
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   $('#banner-mascot').innerHTML = mascot(42);
   $('#banner-sub').textContent = PROFILE.name;
+  applicaLingua();
   requestNotify(); buildBottomNav(); loadHome(); maybeOnboard();
 }
 
 /* Barra di navigazione in basso: solo le sezioni consentite dal profilo */
 function buildBottomNav() {
   const items = [
-    ['home', '🏠', 'Home', true],
-    ['vuoti', '🍾', 'Vuoti', can('vuoti.view')],
-    ['turni', '📅', 'Turni', can('turni.view') || can('task.view')],
-    ['richieste', '🏖', 'Ferie', can('ferie.view') || can('ferie.request')],
-    ['magazzino', '📦', 'Magazz.', can('magazzino.view')],
-    ['inventario', '📋', 'Invent.', can('inventario.view')],
-    ['ordini', '🛒', 'Ordini', can('magazzino.view')],
-    ['manuale', '📖', 'Manuale', can('manuale.view')],
+    ['home', '🏠', t('nav_home'), true],
+    ['vuoti', '🍾', t('nav_vuoti'), can('vuoti.view')],
+    ['turni', '📅', t('nav_turni'), can('turni.view') || can('task.view')],
+    ['richieste', '🏖', t('nav_ferie'), can('ferie.view') || can('ferie.request')],
+    ['magazzino', '📦', t('nav_magazzino'), can('magazzino.view')],
+    ['inventario', '📋', t('nav_inventario'), can('inventario.view')],
+    ['ordini', '🛒', t('nav_ordini'), can('magazzino.view')],
+    ['manuale', '📖', t('nav_manuale'), can('manuale.view')],
   ].filter(i => i[3]);
   $('#bottomnav').innerHTML = items.map(i =>
     `<button data-nav="${i[0]}" onclick="go('${i[0]}')"><span class="bi">${i[1]}</span><span class="bl">${i[2]}</span></button>`).join('');
@@ -113,29 +115,29 @@ function logout() { localStorage.removeItem('bb_token'); localStorage.removeItem
 /* ===================== HOMEPAGE (dinamica per permessi) ===================== */
 async function loadHome() {
   go('home', true);
-  $('#home-hello').innerHTML = mascotSays(`Bentornato, ${PROFILE.name}! Ecco cosa puoi gestire.`);
+  $('#home-hello').innerHTML = mascotSays(t('bentornato', { nome: PROFILE.name }));
 
   // layout iniziale: giacenze / entrate / uscite
   let ov = null; try { ov = await api('/overview'); } catch {}
   if (ov && (can('magazzino.view') || can('vuoti.view'))) {
     $('#home-overview').innerHTML = `
-      ${ov.primoAvvio ? mascotSays('Primo avvio: questo è lo stato iniziale del magazzino.', 48) : ''}
+      ${ov.primoAvvio ? mascotSays(t('primo_avvio'), 48) : ''}
       <div class="kpis">
-        <div class="kpi"><div class="v">${ov.giacenzaPezzi}</div><div class="l">Giacenza (bott.)</div></div>
-        <div class="kpi"><div class="v">${ov.entrate}</div><div class="l">Entrate (mese)</div></div>
-        <div class="kpi"><div class="v">${ov.uscite}</div><div class="l">Uscite (mese)</div></div>
+        <div class="kpi"><div class="v">${ov.giacenzaPezzi}</div><div class="l">${t('giacenza_pezzi')}</div></div>
+        <div class="kpi"><div class="v">${ov.entrate}</div><div class="l">${t('entrate_mese')}</div></div>
+        <div class="kpi"><div class="v">${ov.uscite}</div><div class="l">${t('uscite_mese')}</div></div>
       </div>`;
   } else $('#home-overview').innerHTML = '';
 
   // pulsanti visibili solo se permessi
   const btns = [
-    ['vuoti', '🍾', 'Conteggio vuoti', 'Bottiglie consumate', can('vuoti.view')],
-    ['turni', '📅', 'Turni & Task', 'Personale e obiettivi', can('turni.view') || can('task.view')],
-    ['richieste', '🏖', 'Ferie e permessi', 'Chiedi e approva', can('ferie.view') || can('ferie.request')],
-    ['magazzino', '📦', 'Magazzino', 'Giacenze e consumi', can('magazzino.view')],
-    ['inventario', '📋', 'Inventario', 'Conta e verifica le giacenze', can('inventario.view')],
-    ['ordini', '🛒', 'Ordini', 'Cosa ordinare e da chi', can('magazzino.view')],
-    ['manuale', '📖', 'Manuale dipendente', 'Regole e ricettario', can('manuale.view')],
+    ['vuoti', '🍾', t('sez_vuoti'), t('d_vuoti'), can('vuoti.view')],
+    ['turni', '📅', t('sez_turni'), t('d_turni'), can('turni.view') || can('task.view')],
+    ['richieste', '🏖', t('sez_ferie'), t('d_ferie'), can('ferie.view') || can('ferie.request')],
+    ['magazzino', '📦', t('sez_magazzino'), t('d_magazzino'), can('magazzino.view')],
+    ['inventario', '📋', t('sez_inventario'), t('d_inventario'), can('inventario.view')],
+    ['ordini', '🛒', t('sez_ordini'), t('d_ordini'), can('magazzino.view')],
+    ['manuale', '📖', t('sez_manuale'), t('d_manuale'), can('manuale.view')],
   ];
   $('#home-grid').innerHTML = btns.filter(b => b[4]).map(b =>
     `<div class="home-btn" onclick="go('${b[0]}')"><div class="ico">${b[1]}</div><div class="t">${b[2]}</div><div class="d">${b[3]}</div></div>`).join('');
@@ -197,8 +199,8 @@ async function loadMagazzino() {
   $('#mv-prod').innerHTML = prods.filter(p => p.category === 'Bottiglia').map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   // tipi di movimento consentiti dai permessi
   const types = [];
-  if (can('carico.do')) types.push(['carico', 'Carico (fornitore)']);
-  if (can('vuoti.do')) types.push(['scarico', 'Scarico'], ['vuoto', 'Vuoto']);
+  if (can('carico.do')) types.push(['carico', t('carico_forn')]);
+  if (can('vuoti.do')) types.push(['scarico', t('scarico')], ['vuoto', t('vuoto')]);
   $('#mv-type').innerHTML = types.map(t => `<option value="${t[0]}">${t[1]}</option>`).join('');
   show('#mz-mvform', types.length > 0);
   // form per aggiungere un prodotto nuovo
@@ -222,7 +224,7 @@ function renderMz() {
     <td class="right">${x.daOrdinare ? `<b style="color:var(--gold)">${x.daOrdinare}</b>` : '<span class="muted">—</span>'}</td>
     <td class="right">${editable ? `<button class="iconbtn" onclick="editProduct(${x.id})" title="Modifica">✏️</button>
       <button class="iconbtn" onclick="removeProduct(${x.id})" title="Elimina">🗑</button>` : ""}</td></tr>`).join("")
-    || '<tr><td colspan="7" class="muted">Nessun prodotto trovato.</td></tr>';
+    || `<tr><td colspan="7" class="muted">${t('nessun_prodotto')}</td></tr>`;
 }
 function editProduct(id) {
   const p = (window._products || []).find(x => x.id === id); if (!p) return;
@@ -274,7 +276,7 @@ async function addMovement() {
 let invSess = null, invMode = 'cursore', invItems = [], invLocName = '';
 
 async function loadInventario() {
-  $('#inv-hello').innerHTML = mascotSays('Conta una postazione alla volta. Puoi fermarti e riprendere: non perdi niente.', 48);
+  $('#inv-hello').innerHTML = mascotSays(t('inv_hello'), 48);
   show('#inv-loc-card', can('magazzino.view'));
   await Promise.all([loadLocations(), loadInvHistory()]);
   const r = await api('/inventory/open');
@@ -325,15 +327,15 @@ function invRenderItems() {
   const q = (($('#inv-search') && $('#inv-search').value) || '').toLowerCase();
   const vis = invItems.filter(p => p.name.toLowerCase().includes(q) || (p.format || '').toLowerCase().includes(q));
   const fatti = invItems.filter(p => p.whole !== null).length;
-  $('#inv-progress').textContent = `${fatti} / ${invItems.length} contati`;
-  $('#inv-mode').textContent = invMode === 'cursore' ? '🎚 Cursore' : '⌨ Tastierino';
+  $('#inv-progress').textContent = t('contati_su', { fatti, tot: invItems.length });
+  $('#inv-mode').textContent = invMode === 'cursore' ? t('cursore') : t('tastierino');
 
   $('#inv-items').innerHTML = vis.map(p => {
     const tot = p.whole === null ? null : +(p.whole + p.partial).toFixed(1);
     return `<div class="inv-row ${p.whole !== null ? 'done' : ''}" id="ir-${p.id}">
       <div class="top">
         <span class="nm">${p.name}</span><span class="fm">${p.format || ''}</span>
-        <span class="att">in memoria: ${p.stock}</span>
+        <span class="att">${t('in_memoria', { n: p.stock })}</span>
       </div>
       <div class="qty-ctl">
         <button onclick="invStep(${p.id},-1)">−</button>
@@ -345,12 +347,12 @@ function invRenderItems() {
         ${tot !== null ? `<span class="tot">${tot}</span>` : ''}
       </div>
       ${invMode === 'cursore' ? `<div class="partial">
-        <span class="lab">bottiglia aperta</span>
+        <span class="lab">${t('bottiglia_aperta')}</span>
         <input type="range" min="0" max="0.9" step="0.1" value="${p.partial}" oninput="invPartial(${p.id}, this.value)">
         <span class="val">${Math.round(p.partial * 10)}/10</span>
       </div>` : ''}
     </div>`;
-  }).join('') || '<div class="card"><p class="muted">Nessun prodotto trovato.</p></div>';
+  }).join('') || `<div class="card"><p class="muted">${t('nessun_prodotto')}</p></div>`;
 }
 
 function invToggleMode() { invMode = invMode === 'cursore' ? 'tastierino' : 'cursore'; invRenderItems(); }
@@ -412,7 +414,7 @@ async function invReview() {
     return `<tr><td>${x.name}<div class="muted" style="font-size:11px">${x.postazioni || ''}</div></td>
       <td class="right muted">${x.atteso}</td><td class="right">${x.contato}</td>
       <td class="right ${cls}">${seg}${x.differenza}</td></tr>`;
-  }).join('') || '<tr><td colspan="4" class="muted">Non hai contato niente.</td></tr>';
+  }).join('') || `<tr><td colspan="4" class="muted">${t('non_contato_niente')}</td></tr>`;
 
   show('#rv-missing-card', r.nonContati.length > 0);
   $('#rv-missing').innerHTML = r.nonContati.map(p => `<span class="missing-chip">${p.name}</span>`).join('');
@@ -439,12 +441,12 @@ async function invClose() {
 /* --- storico: ogni conteggio resta, senza limiti di mesi --- */
 async function loadInvHistory() {
   const h = await api('/inventory/history');
-  const fmt = (s) => s ? new Date(s).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  const fmt = (s) => s ? new Date(s).toLocaleString(locale(), { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
   $('#inv-history').innerHTML = h.map(s => `<tr>
       <td>${fmt(s.ended_at)}${s.parziale ? '<div class="muted" style="font-size:11px">parziale</div>' : ''}</td>
       <td>${s.operatore || '—'}</td><td class="right">${s.prodotti}</td>
       <td class="right ${s.conScostamento ? 'diff-pos' : 'diff-ok'}">${s.conScostamento}</td></tr>`).join('')
-    || '<tr><td colspan="4" class="muted">Nessun inventario ancora. Il primo che chiudi finisce qui.</td></tr>';
+    || `<tr><td colspan="4" class="muted">${t('nessun_inventario')}</td></tr>`;
 }
 
 /* --- postazioni --- */
@@ -453,7 +455,7 @@ async function loadLocations() {
   const editable = can('magazzino.view');
   $('#loc-list').innerHTML = locs.map(l => `<tr><td>${l.name}</td>
     <td class="right">${editable ? `<button class="iconbtn" onclick="removeLocation(${l.id}, '${l.name.replace(/'/g, "\\'")}')" title="Elimina">🗑</button>` : ''}</td></tr>`).join('')
-    || '<tr><td colspan="2" class="muted">Nessuna postazione.</td></tr>';
+    || `<tr><td colspan="2" class="muted">${t('nessuna_postazione')}</td></tr>`;
 }
 async function addLocation() {
   const name = $('#loc-name').value.trim(); if (!name) return;
@@ -540,7 +542,7 @@ async function bcLink(code) {
    scorta ideale, raggruppato per fornitore. Ogni gruppo si puo' copiare
    come testo o mandare su WhatsApp: niente integrazioni, solo praticita'. */
 async function loadOrdini() {
-  $('#ordini-hello').innerHTML = mascotSays('Ti dico cosa sta finendo e quanto ordinare. Poi lo mandi al fornitore.', 48);
+  $('#ordini-hello').innerHTML = mascotSays(t('ordini_hello'), 48);
   const [o, vendors] = await Promise.all([api('/orders/suggested'), api('/vendors')]);
   window._vendors = vendors;
   window._ordini = o;
@@ -549,7 +551,7 @@ async function loadOrdini() {
 
   $('#ordini-list').innerHTML = o.gruppi.length ? o.gruppi.map((g, i) => `
     <div class="card">
-      <h3>${g.vendor} <span class="muted">— ${g.righe.length} prodotti</span></h3>
+      <h3>${g.vendor} <span class="muted">— ${t('n_prodotti', { n: g.righe.length })}</span></h3>
       <div class="grid-scroll"><table><thead><tr><th>Prodotto</th><th class="right">Giacenza</th><th class="right">Ideale</th>
         <th class="right">Da ordinare</th></tr></thead>
         <tbody>${g.righe.map(r => `<tr><td>${r.name} <span class="muted">${r.format || ''}</span></td>
@@ -558,8 +560,8 @@ async function loadOrdini() {
           <td class="right"><b style="color:var(--gold)">${r.qty}</b> ${r.unit}</td>
           </tr>`).join('')}</tbody></table></div>
       <div class="toolbar" style="margin-top:8px">
-        <button class="ghost" onclick="copiaOrdine(${i})">📋 Copia testo</button>
-        ${g.phone ? `<button class="act gold" onclick="whatsappOrdine(${i})">💬 WhatsApp</button>` : ''}
+        <button class="ghost" onclick="copiaOrdine(${i})">${t('copia_testo')}</button>
+        ${g.phone ? `<button class="act gold" onclick="whatsappOrdine(${i})">${t('manda_whatsapp')}</button>` : ''}
         <button class="ghost" onclick="exportOrdine(${i},'csv')">⬇ CSV</button>
         <button class="ghost" onclick="exportOrdine(${i},'xlsx')">⬇ Excel</button>
       </div>
@@ -570,14 +572,14 @@ async function loadOrdini() {
   const editable = can('magazzino.view');
   $('#vendor-list').innerHTML = vendors.map(v => `<tr><td>${v.name}</td><td>${v.phone || '—'}</td><td>${v.email || '—'}</td>
     <td class="right">${editable ? `<button class="iconbtn" onclick="removeVendor(${v.id})" title="Elimina">🗑</button>` : ""}</td></tr>`).join("")
-    || '<tr><td colspan="4" class="muted">Nessun fornitore. Aggiungine uno qui sotto.</td></tr>';
+    || `<tr><td colspan="4" class="muted">${t('nessun_fornitore')}</td></tr>`;
 }
 
 // testo dell'ordine, leggibile e pronto da incollare
 function testoOrdine(i) {
   const g = (window._ordini && window._ordini.gruppi[i]); if (!g) return '';
-  const data = new Date().toLocaleDateString('it-IT');
-  return `Ordine Barback — ${data}\nFornitore: ${g.vendor}\n\n`
+  const data = new Date().toLocaleDateString(locale());
+  return t('ordine_intestazione', { data }) + '\n' + t('ordine_fornitore', { nome: g.vendor }) + '\n\n'
     + g.righe.map(r => `• ${r.name}${r.format ? ' ' + r.format : ''} — ${r.qty} ${r.unit}`).join('\n');
 }
 async function copiaOrdine(i) {
@@ -645,7 +647,7 @@ async function loadShifts() {
   const { from, to, days } = rangeDates();
   const [shifts, emps] = await Promise.all([api(`/shifts?from=${from}&to=${to}`), api('/employees')]);
   window._shiftRows = shifts;
-  const fmtDay = (s) => new Date(s + 'T00:00').toLocaleDateString('it-IT', { weekday: 'short', day: '2-digit' });
+  const fmtDay = (s) => new Date(s + 'T00:00').toLocaleDateString(locale(), { weekday: 'short', day: '2-digit' });
   const editable = can('turni.manage');
   let html = '<tr><th>Dipendente</th>' + days.map(d => `<th>${fmtDay(d.toISOString().slice(0,10))}</th>`).join('') + '</tr>';
   emps.forEach(e => {
@@ -676,7 +678,7 @@ async function loadTasks() {
       <input type="checkbox" style="width:auto" ${t.done ? 'checked' : ''} ${editable ? '' : 'disabled'} onchange="toggleTask(${t.id}, this.checked)">
       <span style="${t.done ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.title}</span>
       <span style="flex:1"></span><span class="muted">${t.assignee || ''}</span>
-    </label>`).join('') : '<p class="muted">Nessuna task per oggi.</p>';
+    </label>`).join('') : `<p class="muted">${t('nessuna_task')}</p>`;
 }
 async function addTask() {
   const title = $('#task-title').value.trim(); if (!title) return;
@@ -690,14 +692,14 @@ async function toggleTask(id, done) { try { await api('/tasks/' + id, 'PUT', { d
    Due ruoli nella stessa schermata, e ognuno vede solo la sua parte:
    chi chiede compila il periodo e il motivo; chi approva vede anche
    quali turni resterebbero scoperti in quei giorni.                    */
-const RQ_ETICHETTE = { ferie: '🏖 Ferie', permesso: '🕒 Permesso', cambio: '↔ Cambio turno' };
-const rqData = (s) => s ? new Date(s + 'T00:00').toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+const rqEtichetta = (k) => ({ ferie: '🏖 ' + t('ferie'), permesso: '🕒 ' + t('permesso'), cambio: '↔ ' + t('cambio_turno') })[k] || k;
+const rqData = (s) => s ? new Date(s + 'T00:00').toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
 
 async function loadRichieste() {
   const puoChiedere = can('ferie.request'), puoApprovare = can('ferie.approve');
   $('#rq-hello').innerHTML = mascotSays(puoApprovare
-    ? 'Qui decidi le richieste del personale. Ti dico anche quali turni restano scoperti.'
-    : 'Chiedi ferie, un permesso o un cambio turno. Il responsabile riceve la richiesta.', 48);
+    ? t('rq_hello_capo')
+    : t('rq_hello_dip'), 48);
 
   show('#rq-form-card', puoChiedere);
   show('#rq-approve-card', puoApprovare);
@@ -724,7 +726,7 @@ async function loadRichieste() {
           <span class="rq-who">${c.employee}</span>
           <span class="muted">${c.employee_role || ''}</span>
           <span class="spacer" style="flex:1"></span>
-          <span class="pill wait">${RQ_ETICHETTE[c.type] || c.type}</span>
+          <span class="pill wait">${rqEtichetta(c.type)}</span>
         </div>
         <p style="font-size:13px;margin:8px 0 4px"><b>${rqData(c.from_date)}</b>${c.to_date !== c.from_date ? ` → <b>${rqData(c.to_date)}</b>` : ''}
           <span class="muted">· ${c.giorni} ${c.giorni === 1 ? 'giorno' : 'giorni'}</span></p>
@@ -732,13 +734,13 @@ async function loadRichieste() {
         ${scoperti.length ? `<div class="rq-warn">
             <b>${scoperti.length} ${scoperti.length === 1 ? 'turno' : 'turni'} da coprire:</b>
             ${scoperti.map(t => `<span class="chip">${rqData(t.date)} ${t.start}–${t.end}</span>`).join(' ')}
-          </div>` : '<p class="muted" style="font-size:12px">Nessun turno assegnato in quei giorni.</p>'}
+          </div>` : `<p class="muted" style="font-size:12px">${t('nessun_turno_periodo')}</p>`}
         <div class="onb-actions" style="margin-top:12px">
-          <button class="ghost" onclick="rqDecide(${c.id},'rifiutato')">✕ Rifiuta</button>
-          <button class="act" onclick="rqDecide(${c.id},'approvato')">✓ Approva</button>
+          <button class="ghost" onclick="rqDecide(${c.id},'rifiutato')">${t('rifiuta')}</button>
+          <button class="act" onclick="rqDecide(${c.id},'approvato')">${t('approva')}</button>
         </div>
       </div>`;
-    }).join('') : '<div class="card"><p class="muted">Nessuna richiesta in attesa. 👍</p></div>';
+    }).join('') : `<div class="card"><p class="muted">${t('nessuna_attesa')}</p></div>`;
   }
 
   // lo storico completo
@@ -747,7 +749,7 @@ async function loadRichieste() {
     const cls = c.status === 'in attesa' ? 'wait' : c.status === 'approvato' ? 'ok' : 'low';
     return `<tr>
       <td>${c.employee}</td>
-      <td>${RQ_ETICHETTE[c.type] || c.type}</td>
+      <td>${rqEtichetta(c.type)}</td>
       <td>${rqData(c.from_date)}${c.to_date !== c.from_date ? ' → ' + rqData(c.to_date) : ''}
         <div class="muted" style="font-size:11px">${c.giorni} ${c.giorni === 1 ? 'giorno' : 'giorni'}</div></td>
       <td><span class="pill ${cls}">${c.status}</span>
@@ -756,7 +758,7 @@ async function loadRichieste() {
       <td class="right">${c.status === 'in attesa' && puoRitirare
         ? `<button class="iconbtn" onclick="rqRitira(${c.id}, '${c.employee.replace(/'/g, "\\'")}')" title="Ritira la richiesta">🗑</button>` : ''}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="6" class="muted">Nessuna richiesta.</td></tr>';
+  }).join('') || `<tr><td colspan="6" class="muted">${t('nessuna_richiesta')}</td></tr>`;
 }
 
 // mentre compili, ti dico subito quanti turni toccheresti
@@ -781,7 +783,7 @@ async function rqSend() {
   try {
     const out = await api('/shift-changes', 'POST', body);
     $('#rq-note').value = '';
-    notify('Richiesta inviata', `${RQ_ETICHETTE[body.type]} · ${rqData(body.from_date)}`);
+    notify(t('nuova_richiesta'), `${rqEtichetta(body.type)} · ${rqData(body.from_date)}`);
     alert('Richiesta inviata.' + (out.turniScoperti ? `\nAttenzione: ${out.turniScoperti} turni sono già assegnati in quei giorni.` : ''));
     loadRichieste();
   } catch (e) { alert(e.message); }
@@ -806,7 +808,7 @@ async function rqRitira(id, chi) {
 }
 /* ===================== MANUALE DIPENDENTE ===================== */
 async function loadManuale() {
-  $('#manuale-hello').innerHTML = mascotSays('Tutto quello che ti serve per il turno: regole del locale e ricette.', 48);
+  $('#manuale-hello').innerHTML = mascotSays(t('man_hello'), 48);
   const m = await api('/manuale');
   $('#man-rules').innerHTML = m.regole.map(r => `<li>${r}</li>`).join('');
   $('#man-recipes').innerHTML = m.ricettario.map(c => `
@@ -901,7 +903,7 @@ async function loadEmployees() {
     <td class="right">
       <button class="iconbtn" onclick="editEmployee(${e.id})" title="Modifica">✏️</button>
       <button class="iconbtn" onclick="removeEmployee(${e.id})" title="Elimina">🗑</button>
-    </td></tr>`).join('') || '<tr><td colspan="3" class="muted">Nessun dipendente. Aggiungine uno qui sotto.</td></tr>';
+    </td></tr>`).join('') || `<tr><td colspan="3" class="muted">${t('nessun_dipendente')}</td></tr>`;
 }
 async function addEmployee() {
   const name = $('#ne-name').value.trim();
@@ -1026,6 +1028,19 @@ async function deleteProfile(id, nome) {
   try { await api('/profiles/' + id, 'DELETE'); openSettings(); }
   catch (e) { alert(e.message); }
 }
+
+/* ===================== LINGUA =====================
+   applicaLingua() riscrive il testo statico; ricaricaVista() ridisegna
+   la schermata aperta, cosi' cambiano anche i testi generati dal codice.
+   La lingua viaggia anche verso il server, che traduce i suoi messaggi. */
+function ricaricaVista() {
+  buildBottomNav();
+  const loaders = { home: loadHome, vuoti: loadVuoti, turni: loadTurni,
+    magazzino: loadMagazzino, inventario: loadInventario, ordini: loadOrdini,
+    richieste: loadRichieste, manuale: loadManuale };
+  if (TOKEN && PROFILE && loaders[currentView]) loaders[currentView]();
+  else if (!TOKEN) initLogin();
+}
 /* ===================== TEMA CHIARO / SCURO =====================
    Scuro (verde) e chiaro (bianco, nero, arancione). La scelta resta
    salvata sul dispositivo: chi usa l'app al banco puo' tenere il chiaro
@@ -1050,3 +1065,4 @@ function toggleTheme() {
   applyTheme(nuovo);
 }
 applyTheme(temaCorrente());
+applicaLingua();

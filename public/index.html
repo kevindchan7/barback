@@ -31,17 +31,18 @@
 
 <!-- ============ LOGIN A PIN ============ -->
 <div id="login">
-  <div style="display:flex;justify-content:flex-end"><button class="themebtn" onclick="toggleTheme()" title="Cambia tema">🌙</button></div>
+  <div style="display:flex;justify-content:flex-end"><button class="langbtn themebtn" onclick="toggleLang()" title="Cambia lingua" data-i18n-title="cambia_lingua">IT</button>
+    <button class="themebtn" onclick="toggleTheme()" title="Cambia tema" data-i18n-title="cambia_tema">🌙</button></div>
   <div class="login-head" id="login-head"></div>
   <div id="profiles-wrap">
-    <p class="muted" style="text-align:center">Scegli il tuo profilo</p>
+    <p class="muted" style="text-align:center" data-i18n="scegli_profilo">Scegli il tuo profilo</p>
     <div class="profiles" id="profiles"></div>
   </div>
   <div id="pin-wrap" class="hidden">
     <p class="muted" style="text-align:center" id="pin-for"></p>
     <div class="pin-dots" id="pin-dots"></div>
     <div class="pinpad" id="pinpad"></div>
-    <button class="ghost" style="margin:14px auto 0; display:block;" onclick="backToProfiles()">← Cambia profilo</button>
+    <button class="ghost" style="margin:14px auto 0; display:block;" onclick="backToProfiles()" data-i18n="cambia_profilo">← Cambia profilo</button>
   </div>
   <div class="msg" id="login-msg"></div>
 </div>
@@ -50,11 +51,12 @@
 <div id="app" class="hidden">
   <div class="banner" id="banner">
     <span id="banner-mascot"></span>
-    <div><h1>Barback</h1><div class="sub" id="banner-sub">Magazzino & Turni</div></div>
+    <div><h1 data-i18n="app_nome">Barback</h1><div class="sub" id="banner-sub" data-i18n="app_sotto">Magazzino & Turni</div></div>
     <span class="spacer"></span>
-    <button class="themebtn" onclick="toggleTheme()" title="Cambia tema">🌙</button>
-    <button class="themebtn" onclick="openSettings()" title="Impostazioni">⚙</button>
-    <button class="ghost" onclick="logout()">Esci</button>
+    <button class="langbtn themebtn" onclick="toggleLang()" title="Cambia lingua" data-i18n-title="cambia_lingua">IT</button>
+    <button class="themebtn" onclick="toggleTheme()" title="Cambia tema" data-i18n-title="cambia_tema">🌙</button>
+    <button class="themebtn" onclick="openSettings()" title="Impostazioni" data-i18n-title="impostazioni">⚙</button>
+    <button class="ghost" onclick="logout()" data-i18n="esci">Esci</button>
   </div>
 
   <main>
@@ -67,177 +69,177 @@
 
     <!-- SEZ.1 — VUOTI -->
     <section class="view" id="vuoti">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Conteggio vuoti</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_vuoti">Conteggio vuoti</h2></div>
       <div class="card" id="vuoti-form">
-        <h3>Registra bottiglie consumate</h3>
+        <h3 data-i18n="registra_vuoti">Registra bottiglie consumate</h3>
         <div class="row c2">
-          <div><label>Prodotto</label><select id="vuoti-prod"></select></div>
-          <div><label>Quantità (vuoti)</label><input id="vuoti-qty" type="number" value="1" min="1"></div>
+          <div><label data-i18n="prodotto">Prodotto</label><select id="vuoti-prod"></select></div>
+          <div><label data-i18n="vuoti_qta">Quantità (vuoti)</label><input id="vuoti-qty" type="number" value="1" min="1"></div>
         </div>
         <div class="row c2">
-          <div><label>Origine</label><select id="vuoti-src"><option value="manuale">Manuale</option><option value="scontrino">Da scontrino</option><option value="inventario">Da giacenza iniziale</option></select></div>
-          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addEmpty()">+ Registra vuoti</button></div>
+          <div><label data-i18n="origine">Origine</label><select id="vuoti-src"><option value="manuale" data-i18n="manuale_o">Manuale</option><option value="scontrino" data-i18n="da_scontrino">Da scontrino</option><option value="inventario" data-i18n="da_giacenza">Da giacenza iniziale</option></select></div>
+          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addEmpty()" data-i18n="btn_registra_vuoti">+ Registra vuoti</button></div>
         </div>
       </div>
       <div class="card">
         <div class="row c3">
-          <div><label>Vista</label><select id="vuoti-period" onchange="loadVuoti()"><option value="month">Mese</option><option value="day">Giorno</option></select></div>
-          <div style="grid-column:span 2;"><label>Data</label><input id="vuoti-date" type="date" onchange="loadVuoti()"></div>
+          <div><label data-i18n="vista">Vista</label><select id="vuoti-period" onchange="loadVuoti()"><option value="month" data-i18n="mese">Mese</option><option value="day" data-i18n="giorno">Giorno</option></select></div>
+          <div style="grid-column:span 2;"><label data-i18n="data">Data</label><input id="vuoti-date" type="date" onchange="loadVuoti()"></div>
         </div>
         <h3>Resoconto <span id="vuoti-key" class="muted"></span></h3>
-        <table><thead><tr><th>Prodotto</th><th>Vuoti</th><th class="right">Residuo</th></tr></thead><tbody id="vuoti-list"></tbody></table>
+        <table><thead><tr><th data-i18n="prodotto">Prodotto</th><th data-i18n="vuoti">Vuoti</th><th class="right" data-i18n="residuo">Residuo</th></tr></thead><tbody id="vuoti-list"></tbody></table>
       </div>
       <div class="card" id="vuoti-grid-card">
-        <h3>Griglia del mese (vuoti giorno per giorno)</h3>
+        <h3 data-i18n="griglia_mese">Griglia del mese (vuoti giorno per giorno)</h3>
         <div class="grid-scroll"><table class="shift-grid" id="vuoti-grid"></table></div>
       </div>
     </section>
 
     <!-- SEZ.2 — TURNI & TASK -->
     <section class="view" id="turni">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Turni & Task</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_turni">Turni & Task</h2></div>
       <div class="exports">
-        <button class="ghost" onclick="exportShifts('csv')">⬇ CSV turni</button>
-        <button class="ghost" onclick="exportShifts('xlsx')">⬇ Excel turni</button>
+        <button class="ghost" onclick="exportShifts('csv')" data-i18n="csv_turni">⬇ CSV turni</button>
+        <button class="ghost" onclick="exportShifts('xlsx')" data-i18n="excel_turni">⬇ Excel turni</button>
       </div>
       <div class="card">
         <div class="row c3">
-          <div><label>Vista</label><select id="shift-range" onchange="loadShifts()"><option value="week">Settimana</option><option value="day">Giorno</option><option value="month">Mese</option></select></div>
-          <div style="grid-column:span 2;"><label>Riferimento</label><input id="shift-date" type="date" onchange="loadShifts()"></div>
+          <div><label data-i18n="vista">Vista</label><select id="shift-range" onchange="loadShifts()"><option value="week" data-i18n="settimana">Settimana</option><option value="day" data-i18n="giorno">Giorno</option><option value="month" data-i18n="mese">Mese</option></select></div>
+          <div style="grid-column:span 2;"><label data-i18n="riferimento">Riferimento</label><input id="shift-date" type="date" onchange="loadShifts()"></div>
         </div>
         <div class="grid-scroll"><table class="shift-grid" id="shift-grid"></table></div>
       </div>
       <div class="card hidden" id="personale-card">
-        <h3>Personale</h3>
-        <p class="muted" style="font-size:12px;margin:4px 0 8px">Chi lavora nel locale. Servono per assegnare turni e task.</p>
-        <table><thead><tr><th>Nome</th><th>Ruolo</th><th></th></tr></thead><tbody id="emp-list"></tbody></table>
+        <h3 data-i18n="personale">Personale</h3>
+        <p class="muted" style="font-size:12px;margin:4px 0 8px" data-i18n="personale_aiuto">Chi lavora nel locale. Servono per assegnare turni e task.</p>
+        <table><thead><tr><th data-i18n="nome">Nome</th><th data-i18n="ruolo">Ruolo</th><th></th></tr></thead><tbody id="emp-list"></tbody></table>
         <div class="row c3" style="margin-top:10px">
-          <div><label>Nome</label><input id="ne-name" placeholder="es. Chiara"></div>
-          <div><label>Ruolo</label><input id="ne-role" placeholder="es. barista"></div>
-          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addEmployee()">+ Aggiungi</button></div>
+          <div><label data-i18n="nome">Nome</label><input id="ne-name" placeholder="es. Chiara" data-i18n-ph="ph_nome_dip"></div>
+          <div><label data-i18n="ruolo">Ruolo</label><input id="ne-role" placeholder="es. barista" data-i18n-ph="ph_ruolo"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addEmployee()" data-i18n="aggiungi">+ Aggiungi</button></div>
         </div>
       </div>
       <div class="card" id="sh-form">
-        <h3>Gestione turni</h3>
+        <h3 data-i18n="gestione_turni">Gestione turni</h3>
         <div class="row c3">
-          <div><label>Dipendente</label><select id="sh-emp"></select></div>
-          <div><label>Data</label><input id="sh-date" type="date"></div>
-          <div><label>Ruolo</label><input id="sh-role" placeholder="es. barista"></div>
+          <div><label data-i18n="dipendente">Dipendente</label><select id="sh-emp"></select></div>
+          <div><label data-i18n="data">Data</label><input id="sh-date" type="date"></div>
+          <div><label data-i18n="ruolo">Ruolo</label><input id="sh-role" placeholder="es. barista" data-i18n-ph="ph_ruolo"></div>
         </div>
         <div class="row c3">
-          <div><label>Inizio</label><input id="sh-start" type="time" value="16:00"></div>
-          <div><label>Fine</label><input id="sh-end" type="time" value="23:00"></div>
-          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addShift()">+ Aggiungi turno</button></div>
+          <div><label data-i18n="inizio">Inizio</label><input id="sh-start" type="time" value="16:00"></div>
+          <div><label data-i18n="fine">Fine</label><input id="sh-end" type="time" value="23:00"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addShift()" data-i18n="btn_agg_turno">+ Aggiungi turno</button></div>
         </div>
-        <p class="muted">Nella griglia, tocca un turno per eliminarlo.</p>
+        <p class="muted" data-i18n="griglia_aiuto">Nella griglia, tocca un turno per eliminarlo.</p>
       </div>
       <div class="card">
-        <h3>Task di oggi</h3>
+        <h3 data-i18n="task_oggi">Task di oggi</h3>
         <div id="tasks-list"></div>
         <div id="task-add" class="row c2" style="margin-top:10px;">
-          <div><label>Nuova task</label><input id="task-title" placeholder="es. Pulizia banco"></div>
-          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addTask()">+ Aggiungi</button></div>
+          <div><label data-i18n="nuova_task">Nuova task</label><input id="task-title" placeholder="es. Pulizia banco" data-i18n-ph="ph_task"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addTask()" data-i18n="aggiungi">+ Aggiungi</button></div>
         </div>
       </div>
     </section>
 
     <!-- RICHIESTE: ferie, permessi, cambi turno -->
     <section class="view" id="richieste">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Ferie e permessi</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_ferie">Ferie e permessi</h2></div>
       <div id="rq-hello"></div>
 
       <!-- chi chiede -->
       <div class="card hidden" id="rq-form-card">
-        <h3>Nuova richiesta</h3>
+        <h3 data-i18n="nuova_richiesta">Nuova richiesta</h3>
         <div class="row c2">
-          <div><label>Dipendente</label><select id="rq-emp"></select></div>
-          <div><label>Tipo</label><select id="rq-type" onchange="rqPreview()">
-            <option value="ferie">Ferie</option>
-            <option value="permesso">Permesso</option>
-            <option value="cambio">Cambio turno</option>
+          <div><label data-i18n="dipendente">Dipendente</label><select id="rq-emp"></select></div>
+          <div><label data-i18n="tipo">Tipo</label><select id="rq-type" onchange="rqPreview()">
+            <option value="ferie" data-i18n="ferie">Ferie</option>
+            <option value="permesso" data-i18n="permesso">Permesso</option>
+            <option value="cambio" data-i18n="cambio_turno">Cambio turno</option>
           </select></div>
         </div>
         <div class="row c2">
-          <div><label>Dal giorno</label><input id="rq-from" type="date" onchange="rqPreview()"></div>
-          <div><label>Al giorno</label><input id="rq-to" type="date" onchange="rqPreview()"></div>
+          <div><label data-i18n="dal_giorno">Dal giorno</label><input id="rq-from" type="date" onchange="rqPreview()"></div>
+          <div><label data-i18n="al_giorno">Al giorno</label><input id="rq-to" type="date" onchange="rqPreview()"></div>
         </div>
-        <div class="row"><div><label>Motivo (facoltativo)</label><input id="rq-note" placeholder="es. matrimonio, visita medica, scambio con Marco"></div></div>
+        <div class="row"><div><label data-i18n="motivo_fac">Motivo (facoltativo)</label><input id="rq-note" placeholder="es. matrimonio, visita medica, scambio con Marco" data-i18n-ph="ph_motivo"></div></div>
         <p class="muted" id="rq-preview" style="font-size:12px;margin:-2px 0 10px"></p>
-        <button class="act gold" onclick="rqSend()">↔ Invia richiesta</button>
+        <button class="act gold" onclick="rqSend()" data-i18n="invia_richiesta">↔ Invia richiesta</button>
       </div>
 
       <!-- chi approva -->
       <div class="hidden" id="rq-approve-card">
         <div class="card">
           <h3>Da approvare <span class="pill wait" id="rq-count" style="margin-left:6px">0</span></h3>
-          <p class="muted" style="font-size:12px;margin:4px 0 0">Per ogni richiesta vedi i turni che resterebbero scoperti.</p>
+          <p class="muted" style="font-size:12px;margin:4px 0 0" data-i18n="da_approvare_aiuto">Per ogni richiesta vedi i turni che resterebbero scoperti.</p>
         </div>
         <div id="rq-pending"></div>
       </div>
 
       <!-- tutte -->
       <div class="card">
-        <h3>Tutte le richieste</h3>
-        <div class="grid-scroll"><table><thead><tr><th>Dipendente</th><th>Tipo</th><th>Periodo</th>
-          <th>Stato</th><th>Deciso da</th><th></th></tr></thead><tbody id="rq-list"></tbody></table></div>
+        <h3 data-i18n="tutte_richieste">Tutte le richieste</h3>
+        <div class="grid-scroll"><table><thead><tr><th data-i18n="dipendente">Dipendente</th><th data-i18n="tipo">Tipo</th><th data-i18n="periodo">Periodo</th>
+          <th data-i18n="stato">Stato</th><th data-i18n="deciso_da">Deciso da</th><th></th></tr></thead><tbody id="rq-list"></tbody></table></div>
       </div>
     </section>
 
     <!-- SEZ.4 — MAGAZZINO -->
     <section class="view" id="magazzino">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Magazzino & Giacenze</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_magazzino">Magazzino & Giacenze</h2></div>
       <div class="exports">
-        <button class="ghost" onclick="exportStock('csv')">⬇ CSV magazzino</button>
-        <button class="ghost" onclick="exportStock('xlsx')">⬇ Excel magazzino</button>
+        <button class="ghost" onclick="exportStock('csv')" data-i18n="csv_magazzino">⬇ CSV magazzino</button>
+        <button class="ghost" onclick="exportStock('xlsx')" data-i18n="excel_magazzino">⬇ Excel magazzino</button>
       </div>
       <div class="kpis">
         
-        <div class="kpi"><div class="v" id="mz-low">0</div><div class="l">Sotto soglia</div></div>
+        <div class="kpi"><div class="v" id="mz-low">0</div><div class="l" data-i18n="sotto_soglia">Sotto soglia</div></div>
       </div>
       <div class="card hidden" id="mz-newprod">
-        <h3>Aggiungi un prodotto</h3>
-        <p class="muted" style="font-size:12px;margin:4px 0 10px">Serve solo il nome. Il resto lo puoi mettere dopo con la matita.</p>
+        <h3 data-i18n="agg_prodotto">Aggiungi un prodotto</h3>
+        <p class="muted" style="font-size:12px;margin:4px 0 10px" data-i18n="agg_prodotto_aiuto">Serve solo il nome. Il resto lo puoi mettere dopo con la matita.</p>
         <div class="row c2">
-          <div><label>Nome *</label><input id="np-name" placeholder="es. Gin Mare"></div>
-          <div><label>Formato</label><input id="np-format" placeholder="es. 70cl"></div>
+          <div><label data-i18n="nome_obbl">Nome *</label><input id="np-name" placeholder="es. Gin Mare" data-i18n-ph="ph_nome_prod"></div>
+          <div><label data-i18n="formato">Formato</label><input id="np-format" placeholder="es. 70cl" data-i18n-ph="ph_formato"></div>
         </div>
         <div class="row c3">
-          <div><label>Giacenza iniziale</label><input id="np-stock" type="number" min="0" value="0"></div>
-          <div><label>Soglia riordino</label><input id="np-thr" type="number" min="0" value="0"></div>
-          <div><label>Scorta ideale</label><input id="np-par" type="number" min="0" placeholder="doppio soglia"></div>
+          <div><label data-i18n="giacenza_iniziale">Giacenza iniziale</label><input id="np-stock" type="number" min="0" value="0"></div>
+          <div><label data-i18n="soglia_riordino">Soglia riordino</label><input id="np-thr" type="number" min="0" value="0"></div>
+          <div><label data-i18n="scorta_ideale">Scorta ideale</label><input id="np-par" type="number" min="0" placeholder="doppio soglia" data-i18n-ph="doppio_soglia" data-i18n-ph="doppio_soglia"></div>
         </div>
         <div class="row c2">
-          <div><label>Unità</label><input id="np-unit" placeholder="bott."></div>
-          <div><label>Fornitore</label><select id="np-vendor"></select></div>
+          <div><label data-i18n="unita">Unità</label><input id="np-unit" placeholder="bott." data-i18n-ph="ph_unita"></div>
+          <div><label data-i18n="fornitore">Fornitore</label><select id="np-vendor"></select></div>
         </div>
-        <button class="act" onclick="addProduct()">+ Aggiungi prodotto</button>
+        <button class="act" onclick="addProduct()" data-i18n="btn_agg_prodotto">+ Aggiungi prodotto</button>
       </div>
       <div class="card" id="mz-mvform">
-        <h3>Carico / Scarico rapido</h3>
+        <h3 data-i18n="carico_scarico">Carico / Scarico rapido</h3>
         <div class="row c3">
-          <div><label>Prodotto</label><select id="mv-prod"></select></div>
-          <div><label>Tipo</label><select id="mv-type"></select></div>
-          <div><label>Quantità</label><input id="mv-qty" type="number" value="1" min="1"></div>
+          <div><label data-i18n="prodotto">Prodotto</label><select id="mv-prod"></select></div>
+          <div><label data-i18n="tipo">Tipo</label><select id="mv-type"></select></div>
+          <div><label data-i18n="quantita">Quantità</label><input id="mv-qty" type="number" value="1" min="1"></div>
         </div>
-        <button class="act" onclick="addMovement()">+ Registra movimento</button>
+        <button class="act" onclick="addMovement()" data-i18n="btn_registra_mov">+ Registra movimento</button>
       </div>
       <div class="card">
         <h3>Giacenze e consumi <span id="mz-month" class="muted"></span></h3>
-        <div class="search"><input id="mz-search" placeholder="🔍 Cerca prodotto..." oninput="renderMz()"></div>
-        <div class="grid-scroll"><table class="wide"><thead><tr><th>Prodotto</th><th>Entrato</th><th>Uscito</th><th>Netto</th><th class="right">Residua</th><th class="right">Da ordinare</th><th></th></tr></thead><tbody id="mz-list"></tbody></table></div>
+        <div class="search"><input id="mz-search" placeholder="🔍 Cerca prodotto..." data-i18n-ph="cerca_prodotto2" oninput="renderMz()"></div>
+        <div class="grid-scroll"><table class="wide"><thead><tr><th data-i18n="prodotto">Prodotto</th><th data-i18n="entrato">Entrato</th><th data-i18n="uscito">Uscito</th><th data-i18n="netto">Netto</th><th class="right" data-i18n="residua">Residua</th><th class="right" data-i18n="da_ordinare">Da ordinare</th><th></th></tr></thead><tbody id="mz-list"></tbody></table></div>
       </div>
     </section>
 
     <!-- INVENTARIO: sessione guidata, revisione, storico -->
     <section class="view" id="inventario">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Inventario</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_inventario">Inventario</h2></div>
       <div id="inv-hello"></div>
 
       <!-- nessuna sessione aperta: si parte da qui -->
       <div class="card hidden" id="inv-start">
-        <h3>Nessun inventario in corso</h3>
-        <p class="muted" style="font-size:12px;margin:6px 0 12px">Si conta una postazione alla volta. Puoi interromperti e riprendere quando vuoi: niente si perde.</p>
-        <button class="act gold" onclick="invStart()">▶ Inizia inventario</button>
+        <h3 data-i18n="inv_nessuno">Nessun inventario in corso</h3>
+        <p class="muted" style="font-size:12px;margin:6px 0 12px" data-i18n="inv_nessuno_aiuto">Si conta una postazione alla volta. Puoi interromperti e riprendere quando vuoi: niente si perde.</p>
+        <button class="act gold" onclick="invStart()" data-i18n="inv_inizia">▶ Inizia inventario</button>
       </div>
 
       <!-- sessione in corso: conteggio -->
@@ -245,102 +247,102 @@
         <div class="card">
           <h3>Inventario in corso <span class="muted" id="inv-num"></span></h3>
           <div class="row c2" style="margin-top:8px">
-            <div><label>Postazione</label><select id="inv-loc" onchange="invLoadItems()"></select></div>
-            <div><label>Ordine</label><select id="inv-sort" onchange="invLoadItems()">
-              <option value="ultimo">Come l'ultima volta</option>
-              <option value="nome">Alfabetico</option>
+            <div><label data-i18n="postazione">Postazione</label><select id="inv-loc" onchange="invLoadItems()"></select></div>
+            <div><label data-i18n="ordine">Ordine</label><select id="inv-sort" onchange="invLoadItems()">
+              <option value="ultimo" data-i18n="come_ultima">Come l'ultima volta</option>
+              <option value="nome" data-i18n="alfabetico">Alfabetico</option>
             </select></div>
           </div>
-          <div class="search" style="margin-top:8px"><input id="inv-search" placeholder="🔍 Cerca prodotto..." oninput="invRenderItems()"></div>
+          <div class="search" style="margin-top:8px"><input id="inv-search" placeholder="🔍 Cerca prodotto..." data-i18n-ph="cerca_prodotto2" oninput="invRenderItems()"></div>
           <div class="toolbar" style="margin-top:8px">
-            <button class="ghost" id="inv-mode" onclick="invToggleMode()">🎚 Cursore</button>
-            <button class="ghost" onclick="invScan()">📷 Codice a barre</button>
+            <button class="ghost" id="inv-mode" onclick="invToggleMode()" data-i18n="cursore">🎚 Cursore</button>
+            <button class="ghost" onclick="invScan()" data-i18n="codice_barre">📷 Codice a barre</button>
             <span class="spacer"></span>
             <span class="muted" id="inv-progress"></span>
           </div>
         </div>
         <div id="inv-items"></div>
         <div class="card">
-          <button class="act" onclick="invReview()">✓ Rivedi e chiudi</button>
-          <button class="ghost" style="margin-top:8px" onclick="invCancel()">Annulla inventario</button>
+          <button class="act" onclick="invReview()" data-i18n="inv_rivedi">✓ Rivedi e chiudi</button>
+          <button class="ghost" style="margin-top:8px" onclick="invCancel()" data-i18n="inv_annulla">Annulla inventario</button>
         </div>
       </div>
 
       <!-- revisione prima della chiusura -->
       <div class="hidden" id="inv-review">
         <div class="card">
-          <h3>Revisione</h3>
+          <h3 data-i18n="revisione">Revisione</h3>
           <div class="kpis" style="margin-top:8px">
-            <div class="kpi"><div class="v" id="rv-contati">0</div><div class="l">Contati</div></div>
-            <div class="kpi"><div class="v" id="rv-noncontati">0</div><div class="l">Non contati</div></div>
-            <div class="kpi"><div class="v" id="rv-scost">0</div><div class="l">Con scostamento</div></div>
+            <div class="kpi"><div class="v" id="rv-contati">0</div><div class="l" data-i18n="contati">Contati</div></div>
+            <div class="kpi"><div class="v" id="rv-noncontati">0</div><div class="l" data-i18n="non_contati">Non contati</div></div>
+            <div class="kpi"><div class="v" id="rv-scost">0</div><div class="l" data-i18n="con_scostamento">Con scostamento</div></div>
           </div>
         </div>
         <div class="card">
-          <h3>Differenze</h3>
-          <div class="grid-scroll"><table><thead><tr><th>Prodotto</th><th class="right">Atteso</th><th class="right">Contato</th>
-            <th class="right">Differenza</th></tr></thead><tbody id="rv-list"></tbody></table></div>
+          <h3 data-i18n="differenze">Differenze</h3>
+          <div class="grid-scroll"><table><thead><tr><th data-i18n="prodotto">Prodotto</th><th class="right" data-i18n="atteso">Atteso</th><th class="right" data-i18n="contato">Contato</th>
+            <th class="right" data-i18n="differenza">Differenza</th></tr></thead><tbody id="rv-list"></tbody></table></div>
         </div>
         <div class="card hidden" id="rv-missing-card">
-          <h3 style="color:var(--red)">Non contati</h3>
-          <p class="muted" style="font-size:12px;margin:4px 0 8px">Questi prodotti non li hai contati. Decidi cosa farne.</p>
+          <h3 style="color:var(--red)" data-i18n="non_contati">Non contati</h3>
+          <p class="muted" style="font-size:12px;margin:4px 0 8px" data-i18n="non_contati_aiuto">Questi prodotti non li hai contati. Decidi cosa farne.</p>
           <div id="rv-missing"></div>
-          <div class="row" style="margin-top:10px"><div><label>Cosa faccio con i non contati</label><select id="rv-uncounted">
-            <option value="tieni">Lascia la giacenza com'è (consigliato)</option>
-            <option value="azzera">Azzera la giacenza</option>
+          <div class="row" style="margin-top:10px"><div><label data-i18n="cosa_non_contati">Cosa faccio con i non contati</label><select id="rv-uncounted">
+            <option value="tieni" data-i18n="tieni_giacenza">Lascia la giacenza com'è (consigliato)</option>
+            <option value="azzera" data-i18n="azzera_giacenza">Azzera la giacenza</option>
           </select></div></div>
         </div>
         <div class="card">
-          <button class="act gold" id="rv-close" onclick="invClose()">🔒 Chiudi inventario e allinea le giacenze</button>
-          <button class="ghost" style="margin-top:8px" onclick="invBackToCount()">← Torna al conteggio</button>
+          <button class="act gold" id="rv-close" onclick="invClose()" data-i18n="inv_chiudi">🔒 Chiudi inventario e allinea le giacenze</button>
+          <button class="ghost" style="margin-top:8px" onclick="invBackToCount()" data-i18n="inv_torna">← Torna al conteggio</button>
         </div>
       </div>
 
       <!-- storico -->
       <div class="card">
-        <h3>Storico inventari</h3>
-        <div class="grid-scroll"><table><thead><tr><th>Quando</th><th>Chi</th><th class="right">Prodotti</th>
-          <th class="right">Differenze</th></tr></thead><tbody id="inv-history"></tbody></table></div>
+        <h3 data-i18n="storico_inventari">Storico inventari</h3>
+        <div class="grid-scroll"><table><thead><tr><th data-i18n="quando">Quando</th><th data-i18n="chi">Chi</th><th class="right" data-i18n="prodotti">Prodotti</th>
+          <th class="right" data-i18n="differenze">Differenze</th></tr></thead><tbody id="inv-history"></tbody></table></div>
       </div>
 
       <!-- postazioni -->
       <div class="card" id="inv-loc-card">
-        <h3>Postazioni</h3>
-        <p class="muted" style="font-size:12px;margin:4px 0 8px">I posti dove conti separatamente: banco, frigo, cantina.</p>
-        <table><thead><tr><th>Nome</th><th></th></tr></thead><tbody id="loc-list"></tbody></table>
+        <h3 data-i18n="postazioni">Postazioni</h3>
+        <p class="muted" style="font-size:12px;margin:4px 0 8px" data-i18n="postazioni_aiuto">I posti dove conti separatamente: banco, frigo, cantina.</p>
+        <table><thead><tr><th data-i18n="nome">Nome</th><th></th></tr></thead><tbody id="loc-list"></tbody></table>
         <div class="row c2" style="margin-top:10px">
-          <div><label>Nuova postazione</label><input id="loc-name" placeholder="es. Frigo vini"></div>
-          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addLocation()">+ Aggiungi</button></div>
+          <div><label data-i18n="nuova_postazione">Nuova postazione</label><input id="loc-name" placeholder="es. Frigo vini" data-i18n-ph="ph_postazione"></div>
+          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addLocation()" data-i18n="aggiungi">+ Aggiungi</button></div>
         </div>
       </div>
     </section>
 
     <!-- ORDINI AI FORNITORI -->
     <section class="view" id="ordini">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Ordini ai fornitori</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_ordini">Ordini ai fornitori</h2></div>
       <div id="ordini-hello"></div>
       <div class="kpis">
-        <div class="kpi"><div class="v" id="or-prodotti">0</div><div class="l">Prodotti da ordinare</div></div>
+        <div class="kpi"><div class="v" id="or-prodotti">0</div><div class="l" data-i18n="prodotti_da_ordinare">Prodotti da ordinare</div></div>
       </div>
       <div id="ordini-list"></div>
       <div class="card">
-        <h3>Fornitori</h3>
-        <table><thead><tr><th>Nome</th><th>Telefono</th><th>Email</th><th></th></tr></thead><tbody id="vendor-list"></tbody></table>
+        <h3 data-i18n="fornitori">Fornitori</h3>
+        <table><thead><tr><th data-i18n="nome">Nome</th><th data-i18n="telefono">Telefono</th><th data-i18n="email">Email</th><th></th></tr></thead><tbody id="vendor-list"></tbody></table>
         <div class="row c3" style="margin-top:10px;">
-          <div><label>Nuovo fornitore</label><input id="vd-name" placeholder="es. Distribuzione Rossi"></div>
-          <div><label>Telefono</label><input id="vd-phone" placeholder="+39 ..."></div>
-          <div><label>Email</label><input id="vd-email" placeholder="ordini@..."></div>
+          <div><label data-i18n="nuovo_fornitore">Nuovo fornitore</label><input id="vd-name" placeholder="es. Distribuzione Rossi" data-i18n-ph="ph_fornitore"></div>
+          <div><label data-i18n="telefono">Telefono</label><input id="vd-phone" placeholder="+39 ..." data-i18n-ph="ph_tel"></div>
+          <div><label data-i18n="email">Email</label><input id="vd-email" placeholder="ordini@..." data-i18n-ph="ph_email"></div>
         </div>
-        <button class="act" onclick="addVendor()">+ Aggiungi fornitore</button>
+        <button class="act" onclick="addVendor()" data-i18n="btn_agg_fornitore">+ Aggiungi fornitore</button>
       </div>
     </section>
 
     <!-- MANUALE DIPENDENTE -->
     <section class="view" id="manuale">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2>Manuale dipendente</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_manuale">Manuale dipendente</h2></div>
       <div id="manuale-hello"></div>
-      <div class="card"><h3>📋 Regole del locale</h3><ul id="man-rules" style="padding-left:18px;font-size:13px;line-height:1.9"></ul></div>
-      <div class="card"><h3>🍸 Ricettario cocktail</h3><div id="man-recipes"></div></div>
+      <div class="card"><h3 data-i18n="regole_locale">📋 Regole del locale</h3><ul id="man-rules" style="padding-left:18px;font-size:13px;line-height:1.9"></ul></div>
+      <div class="card"><h3 data-i18n="ricettario">🍸 Ricettario cocktail</h3><div id="man-recipes"></div></div>
     </section>
   </main>
 
@@ -353,6 +355,7 @@
 <!-- Finestra modale (modifica prodotto), popolata da JS -->
 <div id="modal-root"></div>
 
+<script src="i18n.js"></script>
 <script src="mascot.js"></script>
 <script src="app.js"></script>
 </body>

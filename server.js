@@ -10,6 +10,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const path = require('path');
 const db = require('./db');
+const { linguaDi, traduciErrore, REGOLE, PREPARAZIONI } = require('./messaggi');
 
 const app = express();
 // In locale usa 3100; in cloud (Render) usa la porta che assegna il servizio.
@@ -20,29 +21,17 @@ const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('he
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+// la lingua scelta nel browser accompagna ogni richiesta: gli errori e il
+// manuale escono gia' tradotti, senza che il frontend debba rimapparli
+app.use((req, res, next) => { res.locals.lang = linguaDi(req); next(); });
 
 const now = () => new Date().toISOString();
 const todayISO = () => now().slice(0, 10);
 const ok = (res, d) => res.json(d);
-const bad = (res, c, m) => res.status(c).json({ error: m });
+// l'errore esce nella lingua scelta nel browser (intestazione X-Lang)
+const bad = (res, c, m) => res.status(c).json({ error: traduciErrore(m, res.locals.lang || 'it') });
 const monthOf = (q) => q || now().slice(0, 7);
 
-/* ---------------- MANUALE DIPENDENTE (regole locali + istruzioni) ---------------- */
-const REGOLE_LOCALI = [
-  'Lavare le mani a inizio turno e indossare la divisa pulita.',
-  'HACCP: registrare le temperature dei frigoriferi due volte al giorno.',
-  'Vietato fumare nelle aree interne del locale.',
-  'Bicchieri/bottiglie rotti vanno segnalati subito al responsabile.',
-  'A fine serata: conteggio vuoti, chiusura cassa e pulizia banco.',
-  'Servire alcolici solo a maggiorenni; in caso di dubbio chiedere documento.',
-];
-// Passi di preparazione per il ricettario (oltre alla ricetta in ml dei prodotti)
-const PREPARAZIONI = {
-  'Negroni': 'Versare gin, bitter e vermouth nel bicchiere con ghiaccio. Mescolare e guarnire con scorza d\'arancia.',
-  'Spritz': 'Ghiaccio nel calice, Aperol, prosecco, spruzzo di soda. Guarnire con fetta d\'arancia.',
-  'Gin Tonic': 'Gin su ghiaccio abbondante, colmare con tonica fredda. Guarnire con lime.',
-  'Americano': 'Bitter e vermouth su ghiaccio, allungare con soda. Guarnire con arancia.',
-};
 
 /* ---------------- AUTH ---------------- */
 function auth(req, res, next) {
@@ -627,9 +616,9 @@ api.get('/manuale', need('manuale.view'), (req, res) => {
   const recipes = db.prepare("SELECT * FROM products WHERE category='Cocktail' ORDER BY name").all().map(d => ({
     name: d.name, price: d.price,
     ingredienti: JSON.parse(d.recipe || '[]').map(r => ({ name: (product(r.ing) || {}).name, q: r.q })),
-    preparazione: PREPARAZIONI[d.name] || '',
+    preparazione: (PREPARAZIONI[res.locals.lang] || PREPARAZIONI.it)[d.name] || '',
   }));
-  ok(res, { regole: REGOLE_LOCALI, ricettario: recipes });
+  ok(res, { regole: REGOLE[res.locals.lang] || REGOLE.it, ricettario: recipes });
 });
 
 /* ---------------- SEZ.2 — TURNI / TASK (permessi) ---------------- */
