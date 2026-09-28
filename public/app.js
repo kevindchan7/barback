@@ -62,6 +62,8 @@ function enterApp() {
   $('#banner-mascot').innerHTML = mascot(42);
   $('#banner-sub').textContent = nomeProfilo(PROFILE.name);
   applicaLingua();
+  caricaImpostazioni();
+  setTimeout(controllaPinFabbrica, 900);   // dopo che la home si e' disegnata
   requestNotify(); buildBottomNav(); loadHome(); maybeOnboard();
 }
 
@@ -89,10 +91,10 @@ function setActiveNav(view) {
 function maybeOnboard() {
   if (localStorage.getItem('bb_onboarded')) return;
   const steps = [
-    ['🍾', 'Conta i vuoti', 'Registra le bottiglie consumate: la giacenza si aggiorna da sola.'],
-    ['📦', 'Magazzino sempre giusto', 'Carichi e scarichi sottratti in automatico, con residuo preciso.'],
-    ['📅', 'Turni e task', 'Vedi i turni a griglia e spunta le cose da fare.'],
-    ['🛒', 'Ordini automatici', 'Quando un prodotto scende sotto soglia ti dico quanto ordinare e a chi.'],
+    ['🍾', t('onb1_t'), t('onb1_d')],
+    ['📦', t('onb2_t'), t('onb2_d')],
+    ['📅', t('onb3_t'), t('onb3_d')],
+    ['🛒', t('onb4_t'), t('onb4_d')],
     ['👇', 'Spostati al volo', 'Usa la barra in basso per passare da una sezione all\'altra.'],
   ];
   let idx = 0;
@@ -102,8 +104,8 @@ function maybeOnboard() {
       <div class="ic">${s[0]}</div><h2>${s[1]}</h2><p>${s[2]}</p>
       <div class="onb-dots">${steps.map((_, i) => `<span class="${i === idx ? 'on' : ''}"></span>`).join('')}</div>
       <div class="onb-actions">
-        <button class="ghost" onclick="endOnboard()">Salta</button>
-        <button class="act" onclick="onbNext()">${idx < steps.length - 1 ? 'Avanti' : 'Inizia'}</button>
+        <button class="ghost" onclick="endOnboard()">${t('salta')}</button>
+        <button class="act" onclick="onbNext()">${idx < steps.length - 1 ? t('avanti') : t('inizia')}</button>
       </div>
     </div>`; };
   window.onbNext = () => { if (idx < steps.length - 1) { idx++; render(); } else endOnboard(); };
@@ -176,7 +178,7 @@ async function loadVuoti() {
     <td class="right">${x.residuo} ${x.unit}</td></tr>`).join("");
   // griglia del mese
   const grid = await api('/empties/grid?month=' + date.slice(0, 7));
-  let html = '<tr><th>Prodotto</th>' + grid.days.map(d => `<th>${d}</th>`).join('') + '</tr>';
+  let html = `<tr><th>${t('prodotto')}</th>` + grid.days.map(d => `<th>${d}</th>`).join('') + '</tr>';
   grid.rows.forEach(row => {
     html += `<tr><td style="text-align:left">${row.name}</td>` +
       row.perDay.map(q => `<td class="${q ? 'has' : ''}">${q || ''}</td>`).join('') + '</tr>';
@@ -205,7 +207,7 @@ async function loadMagazzino() {
   show('#mz-mvform', types.length > 0);
   // form per aggiungere un prodotto nuovo
   show('#mz-newprod', can('magazzino.view'));
-  $('#np-vendor').innerHTML = '<option value="">— nessuno —</option>'
+  $("#np-vendor").innerHTML = `<option value="">${t("nessuno")}</option>`
     + vendors.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
 
   const r = await api('/reports/monthly');
@@ -222,8 +224,8 @@ function renderMz() {
     <td style="color:${x.netto < 0 ? 'var(--red)' : 'var(--green)'}">${x.netto > 0 ? '+' : ''}${x.netto}</td>
     <td class="right">${x.residua} ${x.unit}</td>
     <td class="right">${x.daOrdinare ? `<b style="color:var(--gold)">${x.daOrdinare}</b>` : '<span class="muted">—</span>'}</td>
-    <td class="right">${editable ? `<button class="iconbtn" onclick="editProduct(${x.id})" title="Modifica">✏️</button>
-      <button class="iconbtn" onclick="removeProduct(${x.id})" title="Elimina">🗑</button>` : ""}</td></tr>`).join("")
+    <td class="right">${editable ? `<button class="iconbtn" onclick="editProduct(${x.id})" title="${t('modifica')}">✏️</button>
+      <button class="iconbtn" onclick="removeProduct(${x.id})" title="${t('elimina')}">🗑</button>` : ""}</td></tr>`).join("")
     || `<tr><td colspan="7" class="muted">${t('nessun_prodotto')}</td></tr>`;
 }
 function editProduct(id) {
@@ -231,20 +233,20 @@ function editProduct(id) {
   $('#modal-root').innerHTML = `
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
-        <h3>Modifica: ${p.name}</h3>
-        <div class="row"><div><label>Nome</label><input id="ep-name" value="${p.name.replace(/"/g, '&quot;')}"></div></div>
+        <h3>${t('modifica')}: ${p.name}</h3>
+        <div class="row"><div><label>${t('nome')}</label><input id="ep-name" value="${p.name.replace(/"/g, '&quot;')}"></div></div>
         <div class="row c2">
-          <div><label>Soglia riordino</label><input id="ep-thr" type="number" value="${p.threshold}"></div>
-          <div><label>Scorta ideale</label><input id="ep-par" type="number" value="${p.par_level || 0}"></div>
+          <div><label>${t('soglia_riordino')}</label><input id="ep-thr" type="number" value="${p.threshold}"></div>
+          <div><label>${t('scorta_ideale')}</label><input id="ep-par" type="number" value="${p.par_level || 0}"></div>
         </div>
-        <p class="muted" style="font-size:11px;margin:-4px 0 8px">Sotto la soglia l'app propone l'ordine per tornare alla scorta ideale.</p>
-        <div class="row"><div><label>Fornitore</label><select id="ep-vendor">
-          <option value="">— nessuno —</option>
+        <p class="muted" style="font-size:11px;margin:-4px 0 8px">${t("soglia_aiuto")}</p>
+        <div class="row"><div><label>${t('fornitore')}</label><select id="ep-vendor">
+          <option value="">${t('nessuno')}</option>
           ${(window._vendors || []).map(v => `<option value="${v.id}" ${v.id === p.vendor_id ? 'selected' : ''}>${v.name}</option>`).join('')}
         </select></div></div>
         <div class="onb-actions">
-          <button class="ghost" onclick="closeModal()">Annulla</button>
-          <button class="act" onclick="saveProduct(${id})">Salva</button>
+          <button class="ghost" onclick="closeModal()">${t('annulla')}</button>
+          <button class="act" onclick="saveProduct(${id})">${t('salva')}</button>
         </div>
       </div>
     </div>`;
@@ -454,7 +456,7 @@ async function loadLocations() {
   const locs = await api('/locations');
   const editable = can('magazzino.view');
   $('#loc-list').innerHTML = locs.map(l => `<tr><td>${l.name}</td>
-    <td class="right">${editable ? `<button class="iconbtn" onclick="removeLocation(${l.id}, '${l.name.replace(/'/g, "\\'")}')" title="Elimina">🗑</button>` : ''}</td></tr>`).join('')
+    <td class="right">${editable ? `<button class="iconbtn" onclick="removeLocation(${l.id}, '${l.name.replace(/'/g, "\\'")}')" title="${t('elimina')}">🗑</button>` : ''}</td></tr>`).join('')
     || `<tr><td colspan="2" class="muted">${t('nessuna_postazione')}</td></tr>`;
 }
 async function addLocation() {
@@ -472,7 +474,7 @@ async function removeLocation(id, name) {
    non ce l'ha, si continua a mano: nessuna libreria esterna da caricare. */
 let bcStream = null, bcLoop = null;
 async function invScan() {
-  if (!('BarcodeDetector' in window)) return alert('Questo browser non sa leggere i codici a barre.\nSu Android usa Chrome; su iPhone conta a mano.');
+  if (!('BarcodeDetector' in window)) return alert(t('bc_no_lettore'));
   let det;
   try { det = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128'] }); }
   catch { return alert('Lettore codici non disponibile su questo telefono.'); }
@@ -480,15 +482,15 @@ async function invScan() {
   $('#modal-root').innerHTML = `
     <div class="overlay" onclick="if(event.target===this)bcStop()">
       <div class="modal">
-        <h3>Inquadra il codice a barre</h3>
+        <h3>${t('bc_titolo')}</h3>
         <video id="bc-video" playsinline muted style="width:100%;border-radius:12px;background:#000;aspect-ratio:4/3;object-fit:cover"></video>
-        <p class="muted" id="bc-msg" style="font-size:12px;margin-top:8px">Avvicina la bottiglia…</p>
-        <div class="onb-actions"><button class="ghost" onclick="bcStop()">Chiudi</button></div>
+        <p class="muted" id="bc-msg" style="font-size:12px;margin-top:8px">${t('bc_avvicina')}</p>
+        <div class="onb-actions"><button class="ghost" onclick="bcStop()">${t('chiudi')}</button></div>
       </div>
     </div>`;
   try {
     bcStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-  } catch { $('#bc-msg').textContent = 'Fotocamera negata. Consenti l accesso e riprova.'; return; }
+  } catch { $('#bc-msg').textContent = t('bc_no_cam'); return; }
   const v = $('#bc-video'); v.srcObject = bcStream; await v.play();
 
   bcLoop = setInterval(async () => {
@@ -517,14 +519,14 @@ function invAssociate(code) {
   $('#modal-root').innerHTML = `
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal">
-        <h3>Codice nuovo</h3>
-        <p class="muted" style="font-size:12px">Il codice <b>${code}</b> non è ancora legato a nessun prodotto. Scegli quale è, e da domani lo riconosco da solo.</p>
-        <div class="row" style="margin-top:10px"><div><label>Prodotto</label><select id="bc-prod">
+        <h3>${t('bc_nuovo')}</h3>
+        <p class="muted" style="font-size:12px">${t('bc_spiega', { code: '<b>' + code + '</b>' })}</p>
+        <div class="row" style="margin-top:10px"><div><label>${t('prodotto')}</label><select id="bc-prod">
           ${invItems.map(p => `<option value="${p.id}">${p.name} ${p.format || ''}</option>`).join('')}
         </select></div></div>
         <div class="onb-actions">
-          <button class="ghost" onclick="closeModal()">Annulla</button>
-          <button class="act" onclick="bcLink('${code}')">Collega</button>
+          <button class="ghost" onclick="closeModal()">${t('annulla')}</button>
+          <button class="act" onclick="bcLink('${code}')">${t('collega')}</button>
         </div>
       </div>
     </div>`;
@@ -552,8 +554,8 @@ async function loadOrdini() {
   $('#ordini-list').innerHTML = o.gruppi.length ? o.gruppi.map((g, i) => `
     <div class="card">
       <h3>${g.vendor} <span class="muted">— ${t('n_prodotti', { n: g.righe.length })}</span></h3>
-      <div class="grid-scroll"><table><thead><tr><th>Prodotto</th><th class="right">Giacenza</th><th class="right">Ideale</th>
-        <th class="right">Da ordinare</th></tr></thead>
+      <div class="grid-scroll"><table><thead><tr><th>${t('prodotto')}</th><th class="right">${t('giacenza')}</th><th class="right">${t('ideale')}</th>
+        <th class="right">${t('da_ordinare')}</th></tr></thead>
         <tbody>${g.righe.map(r => `<tr><td>${r.name} <span class="muted">${r.format || ''}</span></td>
           <td class="right" style="color:var(--red)">${r.stock}</td>
           <td class="right muted">${r.par_level}</td>
@@ -571,7 +573,7 @@ async function loadOrdini() {
   // elenco fornitori
   const editable = can('magazzino.view');
   $('#vendor-list').innerHTML = vendors.map(v => `<tr><td>${v.name}</td><td>${v.phone || '—'}</td><td>${v.email || '—'}</td>
-    <td class="right">${editable ? `<button class="iconbtn" onclick="removeVendor(${v.id})" title="Elimina">🗑</button>` : ""}</td></tr>`).join("")
+    <td class="right">${editable ? `<button class="iconbtn" onclick="removeVendor(${v.id})" title="${t('elimina')}">🗑</button>` : ""}</td></tr>`).join("")
     || `<tr><td colspan="4" class="muted">${t('nessun_fornitore')}</td></tr>`;
 }
 
@@ -649,7 +651,7 @@ async function loadShifts() {
   window._shiftRows = shifts;
   const fmtDay = (s) => new Date(s + 'T00:00').toLocaleDateString(locale(), { weekday: 'short', day: '2-digit' });
   const editable = can('turni.manage');
-  let html = '<tr><th>Dipendente</th>' + days.map(d => `<th>${fmtDay(d.toISOString().slice(0,10))}</th>`).join('') + '</tr>';
+  let html = `<tr><th>${t('dipendente')}</th>` + days.map(d => `<th>${fmtDay(d.toISOString().slice(0,10))}</th>`).join('') + '</tr>';
   emps.forEach(e => {
     html += `<tr><td style="text-align:left">${e.name}</td>` + days.map(d => {
       const k = d.toISOString().slice(0, 10);
@@ -901,8 +903,8 @@ async function loadEmployees() {
   $('#emp-list').innerHTML = emps.map(e => `<tr>
     <td>${e.name}</td><td class="muted">${e.role || ''}</td>
     <td class="right">
-      <button class="iconbtn" onclick="editEmployee(${e.id})" title="Modifica">✏️</button>
-      <button class="iconbtn" onclick="removeEmployee(${e.id})" title="Elimina">🗑</button>
+      <button class="iconbtn" onclick="editEmployee(${e.id})" title="${t('modifica')}">✏️</button>
+      <button class="iconbtn" onclick="removeEmployee(${e.id})" title="${t('elimina')}">🗑</button>
     </td></tr>`).join('') || `<tr><td colspan="3" class="muted">${t('nessun_dipendente')}</td></tr>`;
 }
 async function addEmployee() {
@@ -932,51 +934,63 @@ async function removeEmployee(id) {
 /* --- impostazioni: PIN e profili di accesso --- */
 async function openSettings() {
   let profili = [], ruoli = [];
+  let infoBackup = '';
   try { [profili, ruoli] = await Promise.all([api('/profiles'), api('/ruoli')]); } catch {}
+  if (can('all')) infoBackup = await infoCopia();
   const admin = can('all');
 
   $('#modal-root').innerHTML = `
     <div class="overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="width:440px">
-        <h3>Impostazioni</h3>
+        <h3>${t('impostazioni')}</h3>
 
-        <h3 style="margin-top:14px">Il tuo PIN</h3>
+        <h3 style="margin-top:14px">${t('tuo_pin')}</h3>
         <p class="muted" style="font-size:12px;margin-bottom:8px">${t("sei_entrato", { nome: "<b>" + nomeProfilo(PROFILE.name) + "</b>" })}</p>
         <div class="row c2">
-          <div><label>PIN attuale</label><input id="pin-old" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
-          <div><label>Nuovo PIN</label><input id="pin-new" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
+          <div><label>${t('pin_attuale')}</label><input id="pin-old" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
+          <div><label>${t('pin_nuovo')}</label><input id="pin-new" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
         </div>
-        <button class="act" onclick="changeOwnPin()">Cambia il mio PIN</button>
+        <button class="act" onclick="changeOwnPin()">${t('cambia_mio_pin')}</button>
 
         ${admin ? `
-        <h3 style="margin-top:20px">Profili di accesso</h3>
-        <table><thead><tr><th>Nome</th><th>Accesso</th><th></th></tr></thead><tbody>
+        <h3 style="margin-top:20px">${t('profili_accesso')}</h3>
+        <table><thead><tr><th>${t('nome')}</th><th>${t('accesso')}</th><th></th></tr></thead><tbody>
           ${profili.map(p => `<tr>
             <td>${nomeProfilo(p.name)}</td>
-            <td class="muted">${p.permissions.includes('all') ? 'completo' : p.permissions.length + ' permessi'}</td>
+            <td class="muted">${p.permissions.includes('all') ? t('completo') : t('permessi_n', { n: p.permissions.length })}</td>
             <td class="right">
-              <button class="iconbtn" onclick="resetPin(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="Reimposta PIN">🔑</button>
-              ${p.id !== PROFILE.id ? `<button class="iconbtn" onclick="deleteProfile(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="Elimina">🗑</button>` : ''}
+              <button class="iconbtn" onclick="resetPin(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="${t('reimposta_pin')}">🔑</button>
+              ${p.id !== PROFILE.id ? `<button class="iconbtn" onclick="deleteProfile(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="${t('elimina')}">🗑</button>` : ''}
             </td></tr>`).join('')}
         </tbody></table>
 
-        <h3 style="margin-top:16px">Nuovo profilo</h3>
+        <h3 style="margin-top:16px">${t('nuovo_profilo')}</h3>
         <div class="row c2">
-          <div><label>Nome</label><input id="npf-name" placeholder="es. Barman sera"></div>
-          <div><label>Ruolo</label><select id="npf-role">
+          <div><label>${t('nome')}</label><input id="npf-name" placeholder="${t('ph_profilo')}"></div>
+          <div><label>${t('ruolo')}</label><select id="npf-role">
             ${ruoli.map(r => `<option value="${r}">${nomeRuolo(r)}</option>`).join('')}
           </select></div>
         </div>
-        <div class="row"><div><label>PIN (4 cifre)</label><input id="npf-pin" inputmode="numeric" maxlength="4" placeholder="es. 5555"></div></div>
-        <button class="act" onclick="addProfile()">+ Crea profilo</button>
+        <div class="row"><div><label>${t('pin_4_cifre')}</label><input id="npf-pin" inputmode="numeric" maxlength="4" placeholder="${t('ph_pin')}"></div></div>
+        <button class="act" onclick="addProfile()">${t('crea_profilo')}</button>
 
-        <h3 style="margin-top:22px;color:var(--red)">Ricominciare da zero</h3>
-        <p class="muted" style="font-size:12px;margin-bottom:8px">Cancella prodotti, giacenze, movimenti, dipendenti, turni, richieste, fornitori, postazioni e inventari. I profili e i PIN restano. Serve quando hai finito di provare e vuoi mettere i dati veri del locale.</p>
-        <button class="danger" onclick="svuotaTutto()">🗑 Svuota tutti i dati</button>
+        <h3 style="margin-top:20px">${t('locale_nome')}</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:6px">${t('locale_nome_aiuto')}</p>
+        <div class="row"><div><input id="imp-locale" value="${(LOCALE_NOME || '').replace(/"/g, '&quot;')}" placeholder="${t('ph_locale')}"></div></div>
+        <button class="act" onclick="salvaNomeLocale()">${t('salva')}</button>
+
+        <h3 style="margin-top:20px">${t('copia_sicurezza')}</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:6px">${t('copia_aiuto')}</p>
+        <p class="muted" style="font-size:11px;margin-bottom:8px">${infoBackup}</p>
+        <button class="act gold" onclick="scaricaCopia()">${t('scarica_copia')}</button>
+
+        <h3 style="margin-top:22px;color:var(--red)">${t("ricomincia")}</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:8px">${t("ricomincia_aiuto")}</p>
+        <button class="danger" onclick="svuotaTutto()">${t("svuota_tutto")}</button>
         ` : ''}
 
         <div class="onb-actions" style="margin-top:20px">
-          <button class="ghost" onclick="closeModal()">Chiudi</button>
+          <button class="ghost" onclick="closeModal()">${t('chiudi')}</button>
         </div>
       </div>
     </div>`;
@@ -1029,6 +1043,79 @@ async function deleteProfile(id, nome) {
   catch (e) { alert(e.message); }
 }
 
+
+/* ===================== PRONTA PER LA VENDITA =====================
+   Tre cose che servono a chi compra l'app, non a chi la sviluppa:
+   il nome del proprio locale, una copia di sicurezza dei dati, e
+   l'insistenza finche' i PIN di fabbrica non vengono cambiati.   */
+
+let LOCALE_NOME = '';
+
+async function caricaImpostazioni() {
+  try {
+    const i = await api('/impostazioni');
+    LOCALE_NOME = i.locale_nome || '';
+    mostraNomeLocale();
+  } catch {}
+}
+function mostraNomeLocale() {
+  const h = document.querySelector('.banner h1');
+  if (h) h.textContent = LOCALE_NOME || t('app_nome');
+  document.title = (LOCALE_NOME ? LOCALE_NOME + ' · ' : '') + 'Barback';
+}
+async function salvaNomeLocale() {
+  const nome = $('#imp-locale').value.trim();
+  try {
+    await api('/impostazioni', 'PUT', { locale_nome: nome });
+    LOCALE_NOME = nome; mostraNomeLocale();
+    alert(t('salva') + ' ✓');
+  } catch (e) { alert(e.message); }
+}
+
+/* --- copia di sicurezza: scarica il database intero --- */
+async function scaricaCopia() {
+  try {
+    const r = await fetch('/api/backup', { headers: { Authorization: 'Bearer ' + TOKEN } });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Errore ' + r.status);
+    const blob = await r.blob();
+    const nome = (r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome ? nome[1] : 'barback-dati.db';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (e) { alert(e.message); }
+}
+async function infoCopia() {
+  try {
+    const i = await api('/backup/info');
+    if (!i.esiste) return '';
+    const righe = Object.values(i.righe).reduce((s, n) => s + n, 0);
+    const peso = i.byte > 1048576 ? (i.byte / 1048576).toFixed(1) + ' MB' : Math.round(i.byte / 1024) + ' KB';
+    const quando = new Date(i.modificato).toLocaleString(locale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return t('copia_info', { righe, peso, quando });
+  } catch { return ''; }
+}
+
+/* --- i PIN di fabbrica: si insiste, perche' e' il buco piu' grosso --- */
+async function controllaPinFabbrica() {
+  let profili = [];
+  try { profili = await api('/profiles'); } catch { return; }
+  const quanti = profili.filter(p => p.pin_default).length;
+  if (!quanti) return;
+  const mio = profili.find(p => p.id === PROFILE.id);
+  $('#modal-root').innerHTML = `
+    <div class="overlay">
+      <div class="modal">
+        <h3 style="color:var(--red)">${t('pin_fabbrica_tit')}</h3>
+        <p class="muted" style="font-size:13px;line-height:1.7;margin:8px 0 16px">${t('pin_fabbrica_txt', { quanti })}</p>
+        <div class="onb-actions">
+          <button class="ghost" onclick="closeModal()">${t('pin_fabbrica_dopo')}</button>
+          <button class="act" onclick="closeModal(); openSettings();">${mio && mio.pin_default ? t('pin_fabbrica_ora') : t('impostazioni')}</button>
+        </div>
+      </div>
+    </div>`;
+}
 /* ===================== LINGUA =====================
    applicaLingua() riscrive il testo statico; ricaricaVista() ridisegna
    la schermata aperta, cosi' cambiano anche i testi generati dal codice.

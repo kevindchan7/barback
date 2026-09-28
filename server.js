@@ -9,6 +9,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const path = require('path');
+const fs = require('fs');
 const db = require('./db');
 const { linguaDi, traduciErrore, REGOLE, PREPARAZIONI } = require('./messaggi');
 
@@ -46,8 +47,8 @@ function can(req, cap) { const p = req.user.permissions || []; return p.includes
 function need(cap) { return (req, res, next) => can(req, cap) ? next() : bad(res, 403, 'Permesso negato (' + cap + ')'); }
 
 app.get('/api/profiles', (req, res) =>
-  ok(res, db.prepare('SELECT id,name,permissions FROM profiles ORDER BY id').all()
-    .map(p => ({ id: p.id, name: p.name, permissions: JSON.parse(p.permissions || '[]') }))));
+  ok(res, db.prepare('SELECT id,name,permissions,pin_default FROM profiles ORDER BY id').all()
+    .map(p => ({ id: p.id, name: p.name, permissions: JSON.parse(p.permissions || '[]'), pin_default: !!p.pin_default }))));
 
 app.post('/api/auth/pin', (req, res) => {
   const { profileId, pin } = req.body || {};
@@ -230,7 +231,8 @@ api.put('/profiles/:id/pin', (req, res) => {
   if (!pinValido(req.body.nuovo)) return bad(res, 400, 'Il nuovo PIN deve essere di 4 cifre');
   if (proprio && !bcrypt.compareSync(String(req.body.attuale || ''), p.pin_hash))
     return bad(res, 401, 'Il PIN attuale non e\' giusto');
-  db.prepare('UPDATE profiles SET pin_hash=? WHERE id=?').run(bcrypt.hashSync(String(req.body.nuovo), 10), id);
+  // cambiato il PIN, il profilo non e' piu' quello di fabbrica
+  db.prepare('UPDATE profiles SET pin_hash=?, pin_default=0 WHERE id=?').run(bcrypt.hashSync(String(req.body.nuovo), 10), id);
   ok(res, { ok: true });
 });
 
@@ -752,5 +754,55 @@ api.delete('/dati', need('all'), (req, res) => {
   ok(res, { ok: true, cancellati: prima,
     totale: Object.values(prima).reduce((s, n) => s + n, 0),
     profiliRimasti: db.prepare('SELECT COUNT(*) c FROM profiles').get().c });
+});
+
+/* ---------------- IMPOSTAZIONI DEL LOCALE ----------------
+   Il nome del locale compare nel banner e negli ordini: e' la prima
+   cosa che fa sentire l'app "sua" a chi la compra.               */
+const leggiImp = (k, def) => {
+  const r = db.prepare('SELECT valore FROM impostazioni WHERE chiave=?').get(k);
+  return r ? r.valore : def;
+};
+api.get('/impostazioni', (req, res) => ok(res, {
+  locale_nome: leggiImp('locale_nome', ''),
+}));
+api.put('/impostazioni', need('all'), (req, res) => {
+  const nome = String(req.body.locale_nome || '').trim().slice(0, 60);
+  db.prepare(`INSERT INTO impostazioni (chiave,valore) VALUES ('locale_nome',?)
+    ON CONFLICT(chiave) DO UPDATE SET valore=excluded.valore`).run(nome);
+  ok(res, { ok: true });
+});
+
+/* ---------------- COPIA DI SICUREZZA ----------------
+   Scarica il database intero come file. E' la cosa piu' importante per
+   chi vende: un locale che perde un mese di conteggi non torna piu'.
+   Il file si rimette al suo posto e l'app riparte da li'.          */
+api.get('/backup', need('all'), (req, res) => {
+  const percorso = process.env.DB_PATH || path.join(__dirname, 'data.db');
+  // WAL: prima riversiamo tutto nel file principale, sennon la copia
+  // sarebbe incompleta e i dati piu' recenti mancherebbero
+  try { db.exec('PRAGMA wal_checkpoint(TRUNCATE);'); } catch {}
+  if (!fs.existsSync(percorso)) return bad(res, 404, 'Database non trovato');
+  const oggi = now().slice(0, 10);
+  const nome = 'barback-' + (leggiImp('locale_nome', '') || 'dati').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + oggi + '.db';
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="${nome}"`);
+  res.setHeader('Content-Length', fs.statSync(percorso).size);
+  fs.createReadStream(percorso).pipe(res);
+});
+
+// quanto pesa e di quando e' l'ultimo salvataggio: si mostra nelle impostazioni
+api.get('/backup/info', need('all'), (req, res) => {
+  // come per il download: prima riversiamo il WAL, sennò la dimensione
+  // e il numero di righe sarebbero quelli di prima degli ultimi cambiamenti
+  try { db.exec('PRAGMA wal_checkpoint(TRUNCATE);'); } catch {}
+  const percorso = process.env.DB_PATH || path.join(__dirname, 'data.db');
+  if (!fs.existsSync(percorso)) return ok(res, { esiste: false });
+  const s = fs.statSync(percorso);
+  const conta = (t) => { try { return db.prepare(`SELECT COUNT(*) c FROM ${t}`).get().c; } catch { return 0; } };
+  ok(res, { esiste: true, byte: s.size, modificato: s.mtime.toISOString(),
+    righe: { prodotti: conta('products'), movimenti: conta('movements'),
+      dipendenti: conta('employees'), turni: conta('shifts'),
+      inventari: conta('inv_sessions'), conteggi: conta('inv_counts') } });
 });
 app.listen(PORT, () => console.log(`Barback avviato su http://localhost:${PORT}`));

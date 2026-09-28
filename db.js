@@ -105,6 +105,10 @@ CREATE TABLE IF NOT EXISTS inv_counts (
   counted_at TEXT,
   UNIQUE(session_id, location_id, product_id)
 );
+CREATE TABLE IF NOT EXISTS impostazioni (
+  chiave TEXT PRIMARY KEY,
+  valore TEXT
+);
 `);
 
 /* ---------- migrazione: aggiunge le colonne nuove ai database già esistenti ----------
@@ -122,6 +126,8 @@ addColumn('shift_changes', 'created_at', 'TEXT');
 addColumn('shift_changes', 'decided_at', 'TEXT');
 addColumn('shift_changes', 'decided_by', 'INTEGER');
 addColumn('shift_changes', 'motivo', "TEXT DEFAULT ''");
+// 1 = il PIN e' ancora quello di fabbrica: l'app lo segnala finche' non si cambia
+addColumn('profiles', 'pin_default', 'INTEGER DEFAULT 0');
 
 /* ---------- helper date per il seed ---------- */
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -141,7 +147,8 @@ function seedIfEmpty() {
   const count = (t) => db.prepare(`SELECT COUNT(*) c FROM ${t}`).get().c;
 
   if (count('profiles') === 0) {
-    const p = db.prepare('INSERT INTO profiles (name,pin_hash,permissions) VALUES (?,?,?)');
+    // pin_default=1: sono i PIN di fabbrica, l'app insiste finche' non si cambiano
+    const p = db.prepare('INSERT INTO profiles (name,pin_hash,permissions,pin_default) VALUES (?,?,?,1)');
     // permissions = lista di "capacità". 'all' = il proprietario può tutto.
     [
       ['Proprietario',           '1111', ['all']],
@@ -285,8 +292,22 @@ function seedVendorsAndPar() {
       if (g[0]) upd.run(g[0], p.id);
     });
 }
+/* ---------- riconosce i PIN di fabbrica sui database gia' esistenti ----------
+   Chi ha installato l'app prima non ha la colonna compilata, ma i PIN
+   possono essere ancora 1111/2222/3333/4444. Li proviamo e, se sono
+   quelli, segnaliamo il profilo cosi' l'app insiste per cambiarli.     */
+function segnalaPinDiFabbrica() {
+  const noti = ['1111', '2222', '3333', '4444'];
+  const upd = db.prepare('UPDATE profiles SET pin_default=1 WHERE id=?');
+  db.prepare('SELECT id, pin_hash, pin_default FROM profiles').all().forEach(p => {
+    if (p.pin_default) return;
+    if (noti.some(n => bcrypt.compareSync(n, p.pin_hash))) upd.run(p.id);
+  });
+}
+
 seedIfEmpty();
 seedVendorsAndPar();
 seedInventario();
+segnalaPinDiFabbrica();
 
 module.exports = db;

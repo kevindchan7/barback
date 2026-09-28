@@ -287,5 +287,55 @@ async function aspettaServer() {
   verifica('il responsabile non vede il manuale', (await chiama('/manuale', { token: R })).stato === 403);
   verifica('la panoramica risponde', (await chiama('/overview', { token: P })).stato === 200);
 
+
+  /* ---------------- 7. PRONTA PER LA VENDITA ---------------- */
+  titolo('7. NOME DEL LOCALE, COPIA DI SICUREZZA, PIN DI FABBRICA');
+
+  // i PIN di fabbrica devono essere segnalati
+  const prof = (await chiama('/profiles')).dati;
+  verifica('i PIN di fabbrica sono segnalati', prof.every(p => p.pin_default === true), prof.map(p => p.pin_default));
+
+  // cambiandone uno, la segnalazione sparisce solo per quello
+  await chiama(`/profiles/${prof[0].id}/pin`, { metodo: 'PUT', token: P, corpo: { attuale: '1111', nuovo: '2580' } });
+  const prof2 = (await chiama('/profiles')).dati;
+  verifica('cambiato il PIN, il profilo non e\' piu\' di fabbrica', prof2.find(p => p.id === prof[0].id).pin_default === false);
+  verifica('gli altri restano segnalati', prof2.filter(p => p.pin_default).length === prof.length - 1);
+  const T2 = (await chiama('/auth/pin', { metodo: 'POST', corpo: { profileId: prof[0].id, pin: '2580' } })).dati.token;
+  verifica('si entra col PIN nuovo', !!T2);
+
+  // nome del locale
+  verifica('all\'inizio il nome del locale e\' vuoto', (await chiama('/impostazioni', { token: T2 })).dati.locale_nome === '');
+  verifica('si salva il nome del locale',
+    (await chiama('/impostazioni', { metodo: 'PUT', token: T2, corpo: { locale_nome: 'Bar della Prova' } })).stato === 200);
+  verifica('il nome torna indietro', (await chiama('/impostazioni', { token: T2 })).dati.locale_nome === 'Bar della Prova');
+
+  // copia di sicurezza
+  const info = await chiama('/backup/info', { token: T2 });
+  verifica('le informazioni sulla copia rispondono', info.stato === 200 && info.dati.esiste === true, info.dati);
+  verifica('la dimensione e\' quella vera (non quella prima del WAL)', info.dati.byte > 10000, info.dati.byte);
+
+  const scaricoCopia = await fetch(BASE + '/api/backup', { headers: { Authorization: 'Bearer ' + T2 } });
+  verifica('la copia si scarica', scaricoCopia.ok, scaricoCopia.status);
+  const nomeFile = String(scaricoCopia.headers.get('content-disposition') || '');
+  verifica('il file porta il nome del locale', nomeFile.includes('bar-della-prova'), nomeFile);
+
+  const copia = path.join(os.tmpdir(), `copia-prova-${Date.now()}.db`);
+  fs.writeFileSync(copia, Buffer.from(await scaricoCopia.arrayBuffer()));
+  let apribile = false, tabelle = 0, nomeDentro = null;
+  try {
+    const { DatabaseSync } = require('node:sqlite');
+    const d2 = new DatabaseSync(copia);
+    tabelle = d2.prepare("SELECT COUNT(*) c FROM sqlite_master WHERE type='table'").get().c;
+    nomeDentro = (d2.prepare("SELECT valore FROM impostazioni WHERE chiave='locale_nome'").get() || {}).valore;
+    apribile = true;
+  } catch {}
+  try { fs.rmSync(copia, { force: true }); } catch {}
+  verifica('la copia si riapre come database', apribile);
+  verifica('dentro ci sono tutte le tabelle', tabelle >= 13, tabelle);
+  verifica('dentro ci sono i dati veri', nomeDentro === 'Bar della Prova', nomeDentro);
+
+  verifica('il barman non puo\' scaricare la copia', (await chiama('/backup/info', { token: B })).stato === 403);
+  verifica('il barman non puo\' cambiare il nome del locale',
+    (await chiama('/impostazioni', { metodo: 'PUT', token: B, corpo: { locale_nome: 'Abusivo' } })).stato === 403);
   chiudi(falliti ? 1 : 0);
 })().catch(e => { console.error('\nerrore inatteso:', e); process.exit(1); });
