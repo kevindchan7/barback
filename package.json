@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "start": "node --experimental-sqlite server.js",
-    "test": "node --experimental-sqlite test/prova-completa.js"
+    "test": "node --experimental-sqlite test/prova-completa.js",
+    "prova-vuota": "node --experimental-sqlite test/prova-vuota.js"
   },
   "engines": {
     "node": "24.x"

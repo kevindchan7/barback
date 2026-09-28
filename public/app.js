@@ -967,6 +967,10 @@ async function openSettings() {
         </div>
         <div class="row"><div><label>PIN (4 cifre)</label><input id="npf-pin" inputmode="numeric" maxlength="4" placeholder="es. 5555"></div></div>
         <button class="act" onclick="addProfile()">+ Crea profilo</button>
+
+        <h3 style="margin-top:22px;color:var(--red)">Ricominciare da zero</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:8px">Cancella prodotti, giacenze, movimenti, dipendenti, turni, richieste, fornitori, postazioni e inventari. I profili e i PIN restano. Serve quando hai finito di provare e vuoi mettere i dati veri del locale.</p>
+        <button class="danger" onclick="svuotaTutto()">🗑 Svuota tutti i dati</button>
         ` : ''}
 
         <div class="onb-actions" style="margin-top:20px">
@@ -976,6 +980,21 @@ async function openSettings() {
     </div>`;
 }
 
+async function svuotaTutto() {
+  const c = prompt(
+    'Questo cancella TUTTI i dati: prodotti, giacenze, movimenti, dipendenti,\n' +
+    'turni, task, richieste, fornitori, postazioni e inventari.\n\n' +
+    'I profili di accesso e i PIN restano.\n' +
+    'NON si puo\' annullare.\n\n' +
+    'Se sei sicuro scrivi:  AZZERA');
+  if (c === null) return;
+  if (c.trim().toUpperCase() !== 'AZZERA') return alert('Non ho fatto niente.');
+  try {
+    const r = await api('/dati', 'DELETE', { conferma: 'AZZERA' });
+    alert(`Fatto: ${r.totale} righe cancellate.\nRestano ${r.profiliRimasti} profili di accesso.\n\nOra l'app è vuota: mettici la tua roba.`);
+    closeModal(); loadHome();
+  } catch (e) { alert(e.message); }
+}
 async function changeOwnPin() {
   const attuale = $('#pin-old').value, nuovo = $('#pin-new').value;
   if (!/^[0-9]{4}$/.test(nuovo)) return alert('Il nuovo PIN deve essere di 4 cifre.');

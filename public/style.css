@@ -346,3 +346,8 @@ table.wide{min-width:520px;}
    naturale (~129px) e su un telefono da 320px la riga sborda */
 .partial input[type=range]{flex:1 1 0; min-width:0;}
 .partial .lab{min-width:0;}
+
+/* pulsante di un'azione che non si torna indietro */
+button.danger{background:transparent; border:1px solid var(--red); color:var(--red);
+  border-radius:10px; padding:11px 14px; font-size:14px; font-weight:700; cursor:pointer; width:100%;}
+button.danger:hover{background:var(--red-pill);}

@@ -742,4 +742,26 @@ api.delete('/shift-changes/:id', need('ferie.request'), (req, res) => {
   ok(res, { ok: true });
 });
 
+
+/* ---------------- RICOMINCIARE DA ZERO ----------------
+   Toglie TUTTI i dati operativi e lascia solo i profili di accesso,
+   altrimenti nessuno potrebbe piu' entrare. Serve a chi ha provato
+   l'app coi dati finti e adesso vuole metterci quelli veri.
+   Chiede una parola di conferma: non si fa per sbaglio.          */
+api.delete('/dati', need('all'), (req, res) => {
+  if (String(req.body && req.body.conferma) !== 'AZZERA')
+    return bad(res, 400, 'Per svuotare serve la conferma');
+
+  const tabelle = ['inv_counts', 'inv_sessions', 'movements', 'shift_changes',
+    'tasks', 'shifts', 'employees', 'products', 'vendors', 'locations'];
+  const prima = {};
+  tabelle.forEach(t => { prima[t] = db.prepare(`SELECT COUNT(*) c FROM ${t}`).get().c; });
+  tabelle.forEach(t => db.exec(`DELETE FROM ${t}`));
+  // i contatori degli id ripartono da 1, cosi' l'app sembra nuova
+  try { db.exec(`DELETE FROM sqlite_sequence WHERE name IN (${tabelle.map(t => `'${t}'`).join(',')})`); } catch {}
+
+  ok(res, { ok: true, cancellati: prima,
+    totale: Object.values(prima).reduce((s, n) => s + n, 0),
+    profiliRimasti: db.prepare('SELECT COUNT(*) c FROM profiles').get().c });
+});
 app.listen(PORT, () => console.log(`Barback avviato su http://localhost:${PORT}`));

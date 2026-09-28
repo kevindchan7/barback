@@ -130,6 +130,13 @@ function mondayOfThisWeek() {
   d.setDate(d.getDate() - day); d.setHours(0, 0, 0, 0); return d;
 }
 
+/* I profili di accesso servono sempre: senza, nessuno potrebbe entrare.
+   TUTTO IL RESTO (prodotti, dipendenti, turni, fornitori, postazioni) e'
+   finto ed esiste solo per far vedere l'app. Un locale vero deve trovarla
+   VUOTA e metterci la sua roba, quindi i dati demo arrivano solo se li
+   chiedi con  SEED_DEMO=1  nell'ambiente.                                */
+const DEMO = process.env.SEED_DEMO === '1';
+
 function seedIfEmpty() {
   const count = (t) => db.prepare(`SELECT COUNT(*) c FROM ${t}`).get().c;
 
@@ -144,7 +151,7 @@ function seedIfEmpty() {
     ].forEach(([n, pin, perms]) => p.run(n, bcrypt.hashSync(pin, 10), JSON.stringify(perms)));
   }
 
-  if (count('products') === 0) {
+  if (DEMO && count('products') === 0) {
     const ins = db.prepare(`INSERT INTO products
       (name,category,format,volume_ml,cost,price,stock,initial_stock,threshold,unit,recipe)
       VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
@@ -181,13 +188,13 @@ function seedIfEmpty() {
       ins.run(name, 'Cocktail', '', 0, 0, price, 0, 0, 0, 'drink', recipe));
   }
 
-  if (count('employees') === 0) {
+  if (DEMO && count('employees') === 0) {
     const e = db.prepare('INSERT INTO employees (name,role) VALUES (?,?)');
     [['Marco', 'barista'], ['Luca', 'barback'], ['Giulia', 'cameriera'],
      ['Sara', 'cameriera'], ['Antonio', 'cuoco']].forEach(([n, r]) => e.run(n, r));
   }
 
-  if (count('shifts') === 0) {
+  if (DEMO && count('shifts') === 0) {
     const emps = db.prepare('SELECT id,role FROM employees').all();
     const s = db.prepare('INSERT INTO shifts (employee_id,date,start,end,role,note) VALUES (?,?,?,?,?,?)');
     const mon = mondayOfThisWeek();
@@ -201,7 +208,7 @@ function seedIfEmpty() {
     }
   }
 
-  if (count('tasks') === 0) {
+  if (DEMO && count('tasks') === 0) {
     const emps = db.prepare('SELECT id FROM employees').all();
     const t = db.prepare('INSERT INTO tasks (date,title,assignee_id,done,notify) VALUES (?,?,?,?,1)');
     const today = iso(new Date());
@@ -210,7 +217,7 @@ function seedIfEmpty() {
       .forEach(([title, done], i) => t.run(today, title, emps[i % emps.length].id, done));
   }
 
-  if (count('shift_changes') === 0) {
+  if (DEMO && count('shift_changes') === 0) {
     const emps = db.prepare('SELECT id FROM employees').all();
     const c = db.prepare('INSERT INTO shift_changes (employee_id,type,from_date,to_date,status,note) VALUES (?,?,?,?,?,?)');
     const today = iso(new Date());
@@ -227,7 +234,7 @@ function seedIfEmpty() {
    I permessi nuovi vanno aggiunti anche ai profili che esistono gia',
    altrimenti dopo l'aggiornamento nessuno vedrebbe l'inventario.      */
 function seedInventario() {
-  if (db.prepare('SELECT COUNT(*) c FROM locations').get().c === 0) {
+  if (DEMO && db.prepare('SELECT COUNT(*) c FROM locations').get().c === 0) {
     const l = db.prepare('INSERT INTO locations (name,sort_index) VALUES (?,?)');
     ['Banco', 'Frigo birre e bibite', 'Magazzino', 'Cantina'].forEach((n, i) => l.run(n, i));
   }
@@ -251,7 +258,7 @@ function seedInventario() {
 }
 
 function seedVendorsAndPar() {
-  if (db.prepare('SELECT COUNT(*) c FROM vendors').get().c === 0) {
+  if (DEMO && db.prepare('SELECT COUNT(*) c FROM vendors').get().c === 0) {
     const v = db.prepare('INSERT INTO vendors (name,phone,email,note) VALUES (?,?,?,?)');
     [
       ['Distribuzione Bevande Srl', '+39 000 0000001', 'ordini@distribuzionebevande.it', 'Liquori, amari, vermouth'],

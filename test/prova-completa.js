@@ -55,7 +55,7 @@ async function aspettaServer() {
   console.log('database usa-e-getta:', DB);
 
   const server = spawn(process.execPath, ['--experimental-sqlite', path.join(__dirname, '..', 'server.js')],
-    { env: { ...process.env, PORT: String(PORT), DB_PATH: DB, JWT_SECRET: 'prova-non-segreta' }, stdio: 'ignore' });
+    { env: { ...process.env, PORT: String(PORT), DB_PATH: DB, JWT_SECRET: 'prova-non-segreta', SEED_DEMO: '1' }, stdio: 'ignore' });
 
   const chiudi = (codice) => {
     server.kill();

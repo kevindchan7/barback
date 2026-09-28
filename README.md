@@ -46,7 +46,9 @@ Su Windows il modo piu' rapido e' la scorciatoia **Barback** sul Desktop, creata
 
 In alternativa, doppio click su **AVVIA.cmd**: usa il Node portatile in `.tools` e non richiede installazioni. Con **AVVIA-E-CONDIVIDI.cmd** genera anche un link temporaneo da mandare a qualcuno per una prova al volo. Istruzioni senza gergo in [ISTRUZIONI.txt](ISTRUZIONI.txt).
 
-Al primo avvio il database si popola da solo con dati demo: 13 bottiglie, 4 cocktail con ricetta, 5 dipendenti, i turni della settimana corrente, task e richieste in attesa.
+**L'app nasce vuota.** Al primo avvio trovi solo i quattro profili di accesso: prodotti, dipendenti, fornitori, postazioni e turni li metti tu, e i conti l'app li fa sui tuoi numeri.
+
+Se invece vuoi vederla piena per capire come funziona, avviala con la variabile `SEED_DEMO=1`: si popola con 13 bottiglie, 4 cocktail, 5 dipendenti, i turni della settimana e qualche richiesta. Per tornare vuota c'è il bottone **⚙ → Svuota tutti i dati**.
 
 ## Come si pubblica online
 
@@ -91,4 +93,4 @@ npm test
 
 Avvia un server suo su una porta libera con un database usa-e-getta — **non tocca i dati veri** — e percorre tutta l'app con tutti e quattro i profili: accesso, prodotti, movimenti, vuoti, ordini, inventario completo con scostamento e chiusura, codice a barre, turni, task, personale, ferie e permessi, profili e PIN, manuale.
 
-Sono 93 controlli. Verifica anche che i permessi valgano davvero: che il barman **non** possa fare un carico, chiudere un inventario o approvare ferie, e che nessuno possa eliminare il profilo con cui è entrato. Se cambi qualcosa nel codice, lancialo prima di pubblicare.
+Sono 93 controlli. C'è anche `npm run prova-vuota`: 41 controlli che partono dall'app **vuota**, verificano che niente si rompa senza dati, poi costruiscono un locale da zero e controllano che i conti tornino sui numeri inseriti. Il primo verifica anche che i permessi valgano davvero: che il barman **non** possa fare un carico, chiudere un inventario o approvare ferie, e che nessuno possa eliminare il profilo con cui è entrato. Se cambi qualcosa nel codice, lancialo prima di pubblicare.
