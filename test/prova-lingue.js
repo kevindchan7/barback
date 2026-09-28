@@ -48,7 +48,10 @@ async function chiama(p, { metodo = 'GET', corpo, token, lang } = {}) {
     const m = src.match(new RegExp('\\n  ' + lingua + ': \\{([\\s\\S]*?)\\n  \\},'));
     if (!m) return null;
     // le chiavi stanno anche piu' d'una per riga: vanno prese tutte
-    return [...m[1].matchAll(/(?:^|[,{])\s*([a-z_0-9]+):\s*['`]/gm)].map(x => x[1]);
+    // chiavi normali (nome:) e chiavi fra apici ('Proprietario':)
+    const a = [...m[1].matchAll(/(?:^|[,{])\s*([a-z_0-9]+):\s*['`]/gm)].map(x => x[1]);
+    const b = [...m[1].matchAll(/(?:^|[,{])\s*'([^']+)':\s*'/gm)].map(x => x[1]);
+    return [...a, ...b];
   };
   const it = chiaviDi('it'), en = chiaviDi('en'), es = chiaviDi('es');
   verifica('il dizionario italiano si legge', Array.isArray(it) && it.length > 100, it && it.length);

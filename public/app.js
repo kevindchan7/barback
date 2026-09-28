@@ -33,13 +33,13 @@ async function initLogin() {
   $('#profiles').innerHTML = profiles.map(p => `
     <div class="profile" onclick="selectProfile(${p.id}, '${p.name.replace(/'/g, "\\'")}')">
       ${mascot(40)}
-      <div><div class="pn">${p.name}</div><div class="pr">${p.permissions.includes('all') ? t('accesso_completo') : t('permessi_n', { n: p.permissions.length })}</div></div>
+      <div><div class="pn">${nomeProfilo(p.name)}</div><div class="pr">${p.permissions.includes('all') ? t('accesso_completo') : t('permessi_n', { n: p.permissions.length })}</div></div>
     </div>`).join('');
 }
 function selectProfile(id, name) {
   selProfile = { id, name }; pinBuf = '';
   $('#profiles-wrap').classList.add('hidden'); $('#pin-wrap').classList.remove('hidden');
-  $('#pin-for').textContent = t('pin_per') + ' ' + name;
+  $('#pin-for').textContent = t('pin_per') + ' ' + nomeProfilo(name);
   $('#pinpad').innerHTML = [1,2,3,4,5,6,7,8,9].map(d => `<button onclick="pinPress('${d}')">${d}</button>`).join('')
     + `<button onclick="pinDel()">⌫</button><button onclick="pinPress('0')">0</button><button onclick="submitPin()">✓</button>`;
   renderDots(); $('#login-msg').textContent = '';
@@ -60,7 +60,7 @@ async function submitPin() {
 function enterApp() {
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   $('#banner-mascot').innerHTML = mascot(42);
-  $('#banner-sub').textContent = PROFILE.name;
+  $('#banner-sub').textContent = nomeProfilo(PROFILE.name);
   applicaLingua();
   requestNotify(); buildBottomNav(); loadHome(); maybeOnboard();
 }
@@ -115,7 +115,7 @@ function logout() { localStorage.removeItem('bb_token'); localStorage.removeItem
 /* ===================== HOMEPAGE (dinamica per permessi) ===================== */
 async function loadHome() {
   go('home', true);
-  $('#home-hello').innerHTML = mascotSays(t('bentornato', { nome: PROFILE.name }));
+  $('#home-hello').innerHTML = mascotSays(t("bentornato", { nome: nomeProfilo(PROFILE.name) }));
 
   // layout iniziale: giacenze / entrate / uscite
   let ov = null; try { ov = await api('/overview'); } catch {}
@@ -941,7 +941,7 @@ async function openSettings() {
         <h3>Impostazioni</h3>
 
         <h3 style="margin-top:14px">Il tuo PIN</h3>
-        <p class="muted" style="font-size:12px;margin-bottom:8px">Sei entrato come <b>${PROFILE.name}</b>.</p>
+        <p class="muted" style="font-size:12px;margin-bottom:8px">${t("sei_entrato", { nome: "<b>" + nomeProfilo(PROFILE.name) + "</b>" })}</p>
         <div class="row c2">
           <div><label>PIN attuale</label><input id="pin-old" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
           <div><label>Nuovo PIN</label><input id="pin-new" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
@@ -952,7 +952,7 @@ async function openSettings() {
         <h3 style="margin-top:20px">Profili di accesso</h3>
         <table><thead><tr><th>Nome</th><th>Accesso</th><th></th></tr></thead><tbody>
           ${profili.map(p => `<tr>
-            <td>${p.name}</td>
+            <td>${nomeProfilo(p.name)}</td>
             <td class="muted">${p.permissions.includes('all') ? 'completo' : p.permissions.length + ' permessi'}</td>
             <td class="right">
               <button class="iconbtn" onclick="resetPin(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="Reimposta PIN">🔑</button>
@@ -964,7 +964,7 @@ async function openSettings() {
         <div class="row c2">
           <div><label>Nome</label><input id="npf-name" placeholder="es. Barman sera"></div>
           <div><label>Ruolo</label><select id="npf-role">
-            ${ruoli.map(r => `<option value="${r}">${r}</option>`).join('')}
+            ${ruoli.map(r => `<option value="${r}">${nomeRuolo(r)}</option>`).join('')}
           </select></div>
         </div>
         <div class="row"><div><label>PIN (4 cifre)</label><input id="npf-pin" inputmode="numeric" maxlength="4" placeholder="es. 5555"></div></div>

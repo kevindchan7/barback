@@ -145,6 +145,13 @@ const I18N = {
     ph_motivo: 'es. matrimonio, visita medica, scambio con Marco',
     ph_tel: '+39 ...', ph_email: 'ordini@...', ph_unita: 'bott.', ph_pin: 'es. 5555',
     ph_profilo: 'es. Barman sera',
+    /* --- nomi dei profili di serie: quelli creati da te restano come li scrivi --- */
+    'Proprietario': 'Proprietario',
+    'Admin 1 · Responsabile': 'Admin 1 · Responsabile',
+    'Admin 2 · Barman': 'Admin 2 · Barman',
+    'Admin 3 · Bar Manager': 'Admin 3 · Bar Manager',
+    ruolo_proprietario: 'proprietario', ruolo_responsabile: 'responsabile',
+    ruolo_barman: 'barman', ruolo_bar_manager: 'bar manager',
   },
 
   en: {
@@ -264,6 +271,12 @@ const I18N = {
     ph_motivo: 'e.g. wedding, doctor appointment, swap with Mark',
     ph_tel: '+44 ...', ph_email: 'orders@...', ph_unita: 'btl', ph_pin: 'e.g. 5555',
     ph_profilo: 'e.g. Evening bartender',
+    'Proprietario': 'Owner',
+    'Admin 1 · Responsabile': 'Admin 1 · Manager',
+    'Admin 2 · Barman': 'Admin 2 · Bartender',
+    'Admin 3 · Bar Manager': 'Admin 3 · Bar Manager',
+    ruolo_proprietario: 'owner', ruolo_responsabile: 'manager',
+    ruolo_barman: 'bartender', ruolo_bar_manager: 'bar manager',
   },
 
   es: {
@@ -383,8 +396,27 @@ const I18N = {
     ph_motivo: 'ej. boda, cita médica, cambio con Marcos',
     ph_tel: '+34 ...', ph_email: 'pedidos@...', ph_unita: 'bot.', ph_pin: 'ej. 5555',
     ph_profilo: 'ej. Camarero de noche',
+    'Proprietario': 'Propietario',
+    'Admin 1 · Responsabile': 'Admin 1 · Responsable',
+    'Admin 2 · Barman': 'Admin 2 · Camarero',
+    'Admin 3 · Bar Manager': 'Admin 3 · Jefe de barra',
+    ruolo_proprietario: 'propietario', ruolo_responsabile: 'responsable',
+    ruolo_barman: 'camarero', ruolo_bar_manager: 'jefe de barra',
   },
 };
+
+
+/* I profili creati alla nascita hanno nomi italiani salvati nel database.
+   Qui li mostriamo nella lingua scelta; quelli che crei tu restano come
+   li hai scritti, perche' sono dati tuoi e non testi dell'app.        */
+function nomeProfilo(nome) {
+  const d = I18N[LANG] || I18N.it;
+  return d[nome] || nome;
+}
+// i ruoli che arrivano dal server ('barman', 'bar manager'...)
+function nomeRuolo(r) {
+  return t('ruolo_' + String(r).replace(/ /g, '_')) || r;
+}
 
 /* ---------------- motore ---------------- */
 function linguaCorrente() {
