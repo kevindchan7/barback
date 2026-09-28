@@ -1,0 +1,49 @@
+BARBACK — TUTTI I DIRITTI RISERVATI
+Copyright (c) 2026 [NOME O RAGIONE SOCIALE DA INSERIRE]
+
+Questo software e il suo codice sorgente sono proprietari e riservati.
+
+Non sono concessi diritti di uso, copia, modifica, unione, pubblicazione,
+distribuzione, sublicenza o vendita, in tutto o in parte, salvo previo
+accordo scritto con il titolare del copyright.
+
+L'accesso a questo repository non costituisce concessione di alcuna
+licenza.
+
+IL SOFTWARE È FORNITO "COSÌ COM'È", SENZA GARANZIE DI ALCUN TIPO,
+ESPRESSE O IMPLICITE, INCLUSE MA NON LIMITATE ALLE GARANZIE DI
+COMMERCIABILITÀ E IDONEITÀ A UNO SCOPO PARTICOLARE. IN NESSUN CASO IL
+TITOLARE DEL COPYRIGHT POTRÀ ESSERE RITENUTO RESPONSABILE PER DANNI
+DERIVANTI DALL'USO DEL SOFTWARE.
+
+---
+
+BARBACK — ALL RIGHTS RESERVED
+Copyright (c) 2026 [NAME OR COMPANY TO BE FILLED IN]
+
+This software and its source code are proprietary and confidential.
+
+No rights to use, copy, modify, merge, publish, distribute, sublicense
+or sell any part of this software are granted, except by prior written
+agreement with the copyright holder.
+
+Access to this repository does not grant any licence.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL
+THE COPYRIGHT HOLDER BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OF
+THIS SOFTWARE.
+
+---
+
+LIBRERIE DI TERZE PARTI
+
+Questo software usa tre librerie open source con licenza MIT, che
+consente l'uso commerciale senza obblighi verso di noi:
+
+  express       MIT
+  bcryptjs      MIT
+  jsonwebtoken  MIT
+
+Le rispettive licenze si trovano in node_modules/<nome>/LICENSE.
