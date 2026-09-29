@@ -1,0 +1,4 @@
+# I file .cmd devono avere i fine-riga di Windows (CRLF):
+# con quelli di Linux cmd.exe sbaglia a leggere i blocchi if e set /p.
+*.cmd text eol=crlf
+*.bat text eol=crlf
