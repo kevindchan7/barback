@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <link rel="icon" href="barback.ico">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Inizia la prova — Barback</title>
-<meta name="description" content="Quattordici giorni gratis. Non paghi nulla oggi e puoi disdire in qualsiasi momento.">
+<title>Start your free trial — Barback</title>
+<meta name="description" content="Fourteen days free. You're not charged today, and you can cancel any time.">
 <meta name="robots" content="noindex">
 <style>
 :root{
@@ -16,8 +16,6 @@
   --radius:16px;
 }
 *{box-sizing:border-box}
-/* senza questo, il display:flex delle righe batte l'attributo hidden
-   e la riga del codice promo si vedrebbe anche quando non c'e' codice */
 [hidden]{display:none !important}
 body{
   margin:0; background:var(--bg); color:var(--txt);
@@ -44,13 +42,11 @@ h1{font-size:clamp(25px,3.6vw,33px); letter-spacing:-.025em; line-height:1.15; m
 .colonne{display:grid; grid-template-columns:1.25fr .85fr; gap:28px; align-items:start}
 @media (max-width:820px){ .colonne{grid-template-columns:1fr; gap:22px} .riepilogo{order:-1} }
 
-/* ---------- il modulo ---------- */
 .scheda{background:var(--panel2); border:1px solid var(--line); border-radius:var(--radius); padding:26px}
 .scheda h2{font-size:13px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
            margin:0 0 18px; font-weight:750}
 .campo{margin-bottom:17px}
 .campo label{display:block; font-size:14.5px; font-weight:620; margin-bottom:7px}
-.campo label u{color:var(--muted); font-weight:400; text-decoration:none; font-size:13px}
 .campo input{
   width:100%; padding:13px 14px; font-size:16px; font-family:inherit;
   background:var(--bg); color:var(--txt);
@@ -65,7 +61,6 @@ h1{font-size:clamp(25px,3.6vw,33px); letter-spacing:-.025em; line-height:1.15; m
 .due{display:grid; grid-template-columns:1fr 1fr; gap:14px}
 @media (max-width:520px){ .due{grid-template-columns:1fr; gap:0} }
 
-/* ---------- scelta del piano ---------- */
 .piani{display:grid; gap:10px; margin-bottom:22px}
 .piano{
   display:flex; align-items:center; gap:13px; padding:15px 16px; cursor:pointer;
@@ -80,7 +75,6 @@ h1{font-size:clamp(25px,3.6vw,33px); letter-spacing:-.025em; line-height:1.15; m
 .piano .p small{font-size:12.5px; color:var(--muted); font-weight:600}
 .piano.scelto{border-color:var(--accent); background:rgba(62,207,142,.07)}
 
-/* ---------- codice promo ---------- */
 .promo{display:flex; gap:9px}
 .promo input{flex:1 1 auto; min-width:0; text-transform:uppercase}
 .promo button{
@@ -93,7 +87,6 @@ h1{font-size:clamp(25px,3.6vw,33px); letter-spacing:-.025em; line-height:1.15; m
 .esito.ok{display:block; color:var(--accent)}
 .esito.no{display:block; color:var(--red)}
 
-/* ---------- riepilogo ---------- */
 .riepilogo{
   background:var(--panel2); border:1px solid var(--accent); border-radius:var(--radius);
   padding:24px; position:sticky; top:20px;
@@ -122,9 +115,7 @@ h1{font-size:clamp(25px,3.6vw,33px); letter-spacing:-.025em; line-height:1.15; m
   content:''; position:absolute; left:4px; top:5px; width:9px; height:9px;
   border-radius:50%; background:var(--line); border:2px solid var(--panel2);
 }
-.tappe li::after{
-  content:''; position:absolute; left:8px; top:14px; bottom:0; width:1px; background:var(--line);
-}
+.tappe li::after{content:''; position:absolute; left:8px; top:14px; bottom:0; width:1px; background:var(--line)}
 .tappe li:last-child::after{display:none}
 .tappe li.ora::before{background:var(--accent)}
 .tappe li b{display:block; color:var(--txt); font-weight:650; font-size:14.5px; margin-bottom:1px}
@@ -136,9 +127,7 @@ h1{font-size:clamp(25px,3.6vw,33px); letter-spacing:-.025em; line-height:1.15; m
 }
 .vai:hover{filter:brightness(1.08)}
 .vai:disabled{opacity:.55; cursor:not-allowed; filter:none}
-.sicuro{
-  margin-top:14px; font-size:12.5px; color:var(--muted); line-height:1.6; text-align:center;
-}
+.sicuro{margin-top:14px; font-size:12.5px; color:var(--muted); line-height:1.6; text-align:center}
 .sicuro b{color:var(--txt); font-weight:650}
 
 .rassicura{display:grid; gap:9px; margin-top:20px}
@@ -179,126 +168,108 @@ footer a:hover{color:var(--accent)}
     </svg>
     Barback
   </a>
-  <a class="back" href="index.html">&larr; torna indietro</a>
+  <a class="back" href="index.html">&larr; back</a>
 </div></header>
 
 <main><div class="wrap">
-  <h1>Quattordici giorni gratis</h1>
-  <p class="lede">Oggi non paghi nulla. Ti avvisiamo due giorni prima del primo addebito, e puoi disdire quando vuoi.</p>
+  <h1>Fourteen days free</h1>
+  <p class="lede">You're not charged today. We email you two days before the first charge, and you can cancel any time.</p>
 
   <form class="colonne" id="modulo" novalidate>
 
-    <!-- ============ SINISTRA: i dati ============ -->
     <div>
       <div class="scheda">
-        <h2>Il tuo locale</h2>
+        <h2>Your bar</h2>
 
         <div class="campo" id="c-locale">
-          <label for="locale">Nome del locale</label>
-          <input id="locale" name="locale" type="text" placeholder="Bar Centrale" autocomplete="organization" required>
-          <div class="aiuto">Comparirà in alto nell'app e sugli ordini ai fornitori.</div>
-          <div class="errore">Serve il nome del locale.</div>
+          <label for="locale">Business name</label>
+          <input id="locale" name="locale" type="text" placeholder="The Corner Tavern" autocomplete="organization" required>
+          <div class="aiuto">Shows at the top of the app and on your vendor orders.</div>
+          <div class="errore">We need your business name.</div>
         </div>
 
         <div class="due">
           <div class="campo" id="c-nome">
-            <label for="nome">Nome e cognome</label>
-            <input id="nome" name="nome" type="text" placeholder="Mario Rossi" autocomplete="name" required>
-            <div class="errore">Serve nome e cognome.</div>
+            <label for="nome">Your name</label>
+            <input id="nome" name="nome" type="text" placeholder="Chris Miller" autocomplete="name" required>
+            <div class="errore">We need your first and last name.</div>
           </div>
           <div class="campo" id="c-tel">
-            <label for="tel">Telefono</label>
-            <input id="tel" name="tel" type="tel" placeholder="333 123 4567" autocomplete="tel" required>
-            <div class="errore">Serve un numero valido.</div>
+            <label for="tel">Phone</label>
+            <input id="tel" name="tel" type="tel" placeholder="(555) 123-4567" autocomplete="tel" required>
+            <div class="errore">That phone number doesn't look right.</div>
           </div>
-        </div>
-
-        <div class="campo" id="c-piva">
-          <label for="piva">Partita IVA</label>
-          <input id="piva" name="piva" type="text" inputmode="numeric" placeholder="12345678901"
-                 autocomplete="off" maxlength="13" required>
-          <div class="aiuto">Serve per fatturarti senza IVA: l'imposta la assolvi tu in
-            inversione contabile, come per ogni fornitore estero.</div>
-          <div class="errore">Questa partita IVA non è valida. Controlla le undici cifre.</div>
         </div>
 
         <div class="campo" id="c-email">
           <label for="email">Email</label>
-          <input id="email" name="email" type="email" placeholder="mario@barcentrale.it" autocomplete="email" required>
-          <div class="aiuto">Qui arrivano il link dell'app, i PIN e l'avviso prima dell'addebito.</div>
-          <div class="errore">Controlla l'indirizzo email.</div>
+          <input id="email" name="email" type="email" placeholder="chris@cornertavern.com" autocomplete="email" required>
+          <div class="aiuto">Where your app link, your PINs and the pre-charge reminder go.</div>
+          <div class="errore">Check that email address.</div>
         </div>
       </div>
 
       <div class="scheda" style="margin-top:18px">
-        <h2>Che piano vuoi</h2>
+        <h2>Pick a plan</h2>
         <div class="piani">
           <label class="piano scelto" id="p-base">
             <input type="radio" name="piano" value="base" checked>
-            <span class="d"><b>Base</b><i>L'app completa, assistenza via email</i></span>
-            <span class="p">29 €<small>/mese</small></span>
+            <span class="d"><b>Standard</b><i>The full app, email support</i></span>
+            <span class="p">$39<small>/mo</small></span>
           </label>
           <label class="piano" id="p-assistenza">
             <input type="radio" name="piano" value="assistenza">
-            <span class="d"><b>Con assistenza</b><i>Te la configuro io, risposta entro 24 ore</i></span>
-            <span class="p">49 €<small>/mese</small></span>
+            <span class="d"><b>Done For You</b><i>I set it up, same-day response</i></span>
+            <span class="p">$69<small>/mo</small></span>
           </label>
         </div>
 
-        <h2>Hai un codice?</h2>
+        <h2>Have a code?</h2>
         <div class="campo" style="margin-bottom:0">
           <div class="promo">
-            <input id="codice" type="text" placeholder="CODICE" autocomplete="off" spellcheck="false" maxlength="24">
-            <button type="button" id="applica">Applica</button>
+            <input id="codice" type="text" placeholder="CODE" autocomplete="off" spellcheck="false" maxlength="24">
+            <button type="button" id="applica">Apply</button>
           </div>
           <div class="esito" id="esito"></div>
-          <div class="aiuto">Se te ne ho dato uno, allunga il periodo gratuito.</div>
+          <div class="aiuto">If I gave you one, it extends your free period.</div>
         </div>
       </div>
 
       <div class="nota">
-        <b>La carta non passa da noi.</b> Dopo questo passaggio finisci sulla pagina di pagamento
-        di Stripe, dove inserisci carta o addebito diretto. I dati della carta non toccano mai
-        i nostri server: noi vediamo solo le ultime quattro cifre.
-      </div>
-
-      <div class="nota" style="border-color:rgba(245,196,81,.35);background:rgba(245,196,81,.07);color:#f7e2ac">
-        <b style="color:var(--yellow)">Sulla fattura.</b> Barback è fornito da una società
-        statunitense, quindi ricevi una <b style="color:var(--yellow)">fattura senza IVA</b> con
-        la dicitura <i>reverse charge</i>: l'imposta la assolvi tu in inversione contabile, come
-        per qualsiasi fornitore estero. È il motivo per cui la partita IVA è obbligatoria.
+        <b>Your card never touches us.</b> After this step you land on Stripe's payment page
+        to enter your card. Card details never reach our servers — we only ever see the last
+        four digits.
       </div>
     </div>
 
-    <!-- ============ DESTRA: il riepilogo ============ -->
     <aside class="riepilogo">
-      <h2>Riepilogo</h2>
+      <h2>Summary</h2>
 
       <div class="oggi">
-        <div class="big">0,00 €</div>
-        <div class="lab">da pagare oggi</div>
+        <div class="big">$0.00</div>
+        <div class="lab">due today</div>
       </div>
 
       <div class="voci">
-        <div class="voce"><span>Piano</span><span id="v-piano">Base</span></div>
-        <div class="voce"><span>Prova gratuita</span><span id="v-giorni">14 giorni</span></div>
-        <div class="voce sconto" id="v-riga-sconto" hidden><span>Codice applicato</span><span id="v-sconto">—</span></div>
-        <div class="voce tot"><span>Dal <span id="v-data">—</span></span><span id="v-prezzo">29 €/mese</span></div>
+        <div class="voce"><span>Plan</span><span id="v-piano">Standard</span></div>
+        <div class="voce"><span>Free trial</span><span id="v-giorni">14 days</span></div>
+        <div class="voce sconto" id="v-riga-sconto" hidden><span>Code applied</span><span id="v-sconto">—</span></div>
+        <div class="voce tot"><span>Starting <span id="v-data">—</span></span><span id="v-prezzo">$39/mo</span></div>
       </div>
 
       <ul class="tappe">
-        <li class="ora"><b>Oggi</b>Ricevi il link dell'app e i PIN. Non paghi nulla.</li>
-        <li><b id="t-avviso">Fra 12 giorni</b>Ti arriva un'email: fra due giorni parte l'addebito.</li>
-        <li><b id="t-addebito">Fra 14 giorni</b>Primo addebito, se non hai disdetto.</li>
+        <li class="ora"><b>Today</b>You get your app link and PINs. Nothing is charged.</li>
+        <li><b id="t-avviso">In 12 days</b>Email reminder: billing starts in two days.</li>
+        <li><b id="t-addebito">In 14 days</b>First charge, unless you've cancelled.</li>
       </ul>
 
-      <button class="vai" type="submit" id="vai">Continua al pagamento &rarr;</button>
-      <p class="sicuro">Pagamento gestito da <b>Stripe</b>.<br>IVA esclusa. Disdici quando vuoi.</p>
+      <button class="vai" type="submit" id="vai">Continue to payment &rarr;</button>
+      <p class="sicuro">Payments handled by <b>Stripe</b>.<br>Plus sales tax where applicable. Cancel any time.</p>
 
       <div class="rassicura">
-        <div>Nessun costo di attivazione</div>
-        <div>I tuoi dati restano tuoi, scaricabili sempre</div>
-        <div>Database separato per ogni locale</div>
+        <div>No setup fee</div>
+        <div>Your data stays yours, exportable any time</div>
+        <div>A separate database for every location</div>
       </div>
     </aside>
 
@@ -307,47 +278,47 @@ footer a:hover{color:var(--accent)}
 
 <footer><div class="wrap">
   <span>&copy; <span id="anno">2026</span> Barback</span>
-  <a href="index.html">Il prodotto</a>
+  <a href="index.html">The product</a>
   <a href="privacy.html">Privacy</a>
-  <a href="condizioni.html">Condizioni</a>
+  <a href="terms.html">Terms</a>
 </div></footer>
 
 <script>
 /* =====================================================================
-   ATTENZIONE, DA LEGGERE PRIMA DI METTERE QUESTA PAGINA IN VENDITA.
+   READ THIS BEFORE PUTTING THIS PAGE IN FRONT OF A CUSTOMER.
 
-   Qui dentro non c'e' nessun pagamento vero: questa pagina raccoglie i
-   dati del locale e basta. Il pagamento lo fa Stripe, sulla SUA pagina.
+   There is no real payment here: this page collects the bar's details
+   and nothing else. Payment happens on Stripe, on Stripe's own page.
 
-   I codici promo qui sotto servono solo a far VEDERE come cambia il
-   riepilogo. Quando Stripe sara' attivo, i codici veri li valida lui:
-   questa lista va tolta e sostituita dalla chiamata al server, perche'
-   un controllo che vive nel browser lo aggira chiunque apra la console.
+   The promo codes below only exist to SHOW how the summary changes.
+   Once Stripe is live, Stripe validates the real codes: this list has
+   to go, because anything checked in the browser can be bypassed by
+   anyone who opens the console.
 
-   Cosa manca per renderla vera, in ordine:
-     1. Account Stripe (serve partita IVA e conto italiano)
-     2. Due prodotti ricorrenti su Stripe: 29 e 49 euro al mese
-     3. Una rotta sul server che crea la Checkout Session con
-        trial_period_days e allow_promotion_codes: true
-     4. Un webhook che, a pagamento riuscito, apre il servizio del locale
-   Tutto spiegato in PAGAMENTI.md.
+   What's still missing, in order:
+     1. A Stripe account under the LLC
+     2. Two recurring products: $39/mo and $69/mo
+     3. A server route creating the Checkout Session with
+        trial_period_days and allow_promotion_codes: true
+     4. A webhook that opens the customer's install once payment clears
+   All of it is written up in PAGAMENTI.md.
    ===================================================================== */
 
 document.getElementById('anno').textContent = new Date().getFullYear();
 
-var PIANI = { base: { nome: 'Base', prezzo: 29 }, assistenza: { nome: 'Con assistenza', prezzo: 49 } };
+var PIANI = { base: { nome: 'Standard', prezzo: 39 }, assistenza: { nome: 'Done For You', prezzo: 69 } };
 
-/* Solo per la dimostrazione. I codici veri stanno su Stripe. */
+/* Demonstration only. The real codes live in Stripe. */
 var CODICI_DIMOSTRATIVI = {
-  LANCIO30: { giorni: 30, etichetta: '30 giorni invece di 14' },
-  PRIMI5:   { giorni: 60, prezzo: 19, etichetta: '60 giorni, poi 19 €/mese il primo anno' }
+  LAUNCH30: { giorni: 30, etichetta: '30 days instead of 14' },
+  FOUNDING: { giorni: 60, prezzo: 24, etichetta: '60 days, then $24/mo for the first year' }
 };
 
 var stato = { piano: 'base', giorni: 14, prezzo: null, codice: null };
 
 function fraGiorni(n) {
   var d = new Date(); d.setDate(d.getDate() + n);
-  return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }
 
 function aggiorna() {
@@ -355,11 +326,11 @@ function aggiorna() {
   var prezzo = stato.prezzo !== null ? stato.prezzo : p.prezzo;
 
   document.getElementById('v-piano').textContent = p.nome;
-  document.getElementById('v-giorni').textContent = stato.giorni + ' giorni';
+  document.getElementById('v-giorni').textContent = stato.giorni + ' days';
   document.getElementById('v-data').textContent = fraGiorni(stato.giorni);
-  document.getElementById('v-prezzo').textContent = prezzo + ' €/mese';
-  document.getElementById('t-avviso').textContent = 'Fra ' + (stato.giorni - 2) + ' giorni';
-  document.getElementById('t-addebito').textContent = 'Fra ' + stato.giorni + ' giorni';
+  document.getElementById('v-prezzo').textContent = '$' + prezzo + '/mo';
+  document.getElementById('t-avviso').textContent = 'In ' + (stato.giorni - 2) + ' days';
+  document.getElementById('t-addebito').textContent = 'In ' + stato.giorni + ' days';
 
   var riga = document.getElementById('v-riga-sconto');
   if (stato.codice) {
@@ -394,29 +365,11 @@ document.getElementById('applica').addEventListener('click', function () {
   } else {
     stato.giorni = 14; stato.prezzo = null; stato.codice = null;
     esito.className = 'esito no';
-    esito.textContent = 'Questo codice non risulta. Controlla che sia scritto giusto.';
+    esito.textContent = "That code isn't recognized. Check the spelling.";
   }
   aggiorna();
 });
 
-/* La partita IVA italiana ha una cifra di controllo: verificandola qui
-   si prendono i refusi subito, invece di scoprirli in fattura. Il
-   controllo VERO — che quel numero esista e sia attivo — lo fa VIES,
-   il registro europeo, e lo fa Stripe al passaggio dopo. */
-function partitaIvaValida(v) {
-  var s = String(v).replace(/[^0-9]/g, '');
-  if (s.length !== 11) return false;
-  var somma = 0;
-  for (var i = 0; i < 10; i++) {
-    var n = Number(s[i]);
-    if (i % 2 === 1) { n *= 2; if (n > 9) n -= 9; }
-    somma += n;
-  }
-  var controllo = (10 - (somma % 10)) % 10;
-  return controllo === Number(s[10]);
-}
-
-/* controlli prima di mandare avanti: meglio dirlo qui che dopo */
 function valido(id, ok) {
   document.getElementById(id).classList.toggle('ko', !ok);
   return ok;
@@ -424,25 +377,21 @@ function valido(id, ok) {
 
 document.getElementById('modulo').addEventListener('submit', function (e) {
   e.preventDefault();
-  var v = document.getElementById('locale').value.trim().length > 1;
-  var ok = valido('c-locale', v);
+  var ok = valido('c-locale', document.getElementById('locale').value.trim().length > 1);
   ok = valido('c-nome',  document.getElementById('nome').value.trim().length > 2) && ok;
-  ok = valido('c-tel',   document.getElementById('tel').value.replace(/\D/g, '').length >= 8) && ok;
-  ok = valido('c-piva',  partitaIvaValida(document.getElementById('piva').value)) && ok;
+  ok = valido('c-tel',   document.getElementById('tel').value.replace(/\D/g, '').length >= 10) && ok;
   ok = valido('c-email', /^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/.test(document.getElementById('email').value.trim())) && ok;
   if (!ok) { document.querySelector('.campo.ko input').focus(); return; }
 
-  /* Qui, quando Stripe sara' attivo, si chiama il server che crea la
-     Checkout Session e si manda il browser sull'indirizzo che risponde. */
   var b = document.getElementById('vai');
   b.disabled = true;
-  b.textContent = 'Stripe non è ancora collegato';
+  b.textContent = 'Stripe is not connected yet';
   setTimeout(function () {
-    alert('Questa è la pagina, non il pagamento.\n\n' +
-          'Quando Stripe sarà attivo, da qui si finisce sulla sua pagina di pagamento.\n' +
-          'I passi per collegarlo sono scritti in PAGAMENTI.md.');
+    alert('This is the signup page, not the payment.\n\n' +
+          'Once Stripe is live, this hands off to its payment page.\n' +
+          'The steps to connect it are in PAGAMENTI.md.');
     b.disabled = false;
-    b.innerHTML = 'Continua al pagamento &rarr;';
+    b.innerHTML = 'Continue to payment &rarr;';
   }, 150);
 });
 

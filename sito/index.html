@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <link rel="icon" href="barback.ico">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Barback — il magazzino del tuo bar, sempre giusto</title>
-<meta name="description" content="Conta le bottiglie in due minuti, scopri cosa sparisce, sai sempre cosa ordinare e a chi. Turni e ferie compresi. Si installa sul telefono, senza App Store.">
-<meta property="og:title" content="Barback — il magazzino del tuo bar, sempre giusto">
-<meta property="og:description" content="Conta le bottiglie in due minuti e scopri cosa sparisce. Turni, ferie e ordini compresi.">
+<title>Barback — know what's behind your bar, and what walked out</title>
+<meta name="description" content="Count your bar in two minutes, see exactly what's missing, and know what to reorder and from whom. Staff scheduling included. Installs from the browser — no App Store.">
+<meta property="og:title" content="Barback — know what's behind your bar, and what walked out">
+<meta property="og:description" content="Count your bar in two minutes and see what's missing. Ordering and scheduling included.">
 <meta property="og:type" content="website">
 <style>
 :root{
@@ -19,6 +19,7 @@
   --wrap:1100px;
 }
 *{box-sizing:border-box}
+[hidden]{display:none !important}
 html{scroll-behavior:smooth}
 body{
   margin:0; background:var(--bg); color:var(--txt);
@@ -30,7 +31,6 @@ a{color:var(--accent); text-decoration:none}
 a:hover{text-decoration:underline}
 .wrap{max-width:var(--wrap); margin:0 auto; padding-inline:20px}
 
-/* ---------- barra in alto ---------- */
 header{
   position:sticky; top:0; z-index:50;
   background:rgba(15,21,18,.88); backdrop-filter:blur(10px);
@@ -43,9 +43,14 @@ header{
 .nav-links{margin-left:auto; display:flex; align-items:center; gap:24px}
 .nav-links a{color:var(--muted); font-size:15px; font-weight:500}
 .nav-links a:hover{color:var(--txt); text-decoration:none}
-@media (max-width:760px){ .nav-links a:not(.btn){display:none} }
+/* il cambio lingua resta visibile anche sul telefono, le altre voci no */
+.nav-links a.lang{
+  border:1px solid var(--line); border-radius:8px; padding:5px 10px;
+  font-size:13px; font-weight:750; letter-spacing:.04em;
+}
+.nav-links a.lang:hover{border-color:var(--accent); color:var(--accent)}
+@media (max-width:760px){ .nav-links a:not(.btn):not(.lang){display:none} }
 
-/* ---------- pulsanti ---------- */
 .btn{
   display:inline-flex; align-items:center; justify-content:center; gap:8px;
   padding:12px 20px; border-radius:11px; font-weight:700; font-size:15px;
@@ -58,7 +63,6 @@ header{
 .btn-ghost:hover{border-color:var(--accent); color:var(--accent)}
 .btn-lg{padding:15px 26px; font-size:16px}
 
-/* ---------- apertura ---------- */
 .hero{position:relative; overflow:hidden; padding:72px 0 80px}
 .hero::before{
   content:""; position:absolute; inset:0;
@@ -73,16 +77,12 @@ header{
   padding:6px 13px; border-radius:999px; font-size:13px; font-weight:600;
   background:rgba(62,207,142,.12); color:var(--accent); border:1px solid rgba(62,207,142,.25);
 }
-h1{
-  margin:0 0 20px; font-size:clamp(34px,5.4vw,54px); line-height:1.08;
-  letter-spacing:-.03em; font-weight:830;
-}
+h1{margin:0 0 20px; font-size:clamp(34px,5.4vw,54px); line-height:1.08; letter-spacing:-.03em; font-weight:830}
 h1 em{font-style:normal; color:var(--accent)}
 .sub{font-size:clamp(17px,2vw,20px); color:var(--muted); margin:0 0 32px; max-width:34em}
 .cta-row{display:flex; flex-wrap:wrap; gap:12px; align-items:center}
 .cta-note{font-size:13.5px; color:var(--muted); margin-top:16px}
 
-/* ---------- il telefono ---------- */
 .phone{
   width:290px; margin:0 auto; background:#0a0f0d; border:9px solid #222c27;
   border-radius:34px; padding:12px 11px 16px; box-shadow:0 26px 70px rgba(0,0,0,.55);
@@ -106,7 +106,6 @@ h1 em{font-style:normal; color:var(--accent)}
 }
 .ph-alert b{color:var(--red)}
 
-/* ---------- sezioni ---------- */
 section{padding:80px 0}
 @media (max-width:760px){ section{padding:56px 0} }
 .band{background:var(--panel); border-block:1px solid var(--line)}
@@ -132,7 +131,6 @@ h2{margin:0 0 14px; font-size:clamp(26px,3.4vw,36px); letter-spacing:-.025em; li
 .pain{border-left:3px solid var(--red)}
 .pain h3{color:#ffb4b4}
 
-/* ---------- la prova ---------- */
 .steps{counter-reset:s; display:grid; gap:14px; max-width:620px; margin:0 auto 34px; text-align:left}
 .step{
   counter-increment:s; display:flex; gap:16px; align-items:flex-start;
@@ -146,7 +144,6 @@ h2{margin:0 0 14px; font-size:clamp(26px,3.4vw,36px); letter-spacing:-.025em; li
 .step p{margin:0; font-size:15.5px}
 .step p span{display:block; color:var(--muted); font-size:14px; margin-top:3px}
 
-/* ---------- prezzi ---------- */
 .price{
   background:var(--panel2); border:1px solid var(--line); border-radius:var(--radius);
   padding:30px 26px; display:flex; flex-direction:column;
@@ -164,15 +161,21 @@ h2{margin:0 0 14px; font-size:clamp(26px,3.4vw,36px); letter-spacing:-.025em; li
 .price .per{color:var(--muted); font-size:13.5px; margin-bottom:20px}
 .price ul{list-style:none; margin:0 0 24px; padding:0; display:grid; gap:10px}
 .price li{position:relative; padding-left:26px; font-size:14.8px; color:var(--txt)}
-.price li::before{
-  content:"\2713"; position:absolute; left:0; top:-1px;
-  color:var(--accent); font-weight:800; font-size:15px;
-}
+.price li::before{content:"\2713"; position:absolute; left:0; top:-1px; color:var(--accent); font-weight:800; font-size:15px}
 .price li.no{color:var(--muted)}
 .price li.no::before{content:"\2014"; color:var(--muted)}
 .price .btn{margin-top:auto; width:100%}
+.price .alt{text-align:center; margin:11px 0 0; font-size:13.5px}
+.price .alt a{color:var(--muted)}
 
-/* ---------- onestà ---------- */
+.compare{margin-top:30px; overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius)}
+.compare table{border-collapse:collapse; width:100%; min-width:540px; font-size:15px}
+.compare th,.compare td{padding:13px 16px; text-align:left; border-bottom:1px solid var(--line)}
+.compare thead th{background:var(--panel2); font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted)}
+.compare tbody tr:last-child td{border-bottom:none}
+.compare .yes{color:var(--accent); font-weight:700}
+.compare .nope{color:var(--muted)}
+
 .honest{
   border:1px solid var(--line); border-radius:var(--radius); padding:30px;
   background:linear-gradient(180deg, rgba(245,196,81,.05), transparent);
@@ -182,7 +185,6 @@ h2{margin:0 0 14px; font-size:clamp(26px,3.4vw,36px); letter-spacing:-.025em; li
 .honest li::before{content:"\2715"; position:absolute; left:6px; color:var(--yellow); font-weight:800}
 .honest li b{color:var(--txt); font-weight:680}
 
-/* ---------- domande ---------- */
 details{
   border:1px solid var(--line); border-radius:12px; padding:0; margin-bottom:11px;
   background:var(--panel2); overflow:hidden;
@@ -200,7 +202,6 @@ details .body{padding:0 20px 19px; color:var(--muted); font-size:15.2px; line-he
 details .body p{margin:0 0 10px}
 details .body p:last-child{margin:0}
 
-/* ---------- chiusura ---------- */
 .final{
   text-align:center; border:1px solid rgba(62,207,142,.3); border-radius:22px;
   padding:56px 30px; background:radial-gradient(600px 300px at 50% 0%, rgba(62,207,142,.12), transparent 70%);
@@ -208,7 +209,6 @@ details .body p:last-child{margin:0}
 .final h2{margin-bottom:12px}
 .final .lede{margin:0 auto 30px}
 
-/* ---------- piede ---------- */
 footer{border-top:1px solid var(--line); padding:44px 0 calc(40px + env(safe-area-inset-bottom,0px)); color:var(--muted); font-size:14px}
 .foot{display:flex; flex-wrap:wrap; gap:18px 30px; align-items:center}
 .foot .sep{margin-left:auto}
@@ -216,14 +216,9 @@ footer{border-top:1px solid var(--line); padding:44px 0 calc(40px + env(safe-are
 footer a{color:var(--muted)}
 footer a:hover{color:var(--accent)}
 
-/* la mascotte */
-.m-body{fill:#3ecf8e; stroke:#1f3d2f}
-.m-cap{fill:#c9a24b; stroke:#1f3d2f}
-.m-label{fill:#fdf6e3; stroke:#1f3d2f}
-.m-limb{stroke:#2e7d5b; fill:none}
-.m-ink{fill:#1f3d2f}
-.m-shine{fill:#fff}
-.m-smile{stroke:#1f3d2f; fill:none}
+.m-body{fill:#3ecf8e; stroke:#1f3d2f} .m-cap{fill:#c9a24b; stroke:#1f3d2f}
+.m-label{fill:#fdf6e3; stroke:#1f3d2f} .m-limb{stroke:#2e7d5b; fill:none}
+.m-ink{fill:#1f3d2f} .m-shine{fill:#fff} .m-smile{stroke:#1f3d2f; fill:none}
 </style>
 </head>
 <body id="top">
@@ -246,308 +241,322 @@ footer a:hover{color:var(--accent)}
       Barback
     </a>
     <nav class="nav-links">
-      <a href="#cosa-fa">Cosa fa</a>
-      <a href="#prezzi">Prezzi</a>
-      <a href="#domande">Domande</a>
-      <a class="btn btn-primary" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Provala ora</a>
+      <a href="#what">What it does</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+      <a class="lang" href="it.html" title="Vedi il sito in italiano">IT</a>
+      <a class="btn btn-primary" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Try it now</a>
     </nav>
   </div>
 </header>
 
 <main>
 
-<!-- ================= APERTURA ================= -->
+<!-- ================= HERO ================= -->
 <section class="hero">
   <div class="wrap">
     <div>
-      <span class="eyebrow">Per bar, cocktail bar e ristoranti</span>
-      <h1>Sai quante bottiglie hai.<br>Sai anche <em>quante te ne mancano?</em></h1>
+      <span class="eyebrow">For bars, cocktail lounges and restaurants</span>
+      <h1>You know what's on the shelf.<br>Do you know <em>what walked out?</em></h1>
       <p class="sub">
-        Barback conta il magazzino in due minuti, ti dice cosa è sparito,
-        quanto ordinare e a chi. Turni e ferie del personale compresi.
-        Si apre sul telefono del barista, senza passare da nessun App Store.
+        Barback counts your bar in two minutes, shows you exactly what's missing,
+        and tells you what to reorder and from whom. Scheduling and time off included.
+        It opens on your bartender's phone — no App Store, no tablet to buy.
       </p>
       <div class="cta-row">
-        <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Prova la demo &rarr;</a>
-        <a class="btn btn-ghost btn-lg" href="#prova">Come funziona</a>
+        <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Try the live demo &rarr;</a>
+        <a class="btn btn-ghost btn-lg" href="#proof">See how it works</a>
       </div>
-      <p class="cta-note">Demo vera, con dati finti. Nessuna registrazione, nessuna email.</p>
+      <p class="cta-note">A real demo with sample data. No signup, no email, no card.</p>
     </div>
 
-    <!-- il momento che vende: lo scostamento in rosso -->
-    <div class="phone" aria-label="Schermata di revisione dell inventario">
+    <div class="phone" aria-label="Inventory review screen">
       <div class="ph-top">
-        <span class="ph-title">Rivedi il conteggio</span>
-        <span class="ph-sub">Banco &middot; 12 voci</span>
+        <span class="ph-title">Review count</span>
+        <span class="ph-sub">Main bar &middot; 12 items</span>
       </div>
       <div class="ph-row good"><b>Prosecco</b><span class="n">20 &#10003;</span></div>
       <div class="ph-row good"><b>Aperol</b><span class="n">6 &#10003;</span></div>
       <div class="ph-row bad">
-        <div><b>Gin</b><div class="ph-note">atteso 8 &middot; contato 6</div></div>
+        <div><b>Gin</b><div class="ph-note">expected 8 &middot; counted 6</div></div>
         <span class="n">&minus;2</span>
       </div>
-      <div class="ph-row good"><b>Tonica</b><span class="n">40 &#10003;</span></div>
+      <div class="ph-row good"><b>Tonic</b><span class="n">40 &#10003;</span></div>
       <div class="ph-row bad">
-        <div><b>Vodka</b><div class="ph-note">atteso 6 &middot; contato 5</div></div>
+        <div><b>Vodka</b><div class="ph-note">expected 6 &middot; counted 5</div></div>
         <span class="n">&minus;1</span>
       </div>
       <div class="ph-alert">
-        <b>3 differenze su 12.</b> Il gin cala più di quanto viene servito:
-        succede da tre inventari di fila.
+        <b>3 variances out of 12.</b> Gin is dropping faster than it's being poured —
+        third count in a row.
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= IL PROBLEMA ================= -->
+<!-- ================= THE PROBLEM ================= -->
 <section class="band">
   <div class="wrap">
-    <h2>Il quaderno dietro al banco non ti dice queste tre cose</h2>
-    <p class="lede">E sono esattamente le tre che ti costano soldi ogni mese.</p>
+    <h2>Half the industry still runs on a spreadsheet</h2>
+    <p class="lede">51% of restaurant managers track inventory in Excel. A spreadsheet can't tell you these three things.</p>
     <div class="grid g3">
       <div class="card pain">
         <span class="ico">&#128230;</span>
-        <h3>Quanto sparisce</h3>
-        <p>Una bottiglia di gin è 15 €. Se ne evaporano due al mese non te ne accorgi,
-           perché non hai mai avuto un numero da confrontare con quello vero.</p>
+        <h3>What's disappearing</h3>
+        <p>A bottle of well gin runs $18. Lose two a month across a dozen SKUs and it adds up —
+           but you'd never see it, because you've never had a number to check the shelf against.</p>
       </div>
       <div class="card pain">
         <span class="ico">&#128222;</span>
-        <h3>Cosa ordinare</h3>
-        <p>L'ordine si fa a memoria, il venerdì sera, guardando gli scaffali.
-           Poi manca la tonica nel weekend e avanzano venti prosecco.</p>
+        <h3>What to reorder</h3>
+        <p>Orders get placed from memory on a Friday night, eyeballing the shelf. Then you're
+           86'd on tonic all weekend and sitting on twenty cases of prosecco.</p>
       </div>
       <div class="card pain">
         <span class="ico">&#128197;</span>
-        <h3>Chi lavora quando</h3>
-        <p>I turni su WhatsApp, le ferie a voce. Qualcuno non si presenta
-           e nessuno ricorda chi aveva detto cosa a chi.</p>
+        <h3>Who's on tonight</h3>
+        <p>The schedule lives in a group text, time off gets approved verbally, and when
+           somebody no-shows nobody remembers who told who what.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= COSA FA ================= -->
-<section id="cosa-fa">
+<!-- ================= WHAT IT DOES ================= -->
+<section id="what">
   <div class="wrap">
-    <h2>Cosa fa, in concreto</h2>
-    <p class="lede">Niente moduli da compilare per mezz'ora. Ogni schermata fa una cosa sola,
-       e la fa con il telefono in una mano e una bottiglia nell'altra.</p>
+    <h2>What it actually does</h2>
+    <p class="lede">No thirty-field forms. Each screen does one thing, and does it with a phone
+       in one hand and a bottle in the other.</p>
     <div class="grid g3">
       <div class="card">
         <span class="ico">&#128203;</span>
-        <h3>Inventario a postazioni</h3>
-        <p>Banco, frigo, cantina: ognuno conta il suo. Si conta col cursore o col tastierino,
-           anche mezze bottiglie. Alla fine vedi in rosso solo quello che non torna.</p>
+        <h3>Count by station</h3>
+        <p>Main bar, walk-in, basement — each person counts their own area. Slider or keypad,
+           partial bottles included. At the end you only look at what's off.</p>
       </div>
       <div class="card">
         <span class="ico">&#128202;</span>
-        <h3>Differenza atteso / reale</h3>
-        <p>L'app sa quanto <i>dovresti</i> avere in base a carichi e vuoti registrati.
-           Tu conti quanto hai davvero. La differenza è la cosa più utile di tutta l'app.</p>
+        <h3>Expected vs. actual</h3>
+        <p>Barback knows what you <i>should</i> have from deliveries and empties logged.
+           You count what's really there. That gap is the most useful number in the app.</p>
       </div>
       <div class="card">
         <span class="ico">&#128722;</span>
-        <h3>Ordini già pronti</h3>
-        <p>Quando un prodotto scende sotto la soglia entra nella lista, raggruppato per fornitore.
-           Il messaggio è già scritto: si manda su WhatsApp così com'è.</p>
+        <h3>Orders that write themselves</h3>
+        <p>When a product drops below par it lands on the order list, grouped by vendor.
+           The message is already written — send it as is.</p>
       </div>
       <div class="card">
         <span class="ico">&#128247;</span>
-        <h3>Codice a barre</h3>
-        <p>Inquadri la bottiglia col telefono e la trovi subito. Un codice nuovo si lega
-           al prodotto una volta sola, poi lo riconosce da solo.</p>
+        <h3>Barcode scanning</h3>
+        <p>Point the phone at the bottle and it comes right up. Scan an unknown barcode once,
+           link it to a product, and it knows it from then on.</p>
       </div>
       <div class="card">
         <span class="ico">&#128198;</span>
-        <h3>Turni, ferie e cambi</h3>
-        <p>I turni a griglia, le cose da fare da spuntare. Chi chiede un permesso lo fa dall'app,
-           e chi decide vede subito quali turni resterebbero scoperti.</p>
+        <h3>Scheduling and time off</h3>
+        <p>Shifts in a grid, side work you can check off. Staff request time off in the app,
+           and whoever approves sees immediately which shifts would go uncovered.</p>
       </div>
       <div class="card">
         <span class="ico">&#128241;</span>
-        <h3>Telefono e computer</h3>
-        <p>Si installa dal browser, sul telefono come sul PC, e resta tra le app.
-           Ogni persona ha il suo PIN e vede solo quello che le compete.</p>
+        <h3>Phone and desktop</h3>
+        <p>Installs from the browser onto a phone or a computer and lives with your apps.
+           Everyone gets their own PIN and sees only what their role allows.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= LA PROVA ================= -->
-<section id="prova" class="band">
+<!-- ================= THE PROOF ================= -->
+<section id="proof" class="band">
   <div class="wrap center">
-    <h2>La prova dei cinque minuti</h2>
-    <p class="lede">Non serve che ti spieghi altro. Apri la demo e fai questo:</p>
+    <h2>The five-minute test</h2>
+    <p class="lede">There's nothing else I need to explain. Open the demo and do this:</p>
     <div class="steps">
-      <div class="step"><p>Entra col PIN <b>1111</b><span>È la demo: dentro trovi un bar finto già pieno di roba.</span></p></div>
-      <div class="step"><p>Vai su <b>Inventario</b> e inizia un conteggio<span>Scegli il banco e conta cinque bottiglie col cursore.</span></p></div>
-      <div class="step"><p>Su una, metti apposta un numero <b>sbagliato</b><span>Segna sei gin invece di otto, come se ne mancassero due.</span></p></div>
-      <div class="step"><p>Premi <b>Rivedi</b><span>Quella riga diventa rossa: «atteso 8, contato 6». Ecco a cosa serve.</span></p></div>
+      <div class="step"><p>Sign in with PIN <b>1111</b><span>It's the demo — a fake bar already stocked with product.</span></p></div>
+      <div class="step"><p>Open <b>Inventory</b> and start a count<span>Pick the main bar and count five bottles with the slider.</span></p></div>
+      <div class="step"><p>On one of them, enter the <b>wrong</b> number on purpose<span>Put in six gin instead of eight, like two went missing.</span></p></div>
+      <div class="step"><p>Hit <b>Review</b><span>That row turns red: "expected 8, counted 6." That's the whole point.</span></p></div>
     </div>
-    <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Apri la demo &rarr;</a>
-    <p class="cta-note">Puoi rompere tutto quello che vuoi: ogni notte torna come nuova.</p>
+    <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Open the demo &rarr;</a>
+    <p class="cta-note">Break anything you want — it resets itself every night.</p>
   </div>
 </section>
 
-<!-- ================= PREZZI ================= -->
-<section id="prezzi">
+<!-- ================= PRICING ================= -->
+<section id="pricing">
   <div class="wrap">
-    <h2>Quanto costa</h2>
-    <p class="lede">Un prezzo per locale, tutto compreso. Nessun costo di attivazione,
-       nessuna percentuale sul tuo fatturato. Si disdice quando vuoi.</p>
+    <h2>Pricing</h2>
+    <p class="lede">One price per location, everything included. No setup fee, no percentage of
+       your sales, no annual contract. Cancel any time.</p>
     <div class="grid g3">
 
       <div class="price">
-        <h3>Base</h3>
-        <div class="amount">29 €<small> /mese</small></div>
-        <div class="per">per locale, IVA esclusa</div>
+        <h3>Standard</h3>
+        <div class="amount">$39<small> /mo</small></div>
+        <div class="per">per location</div>
         <ul>
-          <li>L'app completa, senza limiti</li>
-          <li>Persone e profili illimitati</li>
-          <li>Aggiornamenti compresi</li>
-          <li>Copia dei tuoi dati scaricabile</li>
-          <li>Assistenza via email</li>
-          <li class="no">Configurazione a carico tuo</li>
+          <li>The full app, no limits</li>
+          <li>Unlimited staff and profiles</li>
+          <li>All updates included</li>
+          <li>Export your data any time</li>
+          <li>Email support</li>
+          <li class="no">You do your own setup</li>
         </ul>
-        <a class="btn btn-primary" href="prova.html">Prova 14 giorni gratis</a>
-        <p style="text-align:center;margin:11px 0 0;font-size:13.5px">
-          <a href="https://wa.me/39XXXXXXXXXX?text=Ciao,%20vorrei%20provare%20Barback%20per%20il%20mio%20locale" target="_blank" rel="noopener" style="color:var(--muted)">oppure scrivimi su WhatsApp</a>
-        </p>
+        <a class="btn btn-primary" href="signup.html">Start 14-day free trial</a>
+        <p class="alt"><a href="https://wa.me/1XXXXXXXXXX?text=Hi,%20I'd%20like%20to%20try%20Barback%20at%20my%20bar" target="_blank" rel="noopener">or text me instead</a></p>
       </div>
 
       <div class="price best">
-        <span class="tag">Il più scelto</span>
-        <h3>Con assistenza</h3>
-        <div class="amount">49 €<small> /mese</small></div>
-        <div class="per">per locale, IVA esclusa</div>
+        <span class="tag">Most popular</span>
+        <h3>Done For You</h3>
+        <div class="amount">$69<small> /mo</small></div>
+        <div class="per">per location</div>
         <ul>
-          <li>Tutto quello del piano Base</li>
-          <li><b>Te la configuro io</b>: prodotti, fornitori, postazioni</li>
-          <li>Risposta entro 24 ore nei giorni feriali</li>
-          <li>Copia di sicurezza conservata da me ogni mese</li>
-          <li>Mezz'ora al telefono per spiegarla al personale</li>
+          <li>Everything in Standard</li>
+          <li><b>I set it up for you</b>: products, vendors, stations</li>
+          <li>Same-business-day response</li>
+          <li>Monthly backup kept on your behalf</li>
+          <li>Half an hour on the phone to train your staff</li>
         </ul>
-        <a class="btn btn-primary" href="prova.html">Prova 14 giorni gratis</a>
-        <p style="text-align:center;margin:11px 0 0;font-size:13.5px">
-          <a href="https://wa.me/39XXXXXXXXXX?text=Ciao,%20vorrei%20Barback%20con%20assistenza" target="_blank" rel="noopener" style="color:var(--muted)">oppure scrivimi su WhatsApp</a>
-        </p>
+        <a class="btn btn-primary" href="signup.html">Start 14-day free trial</a>
+        <p class="alt"><a href="https://wa.me/1XXXXXXXXXX?text=Hi,%20I'm%20interested%20in%20Barback%20Done%20For%20You" target="_blank" rel="noopener">or text me instead</a></p>
       </div>
 
       <div class="price">
-        <span class="tag">Primi 5 locali</span>
-        <h3>Lancio</h3>
-        <div class="amount">19 €<small> /mese</small></div>
-        <div class="per">primo anno, poi 29 €</div>
+        <span class="tag">First 5 bars</span>
+        <h3>Founding</h3>
+        <div class="amount">$24<small> /mo</small></div>
+        <div class="per">first year, then $39</div>
         <ul>
-          <li>Tutto quello del piano Base</li>
-          <li>Prezzo bloccato per dodici mesi</li>
-          <li>Le funzioni che chiedi tu hanno la precedenza</li>
-          <li class="no">In cambio: una recensione onesta</li>
+          <li>Everything in Standard</li>
+          <li>Price locked for twelve months</li>
+          <li>What you ask for gets built first</li>
+          <li class="no">In exchange: an honest review</li>
         </ul>
-        <a class="btn btn-ghost" href="prova.html">Ne restano pochi</a>
-        <p style="text-align:center;margin:11px 0 0;font-size:13.5px">
-          <a href="https://wa.me/39XXXXXXXXXX?text=Ciao,%20sono%20interessato%20al%20prezzo%20di%20lancio%20di%20Barback" target="_blank" rel="noopener" style="color:var(--muted)">scrivimi per il codice</a>
-        </p>
+        <a class="btn btn-ghost" href="signup.html">Only a few left</a>
+        <p class="alt"><a href="https://wa.me/1XXXXXXXXXX?text=Hi,%20I'm%20interested%20in%20the%20Barback%20founding%20price" target="_blank" rel="noopener">text me for the code</a></p>
       </div>
 
+    </div>
+
+    <div class="compare">
+      <table>
+        <thead>
+          <tr><th>&nbsp;</th><th>Barback</th><th>Backbar Pro</th><th>A spreadsheet</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Price per location</td><td class="yes">$39/mo</td><td>$129/mo</td><td class="nope">Free</td></tr>
+          <tr><td>Expected vs. actual variance</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="nope">No</td></tr>
+          <tr><td>Reorder suggestions by vendor</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="nope">No</td></tr>
+          <tr><td>Barcode scanning</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="nope">No</td></tr>
+          <tr><td>Scheduling &amp; time off</td><td class="yes">Yes</td><td class="nope">No</td><td class="nope">No</td></tr>
+          <tr><td>Works in Spanish</td><td class="yes">Yes</td><td class="nope">No</td><td class="nope">&mdash;</td></tr>
+          <tr><td>POS integration</td><td class="nope">No</td><td class="yes">Yes</td><td class="nope">No</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
 
-<!-- ================= ONESTÀ ================= -->
+<!-- ================= HONESTY ================= -->
 <section class="band">
   <div class="wrap">
-    <h2>Cosa <u>non</u> fa</h2>
-    <p class="lede">Preferisco dirtelo adesso che vedertelo scoprire fra due mesi.</p>
+    <h2>What it <u>doesn't</u> do</h2>
+    <p class="lede">I'd rather tell you now than have you find out in two months.</p>
     <div class="honest">
       <ul>
-        <li><b>Non si collega al registratore di cassa.</b> Le uscite le registri tu contando i vuoti, oppure le scopri all'inventario. Funziona, ma è un gesto in più.</li>
-        <li><b>Non sta su App Store né su Google Play.</b> Si installa dal browser e finisce tra le app col suo nome e la sua icona — ma non è la stessa cosa e non te la vendo per tale.</li>
-        <li><b>Non gestisce più locali insieme.</b> Oggi è un'installazione per ogni locale, con il suo indirizzo e il suo database separato.</li>
-        <li><b>Non funziona senza internet.</b> La schermata si apre lo stesso, i dati no.</li>
-        <li><b>Non fa contabilità, né fatture, né food cost del menù.</b> Fa il magazzino delle bevande e il personale. Il resto lo lascia al tuo commercialista.</li>
+        <li><b>It doesn't connect to your POS.</b> Pours get captured when you log empties, or they show up as variance at the next count. It works, but it's an extra step — and if POS-synced depletion is what you need, buy something else.</li>
+        <li><b>It's not on the App Store or Google Play.</b> It installs from the browser and sits with your apps, icon and all — but that's not the same thing and I won't pretend it is.</li>
+        <li><b>It doesn't run multiple locations under one login.</b> Today it's one install per location, each with its own address and its own separate database.</li>
+        <li><b>It doesn't work offline.</b> The screen still opens; your data doesn't.</li>
+        <li><b>It's not accounting, invoicing, or plate costing.</b> It does beverage inventory and staff. Your bookkeeper keeps the rest.</li>
       </ul>
     </div>
   </div>
 </section>
 
-<!-- ================= DOMANDE ================= -->
-<section id="domande">
+<!-- ================= FAQ ================= -->
+<section id="faq">
   <div class="wrap">
-    <h2>Le domande che mi fanno tutti</h2>
-    <p class="lede">Se te ne viene una che qui non c'è, scrivimi: rispondo io, non un modulo.</p>
+    <h2>Questions I get asked</h2>
+    <p class="lede">If yours isn't here, text me — you'll get me, not a ticket queue.</p>
 
     <details>
-      <summary>Quanto ci metto a partire?</summary>
+      <summary>How long until we're up and running?</summary>
       <div class="body">
-        <p>La prima configurazione è mezz'ora: i prodotti che tieni, i fornitori e le postazioni dove conti.
-           Sul piano con assistenza la faccio io prima di consegnartela, e tu entri che è già pronta.</p>
-        <p>Il primo inventario completo richiede un'ora buona, perché devi contare tutto una volta.
-           Dal secondo in poi sono venti minuti.</p>
+        <p>Setup runs about half an hour: the products you carry, your vendors, and the stations
+           where you count. On Done For You I do that before I hand it over, so you walk into
+           something already configured.</p>
+        <p>Your first full count takes a solid hour, because you have to count everything once.
+           After that it's twenty minutes.</p>
       </div>
     </details>
 
     <details>
-      <summary>Il mio barista ha sessant'anni e odia le app.</summary>
+      <summary>My bar manager is sixty and hates apps.</summary>
       <div class="body">
-        <p>Per contare non deve imparare niente: apre la sua postazione, trascina un cursore
-           e passa alla bottiglia dopo. Niente tastiera, niente menù da cercare.</p>
-        <p>E vede solo quello che gli serve: chi ha il profilo da barman non trova nemmeno
-           le schermate dei turni o dei fornitori.</p>
+        <p>To count, there's nothing to learn: open your station, drag a slider, move to the next
+           bottle. No keyboard, no menus to hunt through.</p>
+        <p>And they only see what they need. A bartender profile doesn't even show the
+           scheduling or vendor screens.</p>
       </div>
     </details>
 
     <details>
-      <summary>I miei dati dove finiscono?</summary>
+      <summary>Where does my data live?</summary>
       <div class="body">
-        <p>Su un server in Unione Europea, in un database <b>tuo</b>, separato da quello di ogni altro locale.
-           Non c'è un archivio unico: se anche volessi, non potrei mostrare i tuoi numeri a nessun altro.</p>
-        <p>I dati restano di tua proprietà e puoi scaricarne una copia completa in qualsiasi momento,
-           con un bottone dentro l'app. Se un giorno smetti, te li porti via.</p>
+        <p>On a US server, in a database that's <b>yours</b>, separate from every other bar's.
+           There's no shared pool — even if I wanted to, I couldn't show your numbers to anyone else.</p>
+        <p>Your data stays yours, and you can download a complete copy any time from a button
+           inside the app. If you ever leave, you take it with you.</p>
       </div>
     </details>
 
     <details>
-      <summary>Se salta internet durante il servizio?</summary>
+      <summary>What if the internet goes down mid-service?</summary>
       <div class="body">
-        <p>L'inventario si fa una volta a settimana, non nell'ora di punta: se salta la linea
-           si conta dopo. Le bottiglie non scappano.</p>
-        <p>Ma è giusto saperlo prima: senza connessione l'app si apre e basta, i dati non arrivano.</p>
+        <p>You count once a week, not during a rush. If the line drops, count later —
+           the bottles aren't going anywhere.</p>
+        <p>But you should know up front: with no connection the app opens and that's it.</p>
       </div>
     </details>
 
     <details>
-      <summary>Perché dovrei pagarla se Backbar ha un piano gratuito?</summary>
+      <summary>Why pay when Backbar has a free tier?</summary>
       <div class="body">
-        <p>Perché il gratuito di Backbar conta le bottiglie e finisce lì, è in inglese,
-           e i turni del personale non li fa affatto.</p>
-        <p>Il loro piano che fa quello che fa Barback costa 79 dollari al mese.
-           E se hai un problema scrivi a un'assistenza americana; qui scrivi a me.</p>
+        <p>Because the free tier counts bottles and stops there, and it doesn't do staff
+           scheduling at all.</p>
+        <p>Their plan that does what Barback does runs $129 a month. This is $39, it includes
+           scheduling and time off, and it works in Spanish for your back of house.</p>
+        <p>Where they win: POS integration. If that's your deal-breaker, they're the better
+           buy and I'll tell you so.</p>
       </div>
     </details>
 
     <details>
-      <summary>E se fra sei mesi smetti tu?</summary>
+      <summary>What if you shut down in six months?</summary>
       <div class="body">
-        <p>Domanda giusta, e ti do la risposta vera invece di una rassicurazione.
-           I tuoi dati sono in un file che puoi scaricare quando vuoi: non resti mai in ostaggio.</p>
-        <p>Nel contratto c'è scritto che, se chiudo, ti consegno la copia completa
-           e hai trenta giorni di preavviso. È il minimo che ti devo.</p>
+        <p>Fair question, and you get the real answer instead of a reassurance. Your data sits
+           in a file you can download whenever you want — you're never held hostage.</p>
+        <p>It's in the agreement: if I wind down, you get a complete export and thirty days'
+           notice. That's the least I owe you.</p>
       </div>
     </details>
   </div>
 </section>
 
-<!-- ================= CHIUSURA ================= -->
+<!-- ================= CLOSE ================= -->
 <section>
   <div class="wrap">
     <div class="final">
-      <h2>Contane cinque e vedi cosa succede</h2>
-      <p class="lede">Cinque minuti sulla demo ti dicono più di qualsiasi cosa scritta qui sopra.</p>
+      <h2>Count five bottles and see what happens</h2>
+      <p class="lede">Five minutes in the demo will tell you more than anything written above.</p>
       <div class="cta-row" style="justify-content:center">
-        <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Prova la demo &rarr;</a>
-        <a class="btn btn-ghost btn-lg" href="https://wa.me/39XXXXXXXXXX?text=Ciao,%20ho%20visto%20Barback" target="_blank" rel="noopener">Scrivimi su WhatsApp</a>
+        <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Try the demo &rarr;</a>
+        <a class="btn btn-ghost btn-lg" href="signup.html">Start free trial</a>
       </div>
     </div>
   </div>
@@ -557,16 +566,16 @@ footer a:hover{color:var(--accent)}
 
 <footer>
   <div class="wrap foot">
-    <span>&copy; <span id="anno">2026</span> Barback</span>
-    <a href="mailto:INDIRIZZO@ESEMPIO.IT">INDIRIZZO@ESEMPIO.IT</a>
+    <span>&copy; <span id="year">2026</span> [COMPANY NAME] LLC</span>
+    <a href="mailto:ADDRESS@EXAMPLE.COM">ADDRESS@EXAMPLE.COM</a>
     <span class="sep"></span>
     <a href="privacy.html">Privacy</a>
-    <a href="condizioni.html">Condizioni di servizio</a>
+    <a href="terms.html">Terms of Service</a>
   </div>
 </footer>
 
 <script>
-  document.getElementById('anno').textContent = new Date().getFullYear();
+  document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
