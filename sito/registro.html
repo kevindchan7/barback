@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="barback.ico">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Empieza tu prueba gratis — Barback</title>
+<meta name="description" content="Catorce días gratis. Hoy no se te cobra nada y puedes cancelar cuando quieras.">
+<meta name="robots" content="noindex">
+<style>
+:root{
+  --bg:#0f1512; --panel:#16201b; --panel2:#1d2b23; --line:#2c3d33;
+  --txt:#eaf4ee; --muted:#8fa89a;
+  --accent:#3ecf8e; --accent-ink:#06120c;
+  --gold:#c9a24b; --red:#ff6b6b; --yellow:#f5c451; --blue:#5aa9ff;
+  --radius:16px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{
+  margin:0; background:var(--bg); color:var(--txt);
+  font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1000px; margin:0 auto; padding:0 20px}
+
+header{border-bottom:1px solid var(--line); background:var(--panel)}
+header .wrap{display:flex; align-items:center; height:62px; gap:12px}
+.logo{display:flex; align-items:center; gap:9px; font-weight:800; font-size:18px; color:var(--txt)}
+.logo:hover{text-decoration:none}
+.back{margin-left:auto; color:var(--muted); font-size:14.5px}
+.back:hover{color:var(--accent); text-decoration:none}
+
+main{padding:38px 0 60px}
+h1{font-size:clamp(25px,3.6vw,33px); letter-spacing:-.025em; line-height:1.15; margin:0 0 8px}
+.lede{color:var(--muted); font-size:16.5px; margin:0 0 30px}
+
+.colonne{display:grid; grid-template-columns:1.25fr .85fr; gap:28px; align-items:start}
+@media (max-width:820px){ .colonne{grid-template-columns:1fr; gap:22px} .riepilogo{order:-1} }
+
+.scheda{background:var(--panel2); border:1px solid var(--line); border-radius:var(--radius); padding:26px}
+.scheda h2{font-size:13px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
+           margin:0 0 18px; font-weight:750}
+.campo{margin-bottom:17px}
+.campo label{display:block; font-size:14.5px; font-weight:620; margin-bottom:7px}
+.campo input{
+  width:100%; padding:13px 14px; font-size:16px; font-family:inherit;
+  background:var(--bg); color:var(--txt);
+  border:1px solid var(--line); border-radius:11px; outline:none;
+}
+.campo input:focus{border-color:var(--accent); box-shadow:0 0 0 3px rgba(62,207,142,.15)}
+.campo input::placeholder{color:#5c6d63}
+.campo .aiuto{font-size:12.8px; color:var(--muted); margin-top:6px}
+.campo.ko input{border-color:var(--red)}
+.campo .errore{font-size:12.8px; color:var(--red); margin-top:6px; display:none}
+.campo.ko .errore{display:block}
+.due{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+@media (max-width:520px){ .due{grid-template-columns:1fr; gap:0} }
+
+.piani{display:grid; gap:10px; margin-bottom:22px}
+.piano{
+  display:flex; align-items:center; gap:13px; padding:15px 16px; cursor:pointer;
+  background:var(--bg); border:1px solid var(--line); border-radius:12px;
+}
+.piano:hover{border-color:rgba(62,207,142,.45)}
+.piano input{accent-color:var(--accent); width:19px; height:19px; flex:0 0 auto; cursor:pointer}
+.piano .d{flex:1 1 auto; min-width:0}
+.piano .d b{display:block; font-size:15.5px; font-weight:680}
+.piano .d i{display:block; font-style:normal; color:var(--muted); font-size:13.2px; margin-top:2px}
+.piano .p{font-weight:800; font-size:17px; white-space:nowrap; font-variant-numeric:tabular-nums}
+.piano .p small{font-size:12.5px; color:var(--muted); font-weight:600}
+.piano.scelto{border-color:var(--accent); background:rgba(62,207,142,.07)}
+
+.promo{display:flex; gap:9px}
+.promo input{flex:1 1 auto; min-width:0; text-transform:uppercase}
+.promo button{
+  flex:0 0 auto; padding:0 18px; font-size:14.5px; font-weight:700; font-family:inherit;
+  background:transparent; color:var(--txt); border:1px solid var(--line);
+  border-radius:11px; cursor:pointer;
+}
+.promo button:hover{border-color:var(--accent); color:var(--accent)}
+.esito{margin-top:9px; font-size:13.5px; display:none}
+.esito.ok{display:block; color:var(--accent)}
+.esito.no{display:block; color:var(--red)}
+
+.riepilogo{
+  background:var(--panel2); border:1px solid var(--accent); border-radius:var(--radius);
+  padding:24px; position:sticky; top:20px;
+  box-shadow:0 0 0 1px rgba(62,207,142,.18), 0 14px 44px rgba(62,207,142,.08);
+}
+.riepilogo h2{font-size:13px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted);
+              margin:0 0 16px; font-weight:750}
+.oggi{
+  text-align:center; padding:18px; border-radius:13px; margin-bottom:18px;
+  background:rgba(62,207,142,.1); border:1px solid rgba(62,207,142,.3);
+}
+.oggi .big{font-size:33px; font-weight:840; letter-spacing:-.03em; color:var(--accent); line-height:1.1}
+.oggi .lab{font-size:13.5px; color:var(--muted); margin-top:4px}
+.voci{display:grid; gap:11px; margin-bottom:18px}
+.voce{display:flex; align-items:baseline; gap:10px; font-size:14.8px}
+.voce span:first-child{color:var(--muted)}
+.voce span:last-child{margin-left:auto; font-weight:680; text-align:right; font-variant-numeric:tabular-nums}
+.voce.sconto span:last-child{color:var(--accent)}
+.voce.tot{border-top:1px solid var(--line); padding-top:12px; font-size:16px}
+.voce.tot span:first-child{color:var(--txt); font-weight:680}
+
+.tappe{display:grid; gap:0; margin:0 0 18px; padding:0; list-style:none}
+.tappe li{position:relative; padding:0 0 16px 26px; font-size:13.8px; color:var(--muted)}
+.tappe li:last-child{padding-bottom:0}
+.tappe li::before{
+  content:''; position:absolute; left:4px; top:5px; width:9px; height:9px;
+  border-radius:50%; background:var(--line); border:2px solid var(--panel2);
+}
+.tappe li::after{content:''; position:absolute; left:8px; top:14px; bottom:0; width:1px; background:var(--line)}
+.tappe li:last-child::after{display:none}
+.tappe li.ora::before{background:var(--accent)}
+.tappe li b{display:block; color:var(--txt); font-weight:650; font-size:14.5px; margin-bottom:1px}
+
+.vai{
+  display:block; width:100%; padding:16px; font-size:16.5px; font-weight:780; font-family:inherit;
+  background:var(--accent); color:var(--accent-ink); border:none; border-radius:12px;
+  cursor:pointer; text-align:center;
+}
+.vai:hover{filter:brightness(1.08)}
+.vai:disabled{opacity:.55; cursor:not-allowed; filter:none}
+.sicuro{margin-top:14px; font-size:12.5px; color:var(--muted); line-height:1.6; text-align:center}
+.sicuro b{color:var(--txt); font-weight:650}
+
+.rassicura{display:grid; gap:9px; margin-top:20px}
+.rassicura div{position:relative; padding-left:24px; font-size:13.6px; color:var(--muted)}
+.rassicura div::before{content:"\2713"; position:absolute; left:2px; color:var(--accent); font-weight:800}
+
+.nota{
+  margin-top:26px; padding:15px 17px; border-radius:13px; font-size:13.6px; line-height:1.6;
+  border:1px solid rgba(90,169,255,.35); background:rgba(90,169,255,.07); color:#bfdcff;
+}
+.nota b{color:var(--blue)}
+
+footer{border-top:1px solid var(--line); padding:26px 0 40px; color:var(--muted); font-size:13.5px}
+footer .wrap{display:flex; flex-wrap:wrap; gap:14px 24px}
+footer a{color:var(--muted)}
+footer a:hover{color:var(--accent)}
+
+.m-body{fill:#3ecf8e; stroke:#1f3d2f} .m-cap{fill:#c9a24b; stroke:#1f3d2f}
+.m-label{fill:#fdf6e3; stroke:#1f3d2f} .m-limb{stroke:#2e7d5b; fill:none}
+.m-ink{fill:#1f3d2f} .m-shine{fill:#fff} .m-smile{stroke:#1f3d2f; fill:none}
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <a class="logo" href="es.html">
+    <svg width="26" height="31" viewBox="0 0 100 120" fill="none" aria-hidden="true">
+      <path class="m-limb" d="M30 60 Q12 64 14 82" stroke-width="6" stroke-linecap="round"/>
+      <path class="m-limb" d="M70 60 Q88 64 86 82" stroke-width="6" stroke-linecap="round"/>
+      <path class="m-limb" d="M42 104 L40 116" stroke-width="7" stroke-linecap="round"/>
+      <path class="m-limb" d="M58 104 L60 116" stroke-width="7" stroke-linecap="round"/>
+      <path class="m-body" d="M40 18 L40 30 Q30 36 30 52 L30 96 Q30 106 40 106 L60 106 Q70 106 70 96 L70 52 Q70 36 60 30 L60 18 Z" stroke-width="3"/>
+      <rect class="m-cap" x="42" y="8" width="16" height="12" rx="2" stroke-width="2"/>
+      <rect class="m-label" x="34" y="60" width="32" height="26" rx="3" stroke-width="2"/>
+      <circle class="m-ink" cx="44" cy="46" r="4"/><circle class="m-ink" cx="56" cy="46" r="4"/>
+      <circle class="m-shine" cx="45.5" cy="44.5" r="1.3"/><circle class="m-shine" cx="57.5" cy="44.5" r="1.3"/>
+      <path class="m-smile" d="M43 52 Q50 58 57 52" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    Barback
+  </a>
+  <a class="back" href="es.html">&larr; volver</a>
+</div></header>
+
+<main><div class="wrap">
+  <h1>Catorce días gratis</h1>
+  <p class="lede">Hoy no se te cobra nada. Te avisamos por correo dos días antes del primer cargo, y puedes cancelar cuando quieras.</p>
+
+  <form class="colonne" id="modulo" novalidate>
+
+    <div>
+      <div class="scheda">
+        <h2>Tu local</h2>
+
+        <div class="campo" id="c-locale">
+          <label for="locale">Nombre del local</label>
+          <input id="locale" name="locale" type="text" placeholder="Bar La Esquina" autocomplete="organization" required>
+          <div class="aiuto">Aparece arriba en la app y en los pedidos a proveedores.</div>
+          <div class="errore">Hace falta el nombre del local.</div>
+        </div>
+
+        <div class="due">
+          <div class="campo" id="c-nome">
+            <label for="nome">Nombre y apellido</label>
+            <input id="nome" name="nome" type="text" placeholder="Carlos Ramírez" autocomplete="name" required>
+            <div class="errore">Hace falta nombre y apellido.</div>
+          </div>
+          <div class="campo" id="c-tel">
+            <label for="tel">Teléfono</label>
+            <input id="tel" name="tel" type="tel" placeholder="(555) 123-4567" autocomplete="tel" required>
+            <div class="errore">Ese número de teléfono no parece correcto.</div>
+          </div>
+        </div>
+
+        <div class="campo" id="c-email">
+          <label for="email">Correo</label>
+          <input id="email" name="email" type="email" placeholder="carlos@barlaesquina.com" autocomplete="email" required>
+          <div class="aiuto">Ahí llegan el enlace de la app, los PIN y el aviso antes del cargo.</div>
+          <div class="errore">Revisa esa dirección de correo.</div>
+        </div>
+      </div>
+
+      <div class="scheda" style="margin-top:18px">
+        <h2>Elige un plan</h2>
+        <div class="piani">
+          <label class="piano scelto" id="p-base">
+            <input type="radio" name="piano" value="base" checked>
+            <span class="d"><b>Estándar</b><i>La app completa, soporte por correo</i></span>
+            <span class="p">$39<small>/mo</small></span>
+          </label>
+          <label class="piano" id="p-assistenza">
+            <input type="radio" name="piano" value="assistenza">
+            <span class="d"><b>Te lo configuro</b><i>Lo configuro yo, respuesta el mismo día</i></span>
+            <span class="p">$69<small>/mo</small></span>
+          </label>
+        </div>
+
+        <h2>¿Tienes un código?</h2>
+        <div class="campo" style="margin-bottom:0">
+          <div class="promo">
+            <input id="codice" type="text" placeholder="CÓDIGO" autocomplete="off" spellcheck="false" maxlength="24">
+            <button type="button" id="applica">Aplicar</button>
+          </div>
+          <div class="esito" id="esito"></div>
+          <div class="aiuto">Si te di uno, alarga el periodo gratis.</div>
+        </div>
+      </div>
+
+      <div class="nota">
+        <b>La tarjeta nunca pasa por nosotros.</b> Después de este paso llegas a la página de pago
+        de Stripe para poner tu tarjeta. Los datos de la tarjeta nunca tocan nuestros servidores:
+        nosotros solo vemos los últimos cuatro dígitos.
+      </div>
+    </div>
+
+    <aside class="riepilogo">
+      <h2>Resumen</h2>
+
+      <div class="oggi">
+        <div class="big">$0.00</div>
+        <div class="lab">a pagar hoy</div>
+      </div>
+
+      <div class="voci">
+        <div class="voce"><span>Plan</span><span id="v-piano">Estándar</span></div>
+        <div class="voce"><span>Prueba gratis</span><span id="v-giorni">14 days</span></div>
+        <div class="voce sconto" id="v-riga-sconto" hidden><span>Código aplicado</span><span id="v-sconto">—</span></div>
+        <div class="voce tot"><span>Desde el <span id="v-data">—</span></span><span id="v-prezzo">$39/mo</span></div>
+      </div>
+
+      <ul class="tappe">
+        <li class="ora"><b>Hoy</b>Recibes el enlace de la app y los PIN. No se cobra nada.</li>
+        <li><b id="t-avviso">En 12 días</b>Te llega un correo: el cobro empieza en dos días.</li>
+        <li><b id="t-addebito">En 14 días</b>Primer cargo, si no has cancelado.</li>
+      </ul>
+
+      <button class="vai" type="submit" id="vai">Continuar al pago &rarr;</button>
+      <p class="sicuro">Pagos gestionados por <b>Stripe</b>.<br>Más impuestos donde apliquen. Cancela cuando quieras.</p>
+
+      <div class="rassicura">
+        <div>Sin costo de activación</div>
+        <div>Tus datos siguen siendo tuyos, exportables siempre</div>
+        <div>Una base de datos separada por cada local</div>
+      </div>
+    </aside>
+
+  </form>
+</div></main>
+
+<footer><div class="wrap">
+  <span>&copy; <span id="anno">2026</span> Barback</span>
+  <a href="es.html">El producto</a>
+  <a href="privacy.html">Privacidad</a>
+  <a href="terms.html">Términos</a>
+</div></footer>
+
+<script>
+/* =====================================================================
+   READ THIS BEFORE PUTTING THIS PAGE IN FRONT OF A CUSTOMER.
+
+   There is no real payment here: this page collects the bar's details
+   and nothing else. Payment happens on Stripe, on Stripe's own page.
+
+   The promo codes below only exist to SHOW how the summary changes.
+   Once Stripe is live, Stripe validates the real codes: this list has
+   to go, because anything checked in the browser can be bypassed by
+   anyone who opens the console.
+
+   What's still missing, in order:
+     1. A Stripe account under the LLC
+     2. Two recurring products: $39/mo and $69/mo
+     3. A server route creating the Checkout Session with
+        trial_period_days and allow_promotion_codes: true
+     4. A webhook that opens the customer's install once payment clears
+   All of it is written up in PAGAMENTI.md.
+   ===================================================================== */
+
+document.getElementById('anno').textContent = new Date().getFullYear();
+
+var PIANI = { base: { nome: 'Estándar', prezzo: 39 }, assistenza: { nome: 'Te lo configuro', prezzo: 69 } };
+
+/* Demonstration only. The real codes live in Stripe. */
+var CODICI_DIMOSTRATIVI = {
+  LAUNCH30: { giorni: 30, etichetta: '30 días en vez de 14' },
+  FOUNDING: { giorni: 60, prezzo: 24, etichetta: '60 días, luego $24/mes el primer año' }
+};
+
+var stato = { piano: 'base', giorni: 14, prezzo: null, codice: null };
+
+function fraGiorni(n) {
+  var d = new Date(); d.setDate(d.getDate() + n);
+  return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+}
+
+function aggiorna() {
+  var p = PIANI[stato.piano];
+  var prezzo = stato.prezzo !== null ? stato.prezzo : p.prezzo;
+
+  document.getElementById('v-piano').textContent = p.nome;
+  document.getElementById('v-giorni').textContent = stato.giorni + ' días';
+  document.getElementById('v-data').textContent = fraGiorni(stato.giorni);
+  document.getElementById('v-prezzo').textContent = '$' + prezzo + '/mo';
+  document.getElementById('t-avviso').textContent = 'En ' + (stato.giorni - 2) + ' días';
+  document.getElementById('t-addebito').textContent = 'En ' + stato.giorni + ' días';
+
+  var riga = document.getElementById('v-riga-sconto');
+  if (stato.codice) {
+    riga.hidden = false;
+    document.getElementById('v-sconto').textContent = stato.codice;
+  } else {
+    riga.hidden = true;
+  }
+
+  document.querySelectorAll('.piano').forEach(function (el) {
+    el.classList.toggle('scelto', el.querySelector('input').checked);
+  });
+}
+
+document.querySelectorAll('input[name=piano]').forEach(function (r) {
+  r.addEventListener('change', function () { stato.piano = r.value; aggiorna(); });
+});
+
+document.getElementById('applica').addEventListener('click', function () {
+  var campo = document.getElementById('codice');
+  var esito = document.getElementById('esito');
+  var c = campo.value.trim().toUpperCase();
+  if (!c) { esito.className = 'esito'; return; }
+
+  var trovato = CODICI_DIMOSTRATIVI[c];
+  if (trovato) {
+    stato.giorni = trovato.giorni;
+    stato.prezzo = trovato.prezzo || null;
+    stato.codice = c;
+    esito.className = 'esito ok';
+    esito.textContent = '✓ ' + trovato.etichetta;
+  } else {
+    stato.giorni = 14; stato.prezzo = null; stato.codice = null;
+    esito.className = 'esito no';
+    esito.textContent = 'Ese código no aparece. Revisa que esté bien escrito.';
+  }
+  aggiorna();
+});
+
+function valido(id, ok) {
+  document.getElementById(id).classList.toggle('ko', !ok);
+  return ok;
+}
+
+document.getElementById('modulo').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var ok = valido('c-locale', document.getElementById('locale').value.trim().length > 1);
+  ok = valido('c-nome',  document.getElementById('nome').value.trim().length > 2) && ok;
+  ok = valido('c-tel',   document.getElementById('tel').value.replace(/\D/g, '').length >= 10) && ok;
+  ok = valido('c-email', /^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/.test(document.getElementById('email').value.trim())) && ok;
+  if (!ok) { document.querySelector('.campo.ko input').focus(); return; }
+
+  var b = document.getElementById('vai');
+  b.disabled = true;
+  b.textContent = 'Stripe todavía no está conectado';
+  setTimeout(function () {
+    alert('Esta es la página de registro, no el pago.\n\n' +
+          'Cuando Stripe esté activo, desde aquí se pasa a su página de pago.\n' +
+          'Los pasos para conectarlo están en PAGAMENTI.md.');
+    b.disabled = false;
+    b.innerHTML = 'Continuar al pago &rarr;';
+  }, 150);
+});
+
+aggiorna();
+</script>
+</body>
+</html>

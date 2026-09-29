@@ -43,13 +43,17 @@ header{
 .nav-links{margin-left:auto; display:flex; align-items:center; gap:24px}
 .nav-links a{color:var(--muted); font-size:15px; font-weight:500}
 .nav-links a:hover{color:var(--txt); text-decoration:none}
-/* il cambio lingua resta visibile anche sul telefono, le altre voci no */
-.nav-links a.lang{
-  border:1px solid var(--line); border-radius:8px; padding:5px 10px;
-  font-size:13px; font-weight:750; letter-spacing:.04em;
+/* le tre lingue restano visibili anche sul telefono, le altre voci no */
+.langs{display:flex; border:1px solid var(--line); border-radius:9px; overflow:hidden}
+.langs a{
+  padding:6px 9px; font-size:12.5px; font-weight:750; letter-spacing:.03em;
+  color:var(--muted); border-right:1px solid var(--line);
 }
-.nav-links a.lang:hover{border-color:var(--accent); color:var(--accent)}
-@media (max-width:760px){ .nav-links a:not(.btn):not(.lang){display:none} }
+.langs a:last-child{border-right:none}
+.langs a:hover{color:var(--txt); background:var(--panel2); text-decoration:none}
+.langs a.qui{background:var(--accent); color:var(--accent-ink)}
+.langs a.qui:hover{background:var(--accent); color:var(--accent-ink)}
+@media (max-width:760px){ .nav-links a:not(.btn){display:none} }
 
 /* ---------- pulsanti ---------- */
 .btn{
@@ -255,7 +259,11 @@ footer a:hover{color:var(--accent)}
       <a href="#cosa-fa">Cosa fa</a>
       <a href="#prezzi">Prezzi</a>
       <a href="#domande">Domande</a>
-      <a class="lang" href="index.html" title="See the site in English">EN</a>
+      <span class="langs">
+        <a href="index.html" title="See the site in English">EN</a>
+        <a class="qui" href="it.html">IT</a>
+        <a href="es.html" title="Ver el sitio en español">ES</a>
+      </span>
       <a class="btn btn-primary" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Provala ora</a>
     </nav>
   </div>

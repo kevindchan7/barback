@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <link rel="icon" href="barback.ico">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Barback — know what's behind your bar, and what walked out</title>
-<meta name="description" content="Count your bar in two minutes, see exactly what's missing, and know what to reorder and from whom. Staff scheduling included. Installs from the browser — no App Store.">
-<meta property="og:title" content="Barback — know what's behind your bar, and what walked out">
-<meta property="og:description" content="Count your bar in two minutes and see what's missing. Ordering and scheduling included.">
+<title>Barback — sabe qué hay en tu barra, y qué se fue</title>
+<meta name="description" content="Cuenta tu barra en dos minutos, mira exactamente qué falta y sabe qué pedir y a quién. Turnos del personal incluidos. Se instala desde el navegador, sin App Store.">
+<meta property="og:title" content="Barback — sabe qué hay en tu barra, y qué se fue">
+<meta property="og:description" content="Cuenta tu barra en dos minutos y mira qué falta. Pedidos y turnos incluidos.">
 <meta property="og:type" content="website">
 <style>
 :root{
@@ -43,7 +43,8 @@ header{
 .nav-links{margin-left:auto; display:flex; align-items:center; gap:24px}
 .nav-links a{color:var(--muted); font-size:15px; font-weight:500}
 .nav-links a:hover{color:var(--txt); text-decoration:none}
-/* le tre lingue restano visibili anche sul telefono, le altre voci no */
+
+/* los tres idiomas siguen visibles en el teléfono, el resto del menú no */
 .langs{display:flex; border:1px solid var(--line); border-radius:9px; overflow:hidden}
 .langs a{
   padding:6px 9px; font-size:12.5px; font-weight:750; letter-spacing:.03em;
@@ -245,207 +246,209 @@ footer a:hover{color:var(--accent)}
       Barback
     </a>
     <nav class="nav-links">
-      <a href="#what">What it does</a>
-      <a href="#pricing">Pricing</a>
-      <a href="#faq">FAQ</a>
+      <a href="#que-hace">Qué hace</a>
+      <a href="#precios">Precios</a>
+      <a href="#preguntas">Preguntas</a>
       <span class="langs">
-        <a class="qui" href="index.html">EN</a>
+        <a href="index.html" title="See the site in English">EN</a>
         <a href="it.html" title="Vedi il sito in italiano">IT</a>
-        <a href="es.html" title="Ver el sitio en español">ES</a>
+        <a class="qui" href="es.html">ES</a>
       </span>
-      <a class="btn btn-primary" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Try it now</a>
+      <a class="btn btn-primary" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Pruébalo ya</a>
     </nav>
   </div>
 </header>
 
 <main>
 
-<!-- ================= HERO ================= -->
+<!-- ================= PORTADA ================= -->
 <section class="hero">
   <div class="wrap">
     <div>
-      <span class="eyebrow">For bars, cocktail lounges and restaurants</span>
-      <h1>You know what's on the shelf.<br>Do you know <em>what walked out?</em></h1>
+      <span class="eyebrow">Para bares, cocteler&iacute;as y restaurantes</span>
+      <h1>Sabes qu&eacute; hay en el estante.<br>&iquest;Sabes <em>qu&eacute; se fue?</em></h1>
       <p class="sub">
-        Barback counts your bar in two minutes, shows you exactly what's missing,
-        and tells you what to reorder and from whom. Scheduling and time off included.
-        It opens on your bartender's phone — no App Store, no tablet to buy.
+        Barback cuenta tu barra en dos minutos, te muestra exactamente qu&eacute; falta
+        y te dice cu&aacute;nto pedir y a qui&eacute;n. Turnos y permisos incluidos.
+        Se abre en el tel&eacute;fono de tu bartender: sin App Store, sin comprar tabletas.
       </p>
       <div class="cta-row">
-        <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Try the live demo &rarr;</a>
-        <a class="btn btn-ghost btn-lg" href="#proof">See how it works</a>
+        <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Prueba la demo &rarr;</a>
+        <a class="btn btn-ghost btn-lg" href="#prueba">C&oacute;mo funciona</a>
       </div>
-      <p class="cta-note">A real demo with sample data. No signup, no email, no card.</p>
+      <p class="cta-note">Una demo de verdad, con datos de ejemplo. Sin registro, sin correo, sin tarjeta.</p>
     </div>
 
-    <div class="phone" aria-label="Inventory review screen">
+    <div class="phone" aria-label="Pantalla de revisi&oacute;n del inventario">
       <div class="ph-top">
-        <span class="ph-title">Review count</span>
-        <span class="ph-sub">Main bar &middot; 12 items</span>
+        <span class="ph-title">Revisar conteo</span>
+        <span class="ph-sub">Barra &middot; 12 art&iacute;culos</span>
       </div>
       <div class="ph-row good"><b>Prosecco</b><span class="n">20 &#10003;</span></div>
       <div class="ph-row good"><b>Aperol</b><span class="n">6 &#10003;</span></div>
       <div class="ph-row bad">
-        <div><b>Gin</b><div class="ph-note">expected 8 &middot; counted 6</div></div>
+        <div><b>Ginebra</b><div class="ph-note">esperado 8 &middot; contado 6</div></div>
         <span class="n">&minus;2</span>
       </div>
-      <div class="ph-row good"><b>Tonic</b><span class="n">40 &#10003;</span></div>
+      <div class="ph-row good"><b>T&oacute;nica</b><span class="n">40 &#10003;</span></div>
       <div class="ph-row bad">
-        <div><b>Vodka</b><div class="ph-note">expected 6 &middot; counted 5</div></div>
+        <div><b>Vodka</b><div class="ph-note">esperado 6 &middot; contado 5</div></div>
         <span class="n">&minus;1</span>
       </div>
       <div class="ph-alert">
-        <b>3 variances out of 12.</b> Gin is dropping faster than it's being poured —
-        third count in a row.
+        <b>3 diferencias de 12.</b> La ginebra baja m&aacute;s r&aacute;pido de lo que se sirve:
+        tercer conteo seguido.
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= THE PROBLEM ================= -->
+<!-- ================= EL PROBLEMA ================= -->
 <section class="band">
   <div class="wrap">
-    <h2>Half the industry still runs on a spreadsheet</h2>
-    <p class="lede">51% of restaurant managers track inventory in Excel. A spreadsheet can't tell you these three things.</p>
+    <h2>La mitad del sector sigue funcionando con una hoja de c&aacute;lculo</h2>
+    <p class="lede">El 51% de los gerentes de restaurante lleva el inventario en Excel. Una hoja no te dice estas tres cosas.</p>
     <div class="grid g3">
       <div class="card pain">
         <span class="ico">&#128230;</span>
-        <h3>What's disappearing</h3>
-        <p>A bottle of well gin runs $18. Lose two a month across a dozen SKUs and it adds up —
-           but you'd never see it, because you've never had a number to check the shelf against.</p>
+        <h3>Qu&eacute; est&aacute; desapareciendo</h3>
+        <p>Una botella de ginebra cuesta $18. Si se van dos al mes en una docena de productos
+           suma de verdad, pero nunca lo ver&iacute;as: jam&aacute;s tuviste un n&uacute;mero
+           con el cual comparar el estante.</p>
       </div>
       <div class="card pain">
         <span class="ico">&#128222;</span>
-        <h3>What to reorder</h3>
-        <p>Orders get placed from memory on a Friday night, eyeballing the shelf. Then you're
-           86'd on tonic all weekend and sitting on twenty cases of prosecco.</p>
+        <h3>Qu&eacute; hay que pedir</h3>
+        <p>El pedido se hace de memoria un viernes por la noche, mirando el estante. Luego te
+           quedas sin t&oacute;nica todo el fin de semana y te sobran veinte cajas de prosecco.</p>
       </div>
       <div class="card pain">
         <span class="ico">&#128197;</span>
-        <h3>Who's on tonight</h3>
-        <p>The schedule lives in a group text, time off gets approved verbally, and when
-           somebody no-shows nobody remembers who told who what.</p>
+        <h3>Qui&eacute;n trabaja esta noche</h3>
+        <p>El horario vive en un grupo de WhatsApp, los permisos se aprueban de palabra, y cuando
+           alguien no llega nadie recuerda qui&eacute;n le dijo qu&eacute; a qui&eacute;n.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= WHAT IT DOES ================= -->
-<section id="what">
+<!-- ================= QUÉ HACE ================= -->
+<section id="que-hace">
   <div class="wrap">
-    <h2>What it actually does</h2>
-    <p class="lede">No thirty-field forms. Each screen does one thing, and does it with a phone
-       in one hand and a bottle in the other.</p>
+    <h2>Qu&eacute; hace, en concreto</h2>
+    <p class="lede">Nada de formularios de treinta campos. Cada pantalla hace una sola cosa,
+       y la hace con el tel&eacute;fono en una mano y una botella en la otra.</p>
     <div class="grid g3">
       <div class="card">
         <span class="ico">&#128203;</span>
-        <h3>Count by station</h3>
-        <p>Main bar, walk-in, basement — each person counts their own area. Slider or keypad,
-           partial bottles included. At the end you only look at what's off.</p>
+        <h3>Conteo por estaci&oacute;n</h3>
+        <p>Barra, c&aacute;mara fr&iacute;a, s&oacute;tano: cada quien cuenta lo suyo.
+           Con deslizador o teclado, botellas a medias incluidas. Al final solo miras lo que no cuadra.</p>
       </div>
       <div class="card">
         <span class="ico">&#128202;</span>
-        <h3>Expected vs. actual</h3>
-        <p>Barback knows what you <i>should</i> have from deliveries and empties logged.
-           You count what's really there. That gap is the most useful number in the app.</p>
+        <h3>Esperado contra real</h3>
+        <p>Barback sabe cu&aacute;nto <i>deber&iacute;as</i> tener seg&uacute;n las entradas y los
+           vac&iacute;os registrados. T&uacute; cuentas lo que hay de verdad.
+           Esa diferencia es el n&uacute;mero m&aacute;s &uacute;til de toda la app.</p>
       </div>
       <div class="card">
         <span class="ico">&#128722;</span>
-        <h3>Orders that write themselves</h3>
-        <p>When a product drops below par it lands on the order list, grouped by vendor.
-           The message is already written — send it as is.</p>
+        <h3>Pedidos ya escritos</h3>
+        <p>Cuando un producto baja del m&iacute;nimo entra en la lista, agrupado por proveedor.
+           El mensaje ya est&aacute; redactado: se manda tal cual.</p>
       </div>
       <div class="card">
         <span class="ico">&#128247;</span>
-        <h3>Barcode scanning</h3>
-        <p>Point the phone at the bottle and it comes right up. Scan an unknown barcode once,
-           link it to a product, and it knows it from then on.</p>
+        <h3>C&oacute;digo de barras</h3>
+        <p>Apuntas el tel&eacute;fono a la botella y aparece al instante. Un c&oacute;digo nuevo se
+           vincula una sola vez y a partir de ah&iacute; lo reconoce solo.</p>
       </div>
       <div class="card">
         <span class="ico">&#128198;</span>
-        <h3>Scheduling and time off</h3>
-        <p>Shifts in a grid, side work you can check off. Staff request time off in the app,
-           and whoever approves sees immediately which shifts would go uncovered.</p>
+        <h3>Turnos y permisos</h3>
+        <p>Los turnos en cuadro y las tareas para marcar. El personal pide permiso desde la app,
+           y quien aprueba ve enseguida qu&eacute; turnos quedar&iacute;an sin cubrir.</p>
       </div>
       <div class="card">
         <span class="ico">&#128241;</span>
-        <h3>Phone and desktop</h3>
-        <p>Installs from the browser onto a phone or a computer and lives with your apps.
-           Everyone gets their own PIN and sees only what their role allows.</p>
+        <h3>Tel&eacute;fono y computadora</h3>
+        <p>Se instala desde el navegador, en el tel&eacute;fono igual que en la computadora, y queda
+           entre tus apps. Cada persona tiene su PIN y ve solo lo que le toca.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ================= THE PROOF ================= -->
-<section id="proof" class="band">
+<!-- ================= LA PRUEBA ================= -->
+<section id="prueba" class="band">
   <div class="wrap center">
-    <h2>The five-minute test</h2>
-    <p class="lede">There's nothing else I need to explain. Open the demo and do this:</p>
+    <h2>La prueba de cinco minutos</h2>
+    <p class="lede">No hace falta que te explique nada m&aacute;s. Abre la demo y haz esto:</p>
     <div class="steps">
-      <div class="step"><p>Sign in with PIN <b>1111</b><span>It's the demo — a fake bar already stocked with product.</span></p></div>
-      <div class="step"><p>Open <b>Inventory</b> and start a count<span>Pick the main bar and count five bottles with the slider.</span></p></div>
-      <div class="step"><p>On one of them, enter the <b>wrong</b> number on purpose<span>Put in six gin instead of eight, like two went missing.</span></p></div>
-      <div class="step"><p>Hit <b>Review</b><span>That row turns red: "expected 8, counted 6." That's the whole point.</span></p></div>
+      <div class="step"><p>Entra con el PIN <b>1111</b><span>Es la demo: adentro hay un bar ficticio ya surtido.</span></p></div>
+      <div class="step"><p>Ve a <b>Inventario</b> y empieza un conteo<span>Elige la barra y cuenta cinco botellas con el deslizador.</span></p></div>
+      <div class="step"><p>En una, pon a prop&oacute;sito el n&uacute;mero <b>equivocado</b><span>Marca seis ginebras en lugar de ocho, como si faltaran dos.</span></p></div>
+      <div class="step"><p>Pulsa <b>Revisar</b><span>Esa fila se pone roja: &laquo;esperado 8, contado 6&raquo;. Para eso sirve.</span></p></div>
     </div>
-    <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Open the demo &rarr;</a>
-    <p class="cta-note">Break anything you want — it resets itself every night.</p>
+    <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Abrir la demo &rarr;</a>
+    <p class="cta-note">Rompe lo que quieras: cada noche vuelve a quedar como nueva.</p>
   </div>
 </section>
 
-<!-- ================= PRICING ================= -->
-<section id="pricing">
+<!-- ================= PRECIOS ================= -->
+<section id="precios">
   <div class="wrap">
-    <h2>Pricing</h2>
-    <p class="lede">One price per location, everything included. No setup fee, no percentage of
-       your sales, no annual contract. Cancel any time.</p>
+    <h2>Cu&aacute;nto cuesta</h2>
+    <p class="lede">Un precio por local, todo incluido. Sin costo de activaci&oacute;n, sin porcentaje
+       sobre tus ventas, sin contrato anual. Se cancela cuando quieras.</p>
     <div class="grid g3">
 
       <div class="price">
-        <h3>Standard</h3>
-        <div class="amount">$39<small> /mo</small></div>
-        <div class="per">per location</div>
+        <h3>Est&aacute;ndar</h3>
+        <div class="amount">$39<small> /mes</small></div>
+        <div class="per">por local</div>
         <ul>
-          <li>The full app, no limits</li>
-          <li>Unlimited staff and profiles</li>
-          <li>All updates included</li>
-          <li>Export your data any time</li>
-          <li>Email support</li>
-          <li class="no">You do your own setup</li>
+          <li>La app completa, sin l&iacute;mites</li>
+          <li>Personal y perfiles ilimitados</li>
+          <li>Actualizaciones incluidas</li>
+          <li>Exporta tus datos cuando quieras</li>
+          <li>Soporte por correo</li>
+          <li class="no">La configuraci&oacute;n corre por tu cuenta</li>
         </ul>
-        <a class="btn btn-primary" href="signup.html">Start 14-day free trial</a>
-        <p class="alt"><a href="https://wa.me/1XXXXXXXXXX?text=Hi,%20I'd%20like%20to%20try%20Barback%20at%20my%20bar" target="_blank" rel="noopener">or text me instead</a></p>
+        <a class="btn btn-primary" href="registro.html">Prueba 14 d&iacute;as gratis</a>
+        <p class="alt"><a href="https://wa.me/1XXXXXXXXXX?text=Hola,%20quiero%20probar%20Barback%20en%20mi%20bar" target="_blank" rel="noopener">o escr&iacute;beme</a></p>
       </div>
 
       <div class="price best">
-        <span class="tag">Most popular</span>
-        <h3>Done For You</h3>
-        <div class="amount">$69<small> /mo</small></div>
-        <div class="per">per location</div>
+        <span class="tag">El m&aacute;s elegido</span>
+        <h3>Te lo configuro</h3>
+        <div class="amount">$69<small> /mes</small></div>
+        <div class="per">por local</div>
         <ul>
-          <li>Everything in Standard</li>
-          <li><b>I set it up for you</b>: products, vendors, stations</li>
-          <li>Same-business-day response</li>
-          <li>Monthly backup kept on your behalf</li>
-          <li>Half an hour on the phone to train your staff</li>
+          <li>Todo lo del plan Est&aacute;ndar</li>
+          <li><b>Yo te lo configuro</b>: productos, proveedores, estaciones</li>
+          <li>Respuesta el mismo d&iacute;a h&aacute;bil</li>
+          <li>Copia de seguridad mensual guardada por m&iacute;</li>
+          <li>Media hora por tel&eacute;fono para capacitar a tu personal</li>
         </ul>
-        <a class="btn btn-primary" href="signup.html">Start 14-day free trial</a>
-        <p class="alt"><a href="https://wa.me/1XXXXXXXXXX?text=Hi,%20I'm%20interested%20in%20Barback%20Done%20For%20You" target="_blank" rel="noopener">or text me instead</a></p>
+        <a class="btn btn-primary" href="registro.html">Prueba 14 d&iacute;as gratis</a>
+        <p class="alt"><a href="https://wa.me/1XXXXXXXXXX?text=Hola,%20me%20interesa%20Barback%20con%20configuraci%C3%B3n" target="_blank" rel="noopener">o escr&iacute;beme</a></p>
       </div>
 
       <div class="price">
-        <span class="tag">First 5 bars</span>
-        <h3>Founding</h3>
-        <div class="amount">$24<small> /mo</small></div>
-        <div class="per">first year, then $39</div>
+        <span class="tag">Primeros 5 bares</span>
+        <h3>Fundador</h3>
+        <div class="amount">$24<small> /mes</small></div>
+        <div class="per">primer a&ntilde;o, luego $39</div>
         <ul>
-          <li>Everything in Standard</li>
-          <li>Price locked for twelve months</li>
-          <li>What you ask for gets built first</li>
-          <li class="no">In exchange: an honest review</li>
+          <li>Todo lo del plan Est&aacute;ndar</li>
+          <li>Precio congelado doce meses</li>
+          <li>Lo que t&uacute; pidas se construye primero</li>
+          <li class="no">A cambio: una rese&ntilde;a honesta</li>
         </ul>
-        <a class="btn btn-ghost" href="signup.html">Only a few left</a>
-        <p class="alt"><a href="https://wa.me/1XXXXXXXXXX?text=Hi,%20I'm%20interested%20in%20the%20Barback%20founding%20price" target="_blank" rel="noopener">text me for the code</a></p>
+        <a class="btn btn-ghost" href="registro.html">Quedan pocos</a>
+        <p class="alt"><a href="https://wa.me/1XXXXXXXXXX?text=Hola,%20me%20interesa%20el%20precio%20fundador%20de%20Barback" target="_blank" rel="noopener">escr&iacute;beme por el c&oacute;digo</a></p>
       </div>
 
     </div>
@@ -453,118 +456,120 @@ footer a:hover{color:var(--accent)}
     <div class="compare">
       <table>
         <thead>
-          <tr><th>&nbsp;</th><th>Barback</th><th>Backbar Pro</th><th>A spreadsheet</th></tr>
+          <tr><th>&nbsp;</th><th>Barback</th><th>Backbar Pro</th><th>Una hoja de c&aacute;lculo</th></tr>
         </thead>
         <tbody>
-          <tr><td>Price per location</td><td class="yes">$39/mo</td><td>$129/mo</td><td class="nope">Free</td></tr>
-          <tr><td>Expected vs. actual variance</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="nope">No</td></tr>
-          <tr><td>Reorder suggestions by vendor</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="nope">No</td></tr>
-          <tr><td>Barcode scanning</td><td class="yes">Yes</td><td class="yes">Yes</td><td class="nope">No</td></tr>
-          <tr><td>Scheduling &amp; time off</td><td class="yes">Yes</td><td class="nope">No</td><td class="nope">No</td></tr>
-          <tr><td>Works in Spanish</td><td class="yes">Yes</td><td class="nope">No</td><td class="nope">&mdash;</td></tr>
-          <tr><td>POS integration</td><td class="nope">No</td><td class="yes">Yes</td><td class="nope">No</td></tr>
+          <tr><td>Precio por local</td><td class="yes">$39/mes</td><td>$129/mes</td><td class="nope">Gratis</td></tr>
+          <tr><td>Diferencia esperado / real</td><td class="yes">S&iacute;</td><td class="yes">S&iacute;</td><td class="nope">No</td></tr>
+          <tr><td>Sugerencias de pedido por proveedor</td><td class="yes">S&iacute;</td><td class="yes">S&iacute;</td><td class="nope">No</td></tr>
+          <tr><td>C&oacute;digo de barras</td><td class="yes">S&iacute;</td><td class="yes">S&iacute;</td><td class="nope">No</td></tr>
+          <tr><td>Turnos y permisos</td><td class="yes">S&iacute;</td><td class="nope">No</td><td class="nope">No</td></tr>
+          <tr><td>Funciona en espa&ntilde;ol</td><td class="yes">S&iacute;</td><td class="nope">No</td><td class="nope">&mdash;</td></tr>
+          <tr><td>Integraci&oacute;n con el punto de venta</td><td class="nope">No</td><td class="yes">S&iacute;</td><td class="nope">No</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 </section>
 
-<!-- ================= HONESTY ================= -->
+<!-- ================= HONESTIDAD ================= -->
 <section class="band">
   <div class="wrap">
-    <h2>What it <u>doesn't</u> do</h2>
-    <p class="lede">I'd rather tell you now than have you find out in two months.</p>
+    <h2>Qu&eacute; <u>no</u> hace</h2>
+    <p class="lede">Prefiero dec&iacute;rtelo ahora que verte descubrirlo en dos meses.</p>
     <div class="honest">
       <ul>
-        <li><b>It doesn't connect to your POS.</b> Pours get captured when you log empties, or they show up as variance at the next count. It works, but it's an extra step — and if POS-synced depletion is what you need, buy something else.</li>
-        <li><b>It's not on the App Store or Google Play.</b> It installs from the browser and sits with your apps, icon and all — but that's not the same thing and I won't pretend it is.</li>
-        <li><b>It doesn't run multiple locations under one login.</b> Today it's one install per location, each with its own address and its own separate database.</li>
-        <li><b>It doesn't work offline.</b> The screen still opens; your data doesn't.</li>
-        <li><b>It's not accounting, invoicing, or plate costing.</b> It does beverage inventory and staff. Your bookkeeper keeps the rest.</li>
+        <li><b>No se conecta a tu punto de venta.</b> Las salidas se registran contando vac&iacute;os, o aparecen como diferencia en el siguiente conteo. Funciona, pero es un paso m&aacute;s; y si lo que necesitas es descuento autom&aacute;tico desde el POS, compra otra cosa.</li>
+        <li><b>No est&aacute; en App Store ni en Google Play.</b> Se instala desde el navegador y queda entre tus apps con su nombre y su &iacute;cono, pero no es lo mismo y no te lo voy a vender como tal.</li>
+        <li><b>No maneja varios locales en una sola cuenta.</b> Hoy es una instalaci&oacute;n por local, cada una con su direcci&oacute;n y su base de datos separada.</li>
+        <li><b>No funciona sin internet.</b> La pantalla abre igual; los datos no llegan.</li>
+        <li><b>No es contabilidad, ni facturaci&oacute;n, ni costeo de platillos.</b> Hace inventario de bebidas y personal. El resto se lo deja a tu contador.</li>
       </ul>
     </div>
   </div>
 </section>
 
-<!-- ================= FAQ ================= -->
-<section id="faq">
+<!-- ================= PREGUNTAS ================= -->
+<section id="preguntas">
   <div class="wrap">
-    <h2>Questions I get asked</h2>
-    <p class="lede">If yours isn't here, text me — you'll get me, not a ticket queue.</p>
+    <h2>Las preguntas que me hacen todos</h2>
+    <p class="lede">Si la tuya no est&aacute; aqu&iacute;, escr&iacute;beme: contesto yo, no un formulario.</p>
 
     <details>
-      <summary>How long until we're up and running?</summary>
+      <summary>&iquest;Cu&aacute;nto tardo en arrancar?</summary>
       <div class="body">
-        <p>Setup runs about half an hour: the products you carry, your vendors, and the stations
-           where you count. On Done For You I do that before I hand it over, so you walk into
-           something already configured.</p>
-        <p>Your first full count takes a solid hour, because you have to count everything once.
-           After that it's twenty minutes.</p>
+        <p>La configuraci&oacute;n inicial toma media hora: los productos que manejas, tus proveedores
+           y las estaciones donde cuentas. En el plan con configuraci&oacute;n la hago yo antes de
+           entreg&aacute;rtela, y entras a algo ya listo.</p>
+        <p>El primer conteo completo lleva una hora larga, porque hay que contar todo una vez.
+           A partir del segundo son veinte minutos.</p>
       </div>
     </details>
 
     <details>
-      <summary>My bar manager is sixty and hates apps.</summary>
+      <summary>Mi encargado tiene sesenta a&ntilde;os y odia las apps.</summary>
       <div class="body">
-        <p>To count, there's nothing to learn: open your station, drag a slider, move to the next
-           bottle. No keyboard, no menus to hunt through.</p>
-        <p>And they only see what they need. A bartender profile doesn't even show the
-           scheduling or vendor screens.</p>
+        <p>Para contar no tiene que aprender nada: abre su estaci&oacute;n, arrastra un deslizador
+           y pasa a la siguiente botella. Sin teclado, sin men&uacute;s que buscar.</p>
+        <p>Y solo ve lo que le sirve: un perfil de bartender ni siquiera muestra las pantallas
+           de turnos ni de proveedores.</p>
       </div>
     </details>
 
     <details>
-      <summary>Where does my data live?</summary>
+      <summary>&iquest;D&oacute;nde quedan mis datos?</summary>
       <div class="body">
-        <p>On a US server, in a database that's <b>yours</b>, separate from every other bar's.
-           There's no shared pool — even if I wanted to, I couldn't show your numbers to anyone else.</p>
-        <p>Your data stays yours, and you can download a complete copy any time from a button
-           inside the app. If you ever leave, you take it with you.</p>
+        <p>En un servidor en Estados Unidos, en una base de datos <b>tuya</b>, separada de la de
+           cualquier otro bar. No hay un archivo com&uacute;n: aunque quisiera, no podr&iacute;a
+           ense&ntilde;arle tus n&uacute;meros a nadie m&aacute;s.</p>
+        <p>Tus datos siguen siendo tuyos y puedes descargar una copia completa cuando quieras,
+           desde un bot&oacute;n dentro de la app. Si un d&iacute;a te vas, te los llevas.</p>
       </div>
     </details>
 
     <details>
-      <summary>What if the internet goes down mid-service?</summary>
+      <summary>&iquest;Y si se cae el internet en pleno servicio?</summary>
       <div class="body">
-        <p>You count once a week, not during a rush. If the line drops, count later —
-           the bottles aren't going anywhere.</p>
-        <p>But you should know up front: with no connection the app opens and that's it.</p>
+        <p>El inventario se hace una vez por semana, no en hora pico: si se cae la l&iacute;nea
+           cuentas despu&eacute;s. Las botellas no se van a ning&uacute;n lado.</p>
+        <p>Pero es justo saberlo antes: sin conexi&oacute;n la app abre y ya, los datos no llegan.</p>
       </div>
     </details>
 
     <details>
-      <summary>Why pay when Backbar has a free tier?</summary>
+      <summary>&iquest;Por qu&eacute; pagar si Backbar tiene plan gratis?</summary>
       <div class="body">
-        <p>Because the free tier counts bottles and stops there, and it doesn't do staff
-           scheduling at all.</p>
-        <p>Their plan that does what Barback does runs $129 a month. This is $39, it includes
-           scheduling and time off, and it works in Spanish for your back of house.</p>
-        <p>Where they win: POS integration. If that's your deal-breaker, they're the better
-           buy and I'll tell you so.</p>
+        <p>Porque el plan gratis cuenta botellas y ah&iacute; se acaba, y no hace turnos del
+           personal en absoluto.</p>
+        <p>El plan suyo que hace lo que hace Barback cuesta $129 al mes. Este cuesta $39,
+           incluye turnos y permisos, y funciona en espa&ntilde;ol para toda tu cocina.</p>
+        <p>D&oacute;nde ganan ellos: la integraci&oacute;n con el punto de venta. Si eso es
+           decisivo para ti, son la mejor compra y te lo digo yo mismo.</p>
       </div>
     </details>
 
     <details>
-      <summary>What if you shut down in six months?</summary>
+      <summary>&iquest;Y si cierras en seis meses?</summary>
       <div class="body">
-        <p>Fair question, and you get the real answer instead of a reassurance. Your data sits
-           in a file you can download whenever you want — you're never held hostage.</p>
-        <p>It's in the agreement: if I wind down, you get a complete export and thirty days'
-           notice. That's the least I owe you.</p>
+        <p>Pregunta justa, y te doy la respuesta de verdad en lugar de una promesa.
+           Tus datos est&aacute;n en un archivo que puedes descargar cuando quieras:
+           nunca quedas secuestrado.</p>
+        <p>Est&aacute; en el contrato: si cierro, te entrego la copia completa y tienes treinta
+           d&iacute;as de aviso. Es lo m&iacute;nimo que te debo.</p>
       </div>
     </details>
   </div>
 </section>
 
-<!-- ================= CLOSE ================= -->
+<!-- ================= CIERRE ================= -->
 <section>
   <div class="wrap">
     <div class="final">
-      <h2>Count five bottles and see what happens</h2>
-      <p class="lede">Five minutes in the demo will tell you more than anything written above.</p>
+      <h2>Cuenta cinco botellas y mira qu&eacute; pasa</h2>
+      <p class="lede">Cinco minutos en la demo te dicen m&aacute;s que todo lo escrito aqu&iacute; arriba.</p>
       <div class="cta-row" style="justify-content:center">
-        <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Try the demo &rarr;</a>
-        <a class="btn btn-ghost btn-lg" href="signup.html">Start free trial</a>
+        <a class="btn btn-primary btn-lg" href="https://barback-demo.onrender.com" target="_blank" rel="noopener">Prueba la demo &rarr;</a>
+        <a class="btn btn-ghost btn-lg" href="registro.html">Empezar prueba gratis</a>
       </div>
     </div>
   </div>
@@ -574,16 +579,16 @@ footer a:hover{color:var(--accent)}
 
 <footer>
   <div class="wrap foot">
-    <span>&copy; <span id="year">2026</span> [COMPANY NAME] LLC</span>
+    <span>&copy; <span id="anio">2026</span> [COMPANY NAME] LLC</span>
     <a href="mailto:ADDRESS@EXAMPLE.COM">ADDRESS@EXAMPLE.COM</a>
     <span class="sep"></span>
-    <a href="privacy.html">Privacy</a>
-    <a href="terms.html">Terms of Service</a>
+    <a href="privacy.html">Privacidad</a>
+    <a href="terms.html">T&eacute;rminos</a>
   </div>
 </footer>
 
 <script>
-  document.getElementById('year').textContent = new Date().getFullYear();
+  document.getElementById('anio').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
