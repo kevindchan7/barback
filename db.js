@@ -310,4 +310,23 @@ seedVendorsAndPar();
 seedInventario();
 segnalaPinDiFabbrica();
 
+/* ---------------- LA VETRINA PUBBLICA ----------------
+   La demo online e' aperta a chiunque: chi passa puo' cancellare
+   prodotti, cambiare i PIN, chiudere inventari. Va bene, deve poterlo
+   fare. Ma il visitatore dopo deve trovarla come l'ha trovata il primo,
+   quindi ogni notte rimettiamo tutto com'era appena accesa.
+   Si cancellano anche i profili: se qualcuno cambiasse il PIN 1111,
+   nessun altro riuscirebbe piu' a entrare.                           */
+db.riseminaDemo = function () {
+  const tabelle = ['inv_counts', 'inv_sessions', 'movements', 'shift_changes',
+    'tasks', 'shifts', 'employees', 'products', 'vendors', 'locations',
+    'profiles', 'impostazioni'];
+  tabelle.forEach(t => { try { db.exec(`DELETE FROM ${t}`); } catch {} });
+  try { db.exec('DELETE FROM sqlite_sequence'); } catch {}
+  seedIfEmpty();
+  seedVendorsAndPar();
+  seedInventario();
+  segnalaPinDiFabbrica();
+};
+
 module.exports = db;

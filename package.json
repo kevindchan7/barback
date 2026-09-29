@@ -7,7 +7,9 @@
     "start": "node --experimental-sqlite server.js",
     "test": "node --experimental-sqlite test/prova-completa.js",
     "prova-vuota": "node --experimental-sqlite test/prova-vuota.js",
-    "prova-lingue": "node --experimental-sqlite test/prova-lingue.js"
+    "prova-lingue": "node --experimental-sqlite test/prova-lingue.js",
+    "prova-vetrina": "node --experimental-sqlite test/prova-vetrina.js",
+    "pagine-legali": "node strumenti/pagine-legali.js"
   },
   "engines": {
     "node": "24.x"

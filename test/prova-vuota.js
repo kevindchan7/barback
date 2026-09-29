@@ -50,6 +50,7 @@ async function chiama(p, { metodo = 'GET', corpo, token } = {}) {
     console.log(`\n${'='.repeat(52)}`);
     console.log(`Superati: ${passati}   Falliti: ${falliti}`);
     if (falliti) console.log('Non passano:\n  - ' + problemi.join('\n  - '));
+    else if (passati === 0) console.log('NESSUN CONTROLLO ESEGUITO: la prova non vale niente.');
     else console.log('Tutto a posto: si parte da zero e i conti tornano.');
     process.exit(c);
   };

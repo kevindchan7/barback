@@ -63,6 +63,7 @@ async function aspettaServer() {
     console.log(`\n${'='.repeat(52)}`);
     console.log(`Superati: ${passati}   Falliti: ${falliti}`);
     if (falliti) console.log('Non passano:\n  - ' + problemi.join('\n  - '));
+    else if (passati === 0) console.log('NESSUN CONTROLLO ESEGUITO: la prova non vale niente.');
     else console.log('Tutto a posto.');
     process.exit(codice);
   };

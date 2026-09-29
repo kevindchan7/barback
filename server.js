@@ -805,4 +805,34 @@ api.get('/backup/info', need('all'), (req, res) => {
       dipendenti: conta('employees'), turni: conta('shifts'),
       inventari: conta('inv_sessions'), conteggi: conta('inv_counts') } });
 });
+/* ---------------- LA VETRINA PUBBLICA ----------------
+   Con DEMO_MODE=1 l'app diventa la demo aperta a tutti: chiunque puo'
+   entrare e toccare qualsiasi cosa. Ogni notte torna com'era, cosi'
+   chi la apre domani mattina la trova intatta come chi l'ha aperta ieri.
+   Non serve a nessun locale vero: la' questa variabile non c'e'.     */
+const VETRINA = process.env.DEMO_MODE === '1';
+if (VETRINA) {
+  const nomeDemo = () => db.prepare(`INSERT INTO impostazioni (chiave,valore)
+    VALUES ('locale_nome','Bar Demo') ON CONFLICT(chiave)
+    DO UPDATE SET valore=excluded.valore`).run();
+  nomeDemo();
+
+  // l'ora e' quella del server (UTC su Render): le 4 UTC sono le 6 in Italia,
+  // comunque un orario in cui nessuno sta guardando la demo
+  let ultimoGiorno = new Date().toISOString().slice(0, 10);
+  setInterval(() => {
+    const ora = new Date();
+    const oggi = ora.toISOString().slice(0, 10);
+    if (ora.getUTCHours() !== 4 || oggi === ultimoGiorno) return;
+    ultimoGiorno = oggi;
+    try {
+      db.riseminaDemo();
+      nomeDemo();
+      console.log('Demo rimessa a nuovo (' + oggi + ')');
+    } catch (e) { console.error('Demo: ripulitura fallita', e); }
+  }, 10 * 60 * 1000);
+
+  console.log("Modalita' vetrina: i dati si azzerano ogni notte alle 4 UTC");
+}
+
 app.listen(PORT, () => console.log(`Barback avviato su http://localhost:${PORT}`));
