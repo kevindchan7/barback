@@ -989,14 +989,20 @@ async function openSettings() {
         <p class="muted" style="font-size:11px;margin-bottom:8px">${infoBackup}</p>
         <button class="act gold" onclick="scaricaCopia()">${t('scarica_copia')}</button>
 
-        <h3 style="margin-top:22px;color:var(--red)">${t("ricomincia")}</h3>
-        <p class="muted" style="font-size:12px;margin-bottom:8px">${t("ricomincia_aiuto")}</p>
-        <button class="danger" onclick="svuotaTutto()">${t("svuota_tutto")}</button>
         ` : ''}
 
         <h3 style="margin-top:22px">${t('inst_titolo')}</h3>
         <p class="muted" style="font-size:12px;margin-bottom:8px">${t('inst_aiuto')}</p>
         <div id="inst-zona">${bloccoInstalla()}</div>
+
+        ${admin ? `
+        <!-- Lo svuotamento va per ULTIMO: e' l'unica cosa irreversibile
+             qui dentro, e non deve stare sulla strada di chi scorre
+             cercando altro. -->
+        <h3 style="margin-top:22px;color:var(--red)">${t("ricomincia")}</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:8px">${t("ricomincia_aiuto")}</p>
+        <button class="danger" onclick="svuotaTutto()">${t("svuota_tutto")}</button>
+        ` : ''}
 
         <div class="onb-actions" style="margin-top:20px">
           <button class="ghost" onclick="closeModal()">${t('chiudi')}</button>

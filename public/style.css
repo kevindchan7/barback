@@ -205,10 +205,20 @@ button.act{box-shadow:0 4px 14px var(--accent-glow);}
 /* Finestra modale (modifica prodotto) */
 /* 40, cioe' SOPRA l'onboarding (30): se una finestra si apre mentre il
    tutorial e' ancora aperto, deve stare davanti, non dietro. */
+/* La finestra puo' essere piu' alta dello schermo — le impostazioni lo
+   sono quasi sempre su un telefono. Senza overflow qui, la parte sotto
+   restava irraggiungibile e il dito scorreva la pagina DIETRO.
+   align-items:flex-start + margin:auto sul .modal: centrata quando ci
+   sta, appoggiata in alto e scorrevole quando non ci sta.
+   overscroll-behavior:contain impedisce allo scorrimento di sfondare
+   sullo sfondo una volta arrivati in fondo.                          */
 .overlay{position:fixed; inset:0; background:var(--scrim-soft); z-index:40;
-  display:flex; align-items:center; justify-content:center; padding:18px; backdrop-filter:blur(3px);}
+  display:flex; align-items:flex-start; justify-content:center;
+  overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
+  padding:calc(18px + env(safe-area-inset-top,0px)) 18px calc(18px + env(safe-area-inset-bottom,0px));
+  backdrop-filter:blur(3px);}
 .modal{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px;
-  width:380px; max-width:100%; box-shadow:var(--shadow-modal);}
+  width:380px; max-width:100%; margin:auto; box-shadow:var(--shadow-modal);}
 .modal h3{margin-bottom:14px;}
 
 /* Barra di ricerca */
