@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="barback.ico">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Install Barback — one minute</title>
+<meta name="description" content="How to put Barback on a phone, tablet or computer. No App Store needed.">
+<meta name="robots" content="noindex">
+<style>
+:root{
+  --bg:#0f1512; --panel:#16201b; --panel2:#1d2b23; --line:#2c3d33;
+  --txt:#eaf4ee; --muted:#8fa89a; --accent:#3ecf8e; --accent-ink:#06120c;
+  --yellow:#f5c451; --radius:16px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{
+  margin:0; background:var(--bg); color:var(--txt);
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:720px; margin:0 auto; padding:0 20px}
+
+header{border-bottom:1px solid var(--line); background:var(--panel)}
+header .wrap{display:flex; align-items:center; height:62px; gap:12px}
+.logo{display:flex; align-items:center; gap:9px; font-weight:800; font-size:18px; color:var(--txt)}
+.logo:hover{text-decoration:none}
+.langs{margin-left:auto; display:flex; border:1px solid var(--line); border-radius:9px; overflow:hidden}
+.langs button{
+  padding:7px 11px; font-size:12.5px; font-weight:750; letter-spacing:.03em; font-family:inherit;
+  color:var(--muted); background:transparent; border:none; border-right:1px solid var(--line); cursor:pointer;
+}
+.langs button:last-child{border-right:none}
+.langs button.qui{background:var(--accent); color:var(--accent-ink)}
+
+main{padding:36px 0 60px}
+h1{font-size:clamp(25px,4vw,33px); letter-spacing:-.025em; line-height:1.15; margin:0 0 8px}
+.lede{color:var(--muted); font-size:16.5px; margin:0 0 30px}
+
+.scelta{display:flex; gap:9px; flex-wrap:wrap; margin-bottom:26px}
+.scelta button{
+  flex:1 1 auto; min-width:120px; padding:14px 12px; font-family:inherit; font-size:15px; font-weight:680;
+  background:var(--panel2); color:var(--txt); border:1px solid var(--line);
+  border-radius:12px; cursor:pointer; text-align:center;
+}
+.scelta button:hover{border-color:rgba(62,207,142,.5)}
+.scelta button.qui{background:rgba(62,207,142,.1); border-color:var(--accent); color:var(--accent)}
+.scelta button .e{display:block; font-size:24px; margin-bottom:5px}
+
+ol.passi{counter-reset:p; list-style:none; padding:0; margin:0 0 26px}
+ol.passi li{
+  counter-increment:p; position:relative; padding:17px 18px 17px 58px; margin-bottom:10px;
+  background:var(--panel2); border:1px solid var(--line); border-radius:13px; font-size:16px;
+}
+ol.passi li::before{
+  content:counter(p); position:absolute; left:17px; top:16px;
+  width:28px; height:28px; border-radius:50%; background:var(--accent); color:var(--accent-ink);
+  display:grid; place-items:center; font-weight:800; font-size:14px;
+}
+ol.passi li b{color:var(--txt)}
+ol.passi li span{display:block; color:var(--muted); font-size:14.2px; margin-top:4px}
+
+.nota{
+  padding:16px 18px; border-radius:13px; font-size:14.5px; line-height:1.6;
+  border:1px solid rgba(245,196,81,.4); background:rgba(245,196,81,.08); color:#f7e2ac;
+  margin-bottom:12px;
+}
+.nota b{color:var(--yellow)}
+.fine{
+  padding:20px; border-radius:var(--radius); text-align:center;
+  border:1px solid rgba(62,207,142,.35); background:rgba(62,207,142,.07);
+}
+.fine b{color:var(--accent)}
+footer{border-top:1px solid var(--line); padding:24px 0 40px; color:var(--muted); font-size:13.5px; text-align:center}
+
+.m-body{fill:#3ecf8e; stroke:#1f3d2f} .m-cap{fill:#c9a24b; stroke:#1f3d2f}
+.m-label{fill:#fdf6e3; stroke:#1f3d2f} .m-limb{stroke:#2e7d5b; fill:none}
+.m-ink{fill:#1f3d2f} .m-shine{fill:#fff} .m-smile{stroke:#1f3d2f; fill:none}
+</style>
+</head>
+<body>
+
+<header><div class="wrap">
+  <a class="logo" href="index.html">
+    <svg width="26" height="31" viewBox="0 0 100 120" fill="none" aria-hidden="true">
+      <path class="m-limb" d="M30 60 Q12 64 14 82" stroke-width="6" stroke-linecap="round"/>
+      <path class="m-limb" d="M70 60 Q88 64 86 82" stroke-width="6" stroke-linecap="round"/>
+      <path class="m-limb" d="M42 104 L40 116" stroke-width="7" stroke-linecap="round"/>
+      <path class="m-limb" d="M58 104 L60 116" stroke-width="7" stroke-linecap="round"/>
+      <path class="m-body" d="M40 18 L40 30 Q30 36 30 52 L30 96 Q30 106 40 106 L60 106 Q70 106 70 96 L70 52 Q70 36 60 30 L60 18 Z" stroke-width="3"/>
+      <rect class="m-cap" x="42" y="8" width="16" height="12" rx="2" stroke-width="2"/>
+      <rect class="m-label" x="34" y="60" width="32" height="26" rx="3" stroke-width="2"/>
+      <circle class="m-ink" cx="44" cy="46" r="4"/><circle class="m-ink" cx="56" cy="46" r="4"/>
+      <circle class="m-shine" cx="45.5" cy="44.5" r="1.3"/><circle class="m-shine" cx="57.5" cy="44.5" r="1.3"/>
+      <path class="m-smile" d="M43 52 Q50 58 57 52" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    Barback
+  </a>
+  <span class="langs">
+    <button type="button" class="qui" data-l="en">EN</button>
+    <button type="button" data-l="it">IT</button>
+    <button type="button" data-l="es">ES</button>
+  </span>
+</div></header>
+
+<main><div class="wrap">
+  <h1 id="t-titolo">Put Barback on your device</h1>
+  <p class="lede" id="t-lede">One minute, and it lives with your other apps. There's nothing to download from an App Store.</p>
+
+  <div class="scelta" role="tablist">
+    <button type="button" class="qui" data-d="iphone"><span class="e">&#128241;</span><span data-t="iphone">iPhone / iPad</span></button>
+    <button type="button" data-d="android"><span class="e">&#129302;</span><span data-t="android">Android</span></button>
+    <button type="button" data-d="pc"><span class="e">&#128187;</span><span data-t="pc">Computer</span></button>
+  </div>
+
+  <div id="passi"></div>
+
+  <div class="nota" id="t-nota"></div>
+  <div class="fine" id="t-fine"></div>
+</div></main>
+
+<footer><div class="wrap"><span id="t-piede"></span></div></footer>
+
+<script>
+/* Tre lingue, tre dispositivi. Tutto qui dentro: questa pagina la si
+   manda a un cliente che magari la apre in metropolitana. */
+var T = {
+  en: {
+    titolo: 'Put Barback on your device',
+    lede: "One minute, and it lives with your other apps. There's nothing to download from an App Store.",
+    iphone: 'iPhone / iPad', android: 'Android', pc: 'Computer',
+    nota: '<b>Use Safari on iPhone and iPad.</b> Chrome on iOS cannot add apps to the Home Screen — the option simply will not be there.',
+    fine: 'Done. Open it from the icon and sign in with <b>your PIN</b>.',
+    piede: 'Trouble installing? Text us and we will do it with you.',
+    passi: {
+      iphone: [
+        ['Open your Barback link in <b>Safari</b>', 'The one we sent you. It starts with https://'],
+        ['Tap the <b>Share</b> button', 'The square with an arrow pointing up, at the bottom of the screen.'],
+        ['Scroll and tap <b>Add to Home Screen</b>', 'You may have to scroll down a little in that list.'],
+        ['Tap <b>Add</b>, top right', 'The bottle icon appears with your other apps.']
+      ],
+      android: [
+        ['Open your Barback link in <b>Chrome</b>', 'The one we sent you.'],
+        ['Tap the <b>three dots</b>, top right', 'The Chrome menu.'],
+        ['Tap <b>Install app</b> or <b>Add to Home screen</b>', 'The wording depends on your phone.'],
+        ['Confirm with <b>Install</b>', 'The bottle icon appears in your app drawer.']
+      ],
+      pc: [
+        ['Open your Barback link in <b>Chrome</b> or <b>Edge</b>', 'The one we sent you.'],
+        ['Look at the <b>right end of the address bar</b>', 'There is a small install icon — a screen with an arrow.'],
+        ['Click it, then <b>Install</b>', 'If you do not see it: menu &rarr; Cast, save and share &rarr; Install.'],
+        ['Barback opens in its own window', 'And it is in your Start menu, like any program.']
+      ]
+    }
+  },
+  it: {
+    titolo: 'Metti Barback sul tuo dispositivo',
+    lede: "Un minuto, e sta insieme alle altre app. Non c'è niente da scaricare da nessun App Store.",
+    iphone: 'iPhone / iPad', android: 'Android', pc: 'Computer',
+    nota: '<b>Su iPhone e iPad usa Safari.</b> Chrome su iOS non sa aggiungere app alla schermata Home: la voce proprio non compare.',
+    fine: "Fatto. Aprila dall'icona ed entra con il <b>tuo PIN</b>.",
+    piede: 'Non riesci a installarla? Scrivici e la mettiamo insieme.',
+    passi: {
+      iphone: [
+        ['Apri il link di Barback con <b>Safari</b>', "Quello che ti abbiamo mandato. Inizia con https://"],
+        ['Tocca il tasto <b>Condividi</b>', 'Il quadrato con la freccia in su, in basso al centro.'],
+        ['Scorri e tocca <b>Aggiungi a Home</b>', "Potresti dover scorrere un po' in quell'elenco."],
+        ['Tocca <b>Aggiungi</b>, in alto a destra', "L'icona della bottiglia compare con le altre app."]
+      ],
+      android: [
+        ['Apri il link di Barback con <b>Chrome</b>', 'Quello che ti abbiamo mandato.'],
+        ['Tocca i <b>tre puntini</b> in alto a destra', 'Il menu di Chrome.'],
+        ['Tocca <b>Installa app</b> o <b>Aggiungi a schermata Home</b>', 'La scritta cambia a seconda del telefono.'],
+        ['Conferma con <b>Installa</b>', "L'icona della bottiglia compare fra le tue app."]
+      ],
+      pc: [
+        ['Apri il link di Barback con <b>Chrome</b> o <b>Edge</b>', 'Quello che ti abbiamo mandato.'],
+        ["Guarda in <b>fondo a destra nella barra dell'indirizzo</b>", "C'è una piccola icona di installazione: uno schermo con una freccia."],
+        ['Cliccala, poi <b>Installa</b>', 'Se non la vedi: menu &rarr; Trasmetti, salva e condividi &rarr; Installa.'],
+        ['Barback si apre in una finestra sua', 'Ed è nel menu Start, come un programma qualsiasi.']
+      ]
+    }
+  },
+  es: {
+    titolo: 'Instala Barback en tu dispositivo',
+    lede: 'Un minuto, y queda junto a tus otras apps. No hay nada que descargar de ninguna App Store.',
+    iphone: 'iPhone / iPad', android: 'Android', pc: 'Computadora',
+    nota: '<b>En iPhone y iPad usa Safari.</b> Chrome en iOS no puede agregar apps a la pantalla de inicio: la opción simplemente no aparece.',
+    fine: 'Listo. Ábrela desde el ícono y entra con <b>tu PIN</b>.',
+    piede: '¿No logras instalarla? Escríbenos y lo hacemos juntos.',
+    passi: {
+      iphone: [
+        ['Abre tu enlace de Barback en <b>Safari</b>', 'El que te enviamos. Empieza con https://'],
+        ['Toca el botón <b>Compartir</b>', 'El cuadrado con la flecha hacia arriba, abajo en el centro.'],
+        ['Desliza y toca <b>Agregar a inicio</b>', 'Puede que tengas que bajar un poco en esa lista.'],
+        ['Toca <b>Agregar</b>, arriba a la derecha', 'El ícono de la botella aparece con tus otras apps.']
+      ],
+      android: [
+        ['Abre tu enlace de Barback en <b>Chrome</b>', 'El que te enviamos.'],
+        ['Toca los <b>tres puntos</b> arriba a la derecha', 'El menú de Chrome.'],
+        ['Toca <b>Instalar app</b> o <b>Agregar a pantalla de inicio</b>', 'El texto cambia según el teléfono.'],
+        ['Confirma con <b>Instalar</b>', 'El ícono de la botella aparece entre tus apps.']
+      ],
+      pc: [
+        ['Abre tu enlace de Barback en <b>Chrome</b> o <b>Edge</b>', 'El que te enviamos.'],
+        ['Mira al <b>final de la barra de direcciones</b>', 'Hay un ícono pequeño de instalación: una pantalla con una flecha.'],
+        ['Haz clic y luego <b>Instalar</b>', 'Si no lo ves: menú &rarr; Transmitir, guardar y compartir &rarr; Instalar.'],
+        ['Barback se abre en su propia ventana', 'Y queda en el menú Inicio, como cualquier programa.']
+      ]
+    }
+  }
+};
+
+var lingua = 'en', dispositivo = 'iphone';
+
+function disegna() {
+  var t = T[lingua];
+  document.documentElement.lang = lingua;
+  document.getElementById('t-titolo').textContent = t.titolo;
+  document.getElementById('t-lede').textContent = t.lede;
+  document.getElementById('t-nota').innerHTML = t.nota;
+  document.getElementById('t-fine').innerHTML = t.fine;
+  document.getElementById('t-piede').textContent = t.piede;
+  document.querySelectorAll('[data-t]').forEach(function (el) {
+    el.textContent = t[el.getAttribute('data-t')];
+  });
+
+  var html = '<ol class="passi">';
+  t.passi[dispositivo].forEach(function (p) {
+    html += '<li>' + p[0] + '<span>' + p[1] + '</span></li>';
+  });
+  document.getElementById('passi').innerHTML = html + '</ol>';
+
+  document.querySelectorAll('.scelta button').forEach(function (b) {
+    b.classList.toggle('qui', b.getAttribute('data-d') === dispositivo);
+  });
+  document.querySelectorAll('.langs button').forEach(function (b) {
+    b.classList.toggle('qui', b.getAttribute('data-l') === lingua);
+  });
+}
+
+document.querySelectorAll('.scelta button').forEach(function (b) {
+  b.addEventListener('click', function () { dispositivo = b.getAttribute('data-d'); disegna(); });
+});
+document.querySelectorAll('.langs button').forEach(function (b) {
+  b.addEventListener('click', function () { lingua = b.getAttribute('data-l'); disegna(); });
+});
+
+/* se il telefono e' gia' in italiano o spagnolo, parte in quella lingua */
+var l = (navigator.language || 'en').slice(0, 2);
+if (T[l]) lingua = l;
+/* e preseleziona il dispositivo giusto, cosi' nove volte su dieci
+   il cliente trova gia' i passi che gli servono */
+var ua = navigator.userAgent;
+if (/iPhone|iPad|iPod/.test(ua)) dispositivo = 'iphone';
+else if (/Android/.test(ua)) dispositivo = 'android';
+else dispositivo = 'pc';
+
+disegna();
+</script>
+</body>
+</html>

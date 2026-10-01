@@ -1,16 +1,17 @@
 {
-  "name": "Barback — Magazzino & Turni",
+  "name": "Barback — Bar Inventory & Staff",
   "short_name": "Barback",
-  "description": "Gestionale magazzino bevande e turni personale per bar e ristoranti.",
-  "lang": "it",
+  "description": "Beverage inventory and staff scheduling for bars and restaurants.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#0f1512",
   "theme_color": "#0f1512",
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]
 }

@@ -4,8 +4,11 @@
    I DATI non vengono mai messi in cache: le chiamate a /api passano
    sempre dalla rete, altrimenti si vedrebbero giacenze vecchie.
    ===================================================================== */
-const CACHE = 'barback-guscio-v1';
-const GUSCIO = ['./', 'index.html', 'style.css', 'app.js', 'mascot.js', 'icon.svg', 'manifest.webmanifest'];
+/* La versione va cambiata ogni volta che cambia questa lista, altrimenti
+   chi ha gia' installato l'app resta con il guscio vecchio. */
+const CACHE = 'barback-guscio-v2';
+const GUSCIO = ['./', 'index.html', 'style.css', 'app.js', 'mascot.js', 'i18n.js',
+  'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(GUSCIO)).then(() => self.skipWaiting()));
