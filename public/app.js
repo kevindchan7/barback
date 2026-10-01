@@ -251,7 +251,12 @@ function editProduct(id) {
       </div>
     </div>`;
 }
-function closeModal() { $('#modal-root').innerHTML = ''; }
+function closeModal() {
+  $('#modal-root').innerHTML = '';
+  /* se l'invito a installare era in attesa perche' c'era una finestra
+     aperta, adesso lo spazio e' libero */
+  if (typeof mostraStrisciaInstalla === 'function') mostraStrisciaInstalla();
+}
 async function saveProduct(id) {
   try {
     // costo e prezzo non si modificano piu' da qui: li rimandiamo identici
@@ -989,11 +994,107 @@ async function openSettings() {
         <button class="danger" onclick="svuotaTutto()">${t("svuota_tutto")}</button>
         ` : ''}
 
+        <h3 style="margin-top:22px">${t('inst_titolo')}</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:8px">${t('inst_aiuto')}</p>
+        <div id="inst-zona">${bloccoInstalla()}</div>
+
         <div class="onb-actions" style="margin-top:20px">
           <button class="ghost" onclick="closeModal()">${t('chiudi')}</button>
         </div>
       </div>
     </div>`;
+}
+
+/* ---------------- INSTALLARE L'APP ----------------
+   Il tasto "Installa" dei browser e' sepolto nei menu e non lo trova
+   nessuno, quindi ce lo mettiamo noi dove si vede.
+   Tre casi, perche' si comportano in modo diverso:
+   - Chrome/Edge: il browser ci passa l'invito e lo lanciamo noi;
+   - iPhone/iPad: NON esiste nessun invito, si fa solo a mano da Safari,
+     e in Chrome su iOS la voce non c'e' proprio: va detto;
+   - gia' installata: non proponiamo niente.                        */
+let invitoInstalla = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();          // sennò Chrome mostra il suo, quando vuole lui
+  invitoInstalla = e;
+  aggiornaZonaInstalla();
+  mostraStrisciaInstalla();
+});
+window.addEventListener('appinstalled', () => {
+  invitoInstalla = null;
+  nascondiStrisciaInstalla();
+  aggiornaZonaInstalla();
+});
+
+/* dichiarate come funzioni e non come const: cosi' sono gia' definite
+   quando bloccoInstalla() viene chiamata, da qualunque punto arrivi */
+function giaInstallata() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         window.navigator.standalone === true;
+}
+
+function suIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function bloccoInstalla() {
+  if (giaInstallata())
+    return `<p style="font-size:13px;color:var(--green)">${t('inst_gia')}</p>`;
+
+  if (invitoInstalla)
+    return `<button class="act" onclick="chiediInstalla()">${t('inst_fai')}</button>`;
+
+  if (suIOS())
+    return `<div style="font-size:13px;line-height:1.9">
+      <b>${t('inst_ios_t')}</b>
+      <ol style="padding-left:18px;margin:6px 0">
+        <li>${t('inst_ios_1')}</li><li>${t('inst_ios_2')}</li><li>${t('inst_ios_3')}</li>
+      </ol>
+      <p class="muted" style="font-size:12px">${t('inst_ios_safari')}</p>
+    </div>`;
+
+  return `<p class="muted" style="font-size:12.5px">${t('inst_manuale')}</p>`;
+}
+
+function aggiornaZonaInstalla() {
+  const z = document.getElementById('inst-zona');
+  if (z) z.innerHTML = bloccoInstalla();
+}
+
+async function chiediInstalla() {
+  if (!invitoInstalla) return;
+  invitoInstalla.prompt();
+  try { await invitoInstalla.userChoice; } catch {}
+  invitoInstalla = null;      // l'invito si puo' usare una volta sola
+  nascondiStrisciaInstalla();
+  aggiornaZonaInstalla();
+}
+
+/* La striscia in basso: si vede una volta, e se la chiudi non torna. */
+function mostraStrisciaInstalla() {
+  if (giaInstallata() || !invitoInstalla) return;
+  try { if (localStorage.getItem('bb_inst_no')) return; } catch {}
+  if (document.getElementById('inst-striscia')) return;
+  /* Mai sopra una finestra aperta: l'avviso dei PIN di fabbrica conta
+     di piu' di questo invito, e due cose che chiedono attenzione
+     insieme non le legge nessuna delle due. Riproviamo alla chiusura. */
+  if (document.querySelector('#modal-root .overlay')) return;
+  const d = document.createElement('div');
+  d.id = 'inst-striscia';
+  d.innerHTML = `<span>${t('inst_banner')}</span>
+    <button class="act" onclick="chiediInstalla()">${t('inst_fai')}</button>
+    <button class="ghost" onclick="rifiutaInstalla()">${t('salta')}</button>`;
+  document.body.appendChild(d);
+}
+function nascondiStrisciaInstalla() {
+  const d = document.getElementById('inst-striscia');
+  if (d) d.remove();
+}
+function rifiutaInstalla() {
+  try { localStorage.setItem('bb_inst_no', '1'); } catch {}
+  nascondiStrisciaInstalla();
 }
 
 async function svuotaTutto() {
