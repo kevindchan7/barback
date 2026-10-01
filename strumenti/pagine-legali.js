@@ -121,7 +121,8 @@ ${corpo}
 }
 
 for (const [src, dst, tit] of [['PRIVACY.md', 'sito/privacy.html', 'Informativa privacy'],
-                               ['CONDIZIONI.md', 'sito/condizioni.html', 'Condizioni di servizio']]) {
+                               ['CONDIZIONI.md', 'sito/condizioni.html', 'Condizioni di servizio'],
+                               ['TERMS.md', 'sito/terms.html', 'Terms of Service']]) {
   const md = fs.readFileSync(src, 'utf8');
   fs.writeFileSync(dst, pagina(tit, converti(md)));
   console.log(dst + '  ' + fs.statSync(dst).size + ' byte');
