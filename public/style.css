@@ -203,7 +203,9 @@ button.act{box-shadow:0 4px 14px var(--accent-glow);}
 .profile:active{transform:scale(.98);}
 
 /* Finestra modale (modifica prodotto) */
-.overlay{position:fixed; inset:0; background:var(--scrim-soft); z-index:25;
+/* 40, cioe' SOPRA l'onboarding (30): se una finestra si apre mentre il
+   tutorial e' ancora aperto, deve stare davanti, non dietro. */
+.overlay{position:fixed; inset:0; background:var(--scrim-soft); z-index:40;
   display:flex; align-items:center; justify-content:center; padding:18px; backdrop-filter:blur(3px);}
 .modal{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px;
   width:380px; max-width:100%; box-shadow:var(--shadow-modal);}

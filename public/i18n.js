@@ -518,4 +518,10 @@ function toggleLang() {
   applicaLingua();
   // ridisegna la schermata aperta, cosi' cambiano anche i testi generati
   if (typeof ricaricaVista === 'function') ricaricaVista();
+  /* Anche la finestra delle impostazioni, se e' aperta: il suo testo e'
+     costruito al momento dell'apertura, quindi senza questo resterebbe
+     nella lingua di prima mentre tutto il resto cambia. */
+  if (document.querySelector('[data-modale="impostazioni"]') && typeof openSettings === 'function') {
+    openSettings();
+  }
 }

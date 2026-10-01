@@ -95,7 +95,7 @@ function maybeOnboard() {
     ['📦', t('onb2_t'), t('onb2_d')],
     ['📅', t('onb3_t'), t('onb3_d')],
     ['🛒', t('onb4_t'), t('onb4_d')],
-    ['👇', 'Spostati al volo', 'Usa la barra in basso per passare da una sezione all\'altra.'],
+    ['👇', t('onb5_t'), t('onb5_d')],
   ];
   let idx = 0;
   const render = () => { const s = steps[idx]; $('#onboarding').innerHTML = `
@@ -940,7 +940,7 @@ async function openSettings() {
   const admin = can('all');
 
   $('#modal-root').innerHTML = `
-    <div class="overlay" onclick="if(event.target===this)closeModal()">
+    <div class="overlay" data-modale="impostazioni" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="width:440px">
         <h3>${t('impostazioni')}</h3>
 
@@ -1141,10 +1141,15 @@ function applyTheme(t) {
   // la barra di sistema del telefono segue il tema
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', t === 'light' ? '#ffffff' : '#0f1512');
-  document.querySelectorAll('.themebtn').forEach(b => {
+  /* SOLO il bottone del tema. Prima qui c'era querySelectorAll('.themebtn'),
+     ma quella classe e' lo stile del bottone tondo e ce l'hanno anche la
+     lingua e l'ingranaggio: il risultato era che dopo un cambio di tema
+     comparivano due lune identiche e l'ingranaggio spariva. */
+  const b = document.getElementById('btn-tema');
+  if (b) {
     b.textContent = t === 'light' ? '☀' : '🌙';
     b.title = t === 'light' ? 'Passa al tema scuro' : 'Passa al tema chiaro';
-  });
+  }
 }
 function toggleTheme() {
   const nuovo = temaCorrente() === 'light' ? 'dark' : 'light';

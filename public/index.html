@@ -56,8 +56,10 @@
     <span id="banner-mascot"></span>
     <div><h1 data-i18n="app_nome">Barback</h1><div class="sub" id="banner-sub" data-i18n="app_sotto">Magazzino & Turni</div></div>
     <span class="spacer"></span>
+    <!-- themebtn e' solo lo STILE del bottone tondo: non usarla per
+         trovare il bottone del tema, sennò si riscrive anche questi due -->
     <button class="langbtn themebtn" onclick="toggleLang()" title="Cambia lingua" data-i18n-title="cambia_lingua">IT</button>
-    <button class="themebtn" onclick="toggleTheme()" title="Cambia tema" data-i18n-title="cambia_tema">🌙</button>
+    <button class="themebtn" id="btn-tema" onclick="toggleTheme()" title="Cambia tema" data-i18n-title="cambia_tema">🌙</button>
     <button class="themebtn" onclick="openSettings()" title="Impostazioni" data-i18n-title="impostazioni">⚙</button>
     <button class="ghost" onclick="logout()" data-i18n="esci">Esci</button>
   </div>
