@@ -1045,6 +1045,19 @@ function suIOS() {
          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
+/* Su iPhone non basta sapere che sei su iPhone: solo Safari VERO puo'
+   aggiungere alla schermata Home, e i casi in cui non puoi sono due,
+   con rimedi diversi.
+   Come si riconoscono: Chrome su iOS si firma CriOS (Firefox FxiOS,
+   Edge EdgiOS); il browser interno di WhatsApp o Instagram e' una
+   WKWebView e nella sua firma "Safari" non compare affatto.          */
+function situazioneIOS() {
+  const ua = navigator.userAgent;
+  if (/CriOS|FxiOS|EdgiOS/.test(ua)) return 'altroBrowser';
+  if (!/Safari/.test(ua)) return 'dentroUnApp';
+  return 'safari';
+}
+
 function bloccoInstalla() {
   if (giaInstallata())
     return `<p style="font-size:13px;color:var(--green)">${t('inst_gia')}</p>`;
@@ -1052,16 +1065,56 @@ function bloccoInstalla() {
   if (invitoInstalla)
     return `<button class="act" onclick="chiediInstalla()">${t('inst_fai')}</button>`;
 
-  if (suIOS())
+  if (suIOS()) {
+    const caso = situazioneIOS();
+
+    /* aperto dal browser dentro WhatsApp/Instagram: qui "Aggiungi a
+       Home" non esiste, e il cliente pensa che sia rotta la nostra app */
+    if (caso === 'dentroUnApp')
+      return `<div style="font-size:13px;line-height:1.8">
+        <b style="color:var(--yellow)">${t('inst_ios_dentro_t')}</b>
+        <p class="muted" style="font-size:12.5px;margin:6px 0">${t('inst_ios_dentro')}</p>
+        <ol style="padding-left:18px;margin:6px 0">
+          <li>${t('inst_ios_dentro_1')}</li><li>${t('inst_ios_dentro_2')}</li><li>${t('inst_ios_dentro_3')}</li>
+        </ol>
+      </div>`;
+
+    /* Chrome/Firefox/Edge su iPhone: la voce non esiste e basta */
+    if (caso === 'altroBrowser')
+      return `<div style="font-size:13px;line-height:1.8">
+        <b style="color:var(--yellow)">${t('inst_ios_chrome_t')}</b>
+        <p class="muted" style="font-size:12.5px;margin:6px 0">${t('inst_ios_chrome')}</p>
+        <button class="act" onclick="copiaIndirizzo(this)">${t('inst_copia')}</button>
+      </div>`;
+
     return `<div style="font-size:13px;line-height:1.9">
       <b>${t('inst_ios_t')}</b>
       <ol style="padding-left:18px;margin:6px 0">
         <li>${t('inst_ios_1')}</li><li>${t('inst_ios_2')}</li><li>${t('inst_ios_3')}</li>
       </ol>
-      <p class="muted" style="font-size:12px">${t('inst_ios_safari')}</p>
     </div>`;
+  }
 
   return `<p class="muted" style="font-size:12.5px">${t('inst_manuale')}</p>`;
+}
+
+/* Copiare a mano un indirizzo lungo su un telefono e' una tortura, e
+   chi sbaglia una lettera pensa che l'app non esista. */
+async function copiaIndirizzo(bottone) {
+  const indirizzo = location.origin + location.pathname;
+  try {
+    await navigator.clipboard.writeText(indirizzo);
+  } catch {
+    // su iOS senza permessi il moderno fallisce: si torna al vecchio.
+    // Attenzione a non chiamarla "t": quella e' la funzione delle traduzioni.
+    const casella = document.createElement('textarea');
+    casella.value = indirizzo;
+    casella.style.position = 'fixed'; casella.style.opacity = '0';
+    document.body.appendChild(casella); casella.select();
+    try { document.execCommand('copy'); } catch {}
+    casella.remove();
+  }
+  if (bottone) { bottone.textContent = t('inst_copiato'); bottone.disabled = true; }
 }
 
 function aggiornaZonaInstalla() {

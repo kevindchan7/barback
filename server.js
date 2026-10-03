@@ -613,6 +613,74 @@ api.get('/drinkcost', need('drinkcost.view'), (req, res) => {
   }));
 });
 
+/* ---------------- FOOD COST (solo chi ha il permesso) ----------------
+   L'app non mostra soldi a nessuno: li vede solo chi ha drinkcost.view,
+   cioe' in pratica il proprietario. Qui stanno tutti insieme i numeri
+   che servono a decidere un prezzo:
+     - quanto costa versare un cocktail, ingrediente per ingrediente
+     - il pour cost, cioe' quanta parte del prezzo se ne va in prodotto
+     - quanto vale la merce ferma in magazzino
+     - quanto e' costato l'ultimo scostamento d'inventario
+   L'ultimo e' quello che fa male e che nessun foglio Excel ti dice.   */
+api.get('/foodcost', need('drinkcost.view'), (req, res) => {
+  const bottiglie = db.prepare("SELECT * FROM products WHERE category='Bottiglia' ORDER BY name").all();
+  const drinks = db.prepare("SELECT * FROM products WHERE category='Cocktail' ORDER BY name").all();
+
+  const cocktails = drinks.map(d => {
+    const ricetta = JSON.parse(d.recipe || '[]').map(r => {
+      const ing = product(r.ing);
+      const costo = (ing && ing.volume_ml) ? (ing.cost / ing.volume_ml) * r.q : 0;
+      return { id: r.ing, nome: ing ? ing.name : '?', q: r.q, costo: +costo.toFixed(4),
+               senzaCosto: !!(ing && (!ing.cost || !ing.volume_ml)) };
+    });
+    const costo = ricetta.reduce((s, r) => s + r.costo, 0);
+    return {
+      id: d.id, nome: d.name, prezzo: d.price,
+      costo: +costo.toFixed(4),
+      margine: +(d.price - costo).toFixed(4),
+      pourCost: d.price ? +(costo / d.price * 100).toFixed(1) : null,
+      ricetta,
+      // un prezzo calcolato non si impone: si propone. 22% e' il
+      // riferimento comune per i distillati in un bar.
+      prezzoSuggerito: costo ? +(costo / 0.22).toFixed(2) : null,
+    };
+  });
+
+  const bott = bottiglie.map(p => ({
+    id: p.id, nome: p.name, formato: p.format,
+    costo: p.cost, volume_ml: p.volume_ml,
+    costoMl: p.volume_ml ? +(p.cost / p.volume_ml).toFixed(4) : null,
+    giacenza: p.stock,
+    valore: +(p.stock * p.cost).toFixed(2),
+    incompleto: !p.cost || !p.volume_ml,
+  }));
+
+  /* quanto e' costato l'ultimo inventario chiuso */
+  let ultimoScostamento = null;
+  const s = db.prepare("SELECT * FROM inv_sessions WHERE stato='chiusa' ORDER BY id DESC LIMIT 1").get();
+  if (s) {
+    const v = db.prepare(`SELECT COALESCE(SUM(d.diff * d.cost),0) valore,
+        COALESCE(SUM(CASE WHEN d.diff <> 0 THEN 1 ELSE 0 END),0) righe
+      FROM (SELECT c.product_id, (SUM(c.qty) - MAX(c.atteso)) diff, MAX(p.cost) cost
+            FROM inv_counts c JOIN products p ON p.id=c.product_id
+            WHERE c.session_id=? GROUP BY c.product_id) d`).get(s.id);
+    ultimoScostamento = { data: s.chiusa_il || s.aperta_il, valore: +(v.valore || 0).toFixed(2), righe: v.righe };
+  }
+
+  ok(res, {
+    cocktails, bottiglie: bott,
+    totali: {
+      valoreMagazzino: +bott.reduce((t, b) => t + b.valore, 0).toFixed(2),
+      pourCostMedio: (() => {
+        const con = cocktails.filter(c => c.pourCost !== null);
+        return con.length ? +(con.reduce((t, c) => t + c.pourCost, 0) / con.length).toFixed(1) : null;
+      })(),
+      daCompletare: bott.filter(b => b.incompleto).length,
+    },
+    ultimoScostamento,
+  });
+});
+
 /* ---------------- MANUALE DIPENDENTE (regole + ricettario) ---------------- */
 api.get('/manuale', need('manuale.view'), (req, res) => {
   const recipes = db.prepare("SELECT * FROM products WHERE category='Cocktail' ORDER BY name").all().map(d => ({
