@@ -657,14 +657,14 @@ api.get('/foodcost', need('drinkcost.view'), (req, res) => {
 
   /* quanto e' costato l'ultimo inventario chiuso */
   let ultimoScostamento = null;
-  const s = db.prepare("SELECT * FROM inv_sessions WHERE stato='chiusa' ORDER BY id DESC LIMIT 1").get();
+  const s = db.prepare("SELECT * FROM inv_sessions WHERE status='chiusa' ORDER BY id DESC LIMIT 1").get();
   if (s) {
     const v = db.prepare(`SELECT COALESCE(SUM(d.diff * d.cost),0) valore,
         COALESCE(SUM(CASE WHEN d.diff <> 0 THEN 1 ELSE 0 END),0) righe
       FROM (SELECT c.product_id, (SUM(c.qty) - MAX(c.atteso)) diff, MAX(p.cost) cost
             FROM inv_counts c JOIN products p ON p.id=c.product_id
             WHERE c.session_id=? GROUP BY c.product_id) d`).get(s.id);
-    ultimoScostamento = { data: s.chiusa_il || s.aperta_il, valore: +(v.valore || 0).toFixed(2), righe: v.righe };
+    ultimoScostamento = { data: s.ended_at || s.started_at, valore: +(v.valore || 0).toFixed(2), righe: v.righe };
   }
 
   ok(res, {
