@@ -109,18 +109,30 @@ api.post('/products', need('magazzino.view'), (req, res) => {
   // la scorta ideale, se non la dici, la propongo al doppio della soglia
   const soglia = +threshold || 0;
   const ideale = par_level === undefined || par_level === '' ? soglia * 2 : +par_level || 0;
+  // costo e prezzo li manda solo chi puo' vederli; dagli altri arrivano
+  // vuoti e il prodotto nasce a zero, da completare dopo
   const r = db.prepare(`INSERT INTO products
     (name,category,format,volume_ml,cost,price,stock,initial_stock,threshold,par_level,unit,vendor_id,barcode,recipe)
-    VALUES (?,?,?,?,0,0,?,?,?,?,?,?,?, '[]')`)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, '[]')`)
     .run(name, category || 'Bottiglia', String(format || '').trim(), +volume_ml || 0,
+      +req.body.cost || 0, +req.body.price || 0,
       +stock || 0, +stock || 0, soglia, ideale, String(unit || 'bott.').trim(),
       vendor_id ? +vendor_id : null, code || null);
   ok(res, { id: r.lastInsertRowid });
 });
 api.put('/products/:id', need('magazzino.view'), (req, res) => {
-  const { name, cost, price, threshold, par_level, vendor_id } = req.body;
-  db.prepare('UPDATE products SET name=?,cost=?,price=?,threshold=?,par_level=?,vendor_id=? WHERE id=?')
-    .run(name, +cost, +price, +threshold, +par_level || 0, vendor_id ? +vendor_id : null, req.params.id);
+  const { name, cost, price, volume_ml, threshold, par_level, vendor_id } = req.body;
+  const p = product(req.params.id);
+  if (!p) return bad(res, 404, 'Prodotto non trovato');
+  /* Chi non puo' vedere i costi non li manda: in quel caso NON si
+     azzerano, si lascia quello che c'era. Altrimenti un barista che
+     corregge una soglia cancellerebbe il lavoro del proprietario. */
+  const vedeCosti = can(req, 'drinkcost.view');
+  db.prepare('UPDATE products SET name=?,cost=?,price=?,volume_ml=?,threshold=?,par_level=?,vendor_id=? WHERE id=?')
+    .run(name, vedeCosti ? +cost || 0 : p.cost,
+      vedeCosti ? +price || 0 : p.price,
+      vedeCosti && volume_ml !== undefined ? +volume_ml || 0 : p.volume_ml,
+      +threshold, +par_level || 0, vendor_id ? +vendor_id : null, req.params.id);
   ok(res, { ok: true });
 });
 

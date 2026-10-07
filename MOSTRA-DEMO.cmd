@@ -54,7 +54,12 @@ echo   funziona. Appena la chiudi, o appena spegni il PC, muore.
 echo  ────────────────────────────────────────────────────────────
 echo.
 
-"%CF%" tunnel --no-autoupdate --url http://localhost:3100
+REM L'indirizzo lo scriviamo anche in un file, non solo a schermo:
+REM copiarlo a mano da una finestra nera e' scomodo e si sbaglia.
+set "FILELINK=%TEMP%\barback-link.txt"
+if exist "%FILELINK%" del /q "%FILELINK%" >nul 2>&1
+
+"%CF%" tunnel --no-autoupdate --url http://localhost:3100 2>&1 | "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "$ErrorActionPreference='SilentlyContinue'; $f=$env:TEMP+'\barback-link.txt'; $trovato=$false; $input | ForEach-Object { $_; if (-not $trovato -and $_ -match 'https://[a-z0-9-]+\.trycloudflare\.com') { $matches[0] | Out-File -FilePath $f -Encoding ascii -NoNewline; $trovato=$true; Write-Host ''; Write-Host '  ============================================' -ForegroundColor Green; Write-Host ('   LINK DA MANDARE:  ' + $matches[0]) -ForegroundColor Green; Write-Host '  ============================================' -ForegroundColor Green; Write-Host '' } }"
 
 echo.
 echo  Link chiuso. Da adesso quell'indirizzo non risponde piu'.

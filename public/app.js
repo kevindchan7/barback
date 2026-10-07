@@ -198,6 +198,9 @@ async function loadMagazzino() {
   const [prods, vendors] = await Promise.all([api('/products'), api('/vendors')]);
   window._vendors = vendors;
   window._products = prods;
+  // i campi di costo e prezzo esistono solo per chi li puo' vedere
+  const zonaCosti = $('#np-costi');
+  if (zonaCosti) zonaCosti.hidden = !can('drinkcost.view');
   $('#mv-prod').innerHTML = prods.filter(p => p.category === 'Bottiglia').map(p => `<option value="${p.id}">${p.name}</option>`).join('');
   // tipi di movimento consentiti dai permessi
   const types = [];
@@ -244,6 +247,15 @@ function editProduct(id) {
           <option value="">${t('nessuno')}</option>
           ${(window._vendors || []).map(v => `<option value="${v.id}" ${v.id === p.vendor_id ? 'selected' : ''}>${v.name}</option>`).join('')}
         </select></div></div>
+        ${can('drinkcost.view') ? `
+        <h3 style="margin-top:14px;font-size:14px">${t('sez_costi')}</h3>
+        <p class="muted" style="font-size:11.5px;margin:2px 0 8px">${t('sez_costi_aiuto')}</p>
+        <div class="row c3">
+          <div><label>${t('costo_acquisto')}</label><input id="ep-cost" type="number" min="0" step="0.01" value="${p.cost || 0}"></div>
+          <div><label>${t('prezzo_vendita')}</label><input id="ep-price" type="number" min="0" step="0.01" value="${p.price || 0}"></div>
+          <div><label>${t('volume_bottiglia')}</label><input id="ep-vol" type="number" min="0" step="1" value="${p.volume_ml || 0}"></div>
+        </div>
+        <p class="muted" style="font-size:11.5px;margin:-4px 0 8px">${t('volume_aiuto')}</p>` : ''}
         <div class="onb-actions">
           <button class="ghost" onclick="closeModal()">${t('annulla')}</button>
           <button class="act" onclick="saveProduct(${id})">${t('salva')}</button>
@@ -259,11 +271,16 @@ function closeModal() {
 }
 async function saveProduct(id) {
   try {
-    // costo e prezzo non si modificano piu' da qui: li rimandiamo identici
-    // cosi' il dato resta nel database senza comparire a schermo
-    const p = (window._products || []).find(x => x.id === id) || {};
-    await api('/products/' + id, 'PUT', { name: $('#ep-name').value, cost: p.cost || 0, price: p.price || 0,
-      threshold: $('#ep-thr').value, par_level: $('#ep-par').value, vendor_id: $('#ep-vendor').value });
+    /* Chi vede i costi li manda; gli altri non mandano nulla e il
+       server lascia quelli che c'erano, invece di azzerarli. */
+    const corpo = { name: $('#ep-name').value,
+      threshold: $('#ep-thr').value, par_level: $('#ep-par').value, vendor_id: $('#ep-vendor').value };
+    if (can('drinkcost.view')) {
+      corpo.cost = $('#ep-cost').value;
+      corpo.price = $('#ep-price').value;
+      corpo.volume_ml = $('#ep-vol').value;
+    }
+    await api('/products/' + id, 'PUT', corpo);
     closeModal(); loadMagazzino();
   } catch (e) { alert(e.message); }
 }
@@ -879,15 +896,20 @@ if ('serviceWorker' in navigator) {
 /* --- prodotti --- */
 async function addProduct() {
   const name = $('#np-name').value.trim();
-  if (!name) return alert('Serve almeno il nome del prodotto.');
+  if (!name) return alert(t('serve_nome_prodotto'));
   try {
     await api('/products', 'POST', {
       name, format: $('#np-format').value.trim(),
       stock: $('#np-stock').value, threshold: $('#np-thr').value,
       par_level: $('#np-par').value, unit: $('#np-unit').value.trim() || 'bott.',
       vendor_id: $('#np-vendor').value,
+      // chi non ha il permesso non vede i campi e non manda niente:
+      // il prodotto nasce a zero e li mette il proprietario dopo
+      cost: can('drinkcost.view') ? $('#np-cost').value : 0,
+      price: can('drinkcost.view') ? $('#np-price').value : 0,
+      volume_ml: can('drinkcost.view') ? $('#np-vol').value : 0,
     });
-    ['#np-name', '#np-format', '#np-par'].forEach(s => $(s).value = '');
+    ['#np-name', '#np-format', '#np-par', '#np-cost', '#np-price', '#np-vol'].forEach(s => { const e = $(s); if (e) e.value = ''; });
     $('#np-stock').value = '0'; $('#np-thr').value = '0';
     loadMagazzino();
   } catch (e) { alert(e.message); }
