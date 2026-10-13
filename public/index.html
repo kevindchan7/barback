@@ -78,7 +78,11 @@
       <div class="card" id="vuoti-form">
         <h3 data-i18n="registra_vuoti">Registra bottiglie consumate</h3>
         <div class="row c2">
-          <div><label data-i18n="prodotto">Prodotto</label><select id="vuoti-prod"></select></div>
+          <div><label data-i18n="prodotto">Prodotto</label>
+            <!-- ricerca al posto della tendina: con tanti prodotti scorrere la lista era scomodo -->
+            <div class="combo"><input id="vuoti-search" type="search" autocomplete="off" placeholder="🔍 Cerca prodotto…" data-i18n-ph="cerca_prodotto"
+              onfocus="this.select(); vuotiFilter()" oninput="$('#vuoti-prod').value=''; vuotiFilter()" onkeydown="vuotiKey(event)" onblur="show('#vuoti-sugg', false)">
+            <input type="hidden" id="vuoti-prod"><div id="vuoti-sugg" class="combo-list hidden"></div></div></div>
           <div><label data-i18n="vuoti_qta">Quantità (vuoti)</label><input id="vuoti-qty" type="number" value="1" min="1"></div>
         </div>
         <div class="row c2">
@@ -107,6 +111,13 @@
         <button class="ghost" onclick="exportShifts('csv')" data-i18n="csv_turni">⬇ CSV turni</button>
         <button class="ghost" onclick="exportShifts('xlsx')" data-i18n="excel_turni">⬇ Excel turni</button>
       </div>
+      <!-- calendario del mese: un puntino colorato per ogni dipendente in turno -->
+      <div class="card">
+        <div class="cal-head"><button class="iconbtn" onclick="calMove(-1)">‹</button><h3 id="cal-title"></h3><button class="iconbtn" onclick="calMove(1)">›</button></div>
+        <div id="cal-grid" class="cal"></div>
+        <div id="cal-legend" class="cal-legend"></div>
+        <div id="cal-day"></div>
+      </div>
       <div class="card">
         <div class="row c3">
           <div><label data-i18n="vista">Vista</label><select id="shift-range" onchange="loadShifts()"><option value="week" data-i18n="settimana">Settimana</option><option value="day" data-i18n="giorno">Giorno</option><option value="month" data-i18n="mese">Mese</option></select></div>
@@ -126,21 +137,28 @@
       </div>
       <div class="card" id="sh-form">
         <h3 data-i18n="gestione_turni">Gestione turni</h3>
-        <div class="row c3">
-          <div><label data-i18n="dipendente">Dipendente</label><select id="sh-emp"></select></div>
-          <div><label data-i18n="data">Data</label><input id="sh-date" type="date"></div>
+        <!-- un dipendente, un orario, tanti giorni: si toccano i giorni nel calendario e si salva una volta sola -->
+        <div class="row c2">
+          <div><label data-i18n="dipendente">Dipendente</label><select id="sh-emp" onchange="loadPicker()"></select></div>
           <div><label data-i18n="ruolo">Ruolo</label><input id="sh-role" placeholder="es. barista" data-i18n-ph="ph_ruolo"></div>
         </div>
-        <div class="row c3">
+        <div class="row c2">
           <div><label data-i18n="inizio">Inizio</label><input id="sh-start" type="time" value="16:00"></div>
           <div><label data-i18n="fine">Fine</label><input id="sh-end" type="time" value="23:00"></div>
-          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addShift()" data-i18n="btn_agg_turno">+ Aggiungi turno</button></div>
+        </div>
+        <label data-i18n="tocca_giorni">Tocca i giorni in cui lavora (anche più di uno)</label>
+        <div class="cal-head"><button class="iconbtn" onclick="pickMove(-1)">‹</button><h3 id="pick-title"></h3><button class="iconbtn" onclick="pickMove(1)">›</button></div>
+        <div id="pick-grid" class="cal"></div>
+        <div class="onb-actions" style="margin-top:10px">
+          <button class="ghost" onclick="pickClear()" data-i18n="svuota_sel">Svuota selezione</button>
+          <button class="act" id="pick-add" onclick="addShifts()"></button>
         </div>
         <p class="muted" data-i18n="griglia_aiuto">Nella griglia, tocca un turno per eliminarlo.</p>
       </div>
       <div class="card">
-        <h3 data-i18n="task_oggi">Task di oggi</h3>
+        <div class="cal-head"><h3 data-i18n="task_oggi">Task di oggi</h3><button class="ghost" onclick="toggleTaskHistory()" data-i18n="storico_task">📜 Storico</button></div>
         <div id="tasks-list"></div>
+        <div id="task-history" class="hidden"></div>
         <div id="task-add" class="row c2" style="margin-top:10px;">
           <div><label data-i18n="nuova_task">Nuova task</label><input id="task-title" placeholder="es. Pulizia banco" data-i18n-ph="ph_task"></div>
           <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addTask()" data-i18n="aggiungi">+ Aggiungi</button></div>

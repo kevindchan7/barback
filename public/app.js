@@ -11,6 +11,8 @@ let pollTimer = null;
 
 // can(cap): il profilo ha quella capacità? 'all' (proprietario) supera tutto.
 function can(cap) { const p = (PROFILE && PROFILE.permissions) || []; return p.includes('all') || p.includes(cap); }
+// solo se il permesso e' scritto nel profilo, senza contare 'all' (es. chiedere ferie: non il proprietario)
+function canProprio(cap) { return ((PROFILE && PROFILE.permissions) || []).includes(cap); }
 
 async function api(path, method = 'GET', body) {
   const res = await fetch('/api' + path, {
@@ -167,8 +169,7 @@ async function loadVuoti() {
   show('#vuoti-form', can('vuoti.do'));          // solo chi può registrare vede il form
   if (can('vuoti.do')) {
     const prods = await api('/products');
-    $('#vuoti-prod').innerHTML = prods.filter(p => p.category === 'Bottiglia')
-      .map(p => `<option value="${p.id}">${p.name} (${p.format})</option>`).join('');
+    vuotiProds = prods.filter(p => p.category === 'Bottiglia');
   }
   if (!$('#vuoti-date').value) $('#vuoti-date').value = todayISO();
   const period = $('#vuoti-period').value, date = $('#vuoti-date').value;
@@ -185,10 +186,41 @@ async function loadVuoti() {
   });
   $('#vuoti-grid').innerHTML = html;
 }
+/* Ricerca prodotto: si scrive un pezzo del nome e si tocca il risultato.
+   Accenti e maiuscole non contano. */
+let vuotiProds = [];
+const normTxt = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function vuotiMatches() {
+  const q = normTxt($('#vuoti-search').value.trim());
+  return vuotiProds.filter(p => normTxt(p.name + ' ' + p.format).includes(q));
+}
+function vuotiFilter() {
+  const m = vuotiMatches();
+  // mousedown con preventDefault: altrimenti il campo perde il fuoco e la lista sparisce prima del tocco
+  $('#vuoti-sugg').innerHTML = m.length
+    ? m.map(p => `<button type="button" onmousedown="event.preventDefault()" onclick="vuotiPick(${p.id})">${p.name} <span class="muted">(${p.format})</span></button>`).join('')
+    : `<div class="muted" style="padding:10px">${t('nessun_risultato')}</div>`;
+  show('#vuoti-sugg', true);
+}
+function vuotiPick(id) {
+  const p = vuotiProds.find(x => x.id === id);
+  $('#vuoti-prod').value = id;
+  $('#vuoti-search').value = `${p.name} (${p.format})`;
+  $('#vuoti-search').blur();
+}
+function vuotiKey(e) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const m = vuotiMatches();
+  if (m.length) vuotiPick(m[0].id);
+}
 async function addEmpty() {
+  if (!$('#vuoti-prod').value) { alert(t('scegli_prodotto')); $('#vuoti-search').focus(); return; }
   try {
     await api('/movements', 'POST', { productId: +$('#vuoti-prod').value, type: 'vuoto',
       qty: +$('#vuoti-qty').value, source: $('#vuoti-src').value });
+    // pronto per il prossimo prodotto
+    $('#vuoti-prod').value = ''; $('#vuoti-search').value = ''; $('#vuoti-qty').value = 1;
     loadVuoti();
   } catch (e) { alert(e.message); }
 }
@@ -648,18 +680,22 @@ function rangeDates() {
   else if (range === 'week') { const wd = (d.getDay() + 6) % 7; from = new Date(d); from.setDate(d.getDate() - wd); to = new Date(from); to.setDate(from.getDate() + 6); }
   else { from = new Date(d.getFullYear(), d.getMonth(), 1); to = new Date(d.getFullYear(), d.getMonth() + 1, 0); }
   const days = []; for (let x = new Date(from); x <= to; x.setDate(x.getDate() + 1)) days.push(new Date(x));
-  const iso = (z) => z.toISOString().slice(0, 10);
-  return { from: iso(from), to: iso(to), days };
+  // data locale, non toISOString: in Italia la mezzanotte locale e' ancora "ieri" in UTC
+  return { from: isoLocal(from), to: isoLocal(to), days };
 }
+const pad2 = (n) => String(n).padStart(2, '0');
+const isoLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 async function loadTurni() {
   if (!$('#shift-date').value) $('#shift-date').value = todayISO();
-  await loadShifts();
+  await Promise.all([loadShifts(), loadCal()]);
   // gestione turni: form solo per chi ha turni.manage
   show('#sh-form', can('turni.manage'));
   if (can('turni.manage')) {
     const emps = await api('/employees');
+    const cur = $('#sh-emp').value;   // l'aggiornamento automatico non deve cambiare il dipendente scelto
     $('#sh-emp').innerHTML = emps.map(e => `<option value="${e.id}">${e.name} (${e.role})</option>`).join('');
-    if (!$('#sh-date').value) $('#sh-date').value = todayISO();
+    if (cur && emps.some(e => String(e.id) === cur)) $('#sh-emp').value = cur;
+    await loadPicker();
   }
   if (can('task.view')) await loadTasks();
   show('#task-add', can('task.manage'));          // aggiungere task: solo chi gestisce
@@ -673,10 +709,10 @@ async function loadShifts() {
   window._shiftRows = shifts;
   const fmtDay = (s) => new Date(s + 'T00:00').toLocaleDateString(locale(), { weekday: 'short', day: '2-digit' });
   const editable = can('turni.manage');
-  let html = `<tr><th>${t('dipendente')}</th>` + days.map(d => `<th>${fmtDay(d.toISOString().slice(0,10))}</th>`).join('') + '</tr>';
+  let html = `<tr><th>${t('dipendente')}</th>` + days.map(d => `<th>${fmtDay(isoLocal(d))}</th>`).join('') + '</tr>';
   emps.forEach(e => {
-    html += `<tr><td style="text-align:left">${e.name}</td>` + days.map(d => {
-      const k = d.toISOString().slice(0, 10);
+    html += `<tr><td style="text-align:left"><i class="dot" style="background:${e.color || '#888'}"></i>${e.name}</td>` + days.map(d => {
+      const k = isoLocal(d);
       const cell = shifts.filter(s => s.employee_id === e.id && s.date === k).map(s =>
         `<span class="chip" ${editable ? `onclick="deleteShift(${s.id})" title="Elimina turno" style="cursor:pointer"` : ''}>${s.start}–${s.end}${editable ? ' ✕' : ''}</span>`).join('');
       return `<td class="${cell ? 'has' : ''}">${cell || ''}</td>`;
@@ -684,32 +720,143 @@ async function loadShifts() {
   });
   $('#shift-grid').innerHTML = html;
 }
-async function addShift() {
-  const body = { employee_id: +$('#sh-emp').value, date: $('#sh-date').value,
-    start: $('#sh-start').value, end: $('#sh-end').value, role: $('#sh-role').value };
-  if (!body.employee_id || !body.date) return alert('Servono dipendente e data');
-  try { await api('/shifts', 'POST', body); loadShifts(); } catch (e) { alert(e.message); }
-}
 async function deleteShift(id) {
   if (!confirm('Eliminare questo turno?')) return;
-  try { await api('/shifts/' + id, 'DELETE'); loadShifts(); } catch (e) { alert(e.message); }
+  try { await api('/shifts/' + id, 'DELETE'); refreshTurni(); } catch (e) { alert(e.message); }
 }
+function refreshTurni() { return Promise.all([loadShifts(), loadCal(), loadPicker()]); }
+
+/* --- calendario del mese: lunedi' in prima colonna --- */
+function monthDays(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7, n = new Date(y, m, 0).getDate();
+  return [...Array(lead).fill(null), ...Array.from({ length: n }, (_, i) => `${ym}-${pad2(i + 1)}`)];
+}
+function shiftYM(ym, delta) { const [y, m] = ym.split('-').map(Number); return isoLocal(new Date(y, m - 1 + delta, 1)).slice(0, 7); }
+function monthTitle(ym) { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: 'long', year: 'numeric' }); }
+function calHtml(ym, cell) {
+  // 1 gennaio 2024 era lunedi': da li' i nomi dei giorni nella lingua scelta
+  const heads = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(locale(), { weekday: 'narrow' }));
+  return heads.map(h => `<div class="cal-h">${h}</div>`).join('')
+    + monthDays(ym).map(d => d ? cell(d) : '<div></div>').join('');
+}
+const shiftDots = (list) => list.map(s => `<i style="background:${s.color || '#888'}"></i>`).join('');
+
+let calYM = isoLocal(new Date()).slice(0, 7), calSel = null;
+function calMove(d) { calYM = shiftYM(calYM, d); calSel = null; loadCal(); }
+async function loadCal() {
+  const [shifts, emps] = await Promise.all([api(`/shifts?from=${calYM}-01&to=${calYM}-31`), api('/employees')]);
+  window._calShifts = shifts;
+  const today = isoLocal(new Date());
+  $('#cal-title').textContent = monthTitle(calYM);
+  $('#cal-grid').innerHTML = calHtml(calYM, d => `<button class="cal-d${d === today ? ' today' : ''}${d === calSel ? ' sel' : ''}" onclick="calPick('${d}')">
+      <span>${+d.slice(8)}</span><div class="dots">${shiftDots(shifts.filter(s => s.date === d))}</div></button>`);
+  $('#cal-legend').innerHTML = emps.map(e => `<span><i class="dot" style="background:${e.color || '#888'}"></i>${e.name}</span>`).join('');
+  calDay();
+}
+function calPick(d) { calSel = calSel === d ? null : d; loadCal(); }
+function calDay() {
+  if (!calSel) { $('#cal-day').innerHTML = ''; return; }
+  const editable = can('turni.manage');
+  const list = (window._calShifts || []).filter(s => s.date === calSel);
+  const titolo = new Date(calSel + 'T00:00').toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
+  $('#cal-day').innerHTML = `<h3 style="margin-top:12px">${titolo}</h3>` + (list.length ? list.map(s => `
+    <div class="cal-row"><i class="dot" style="background:${s.color || '#888'}"></i><b>${s.employee}</b>
+      <span class="muted">${s.start}–${s.end}${s.role ? ' · ' + s.role : ''}</span><span style="flex:1"></span>
+      ${editable ? `<button class="iconbtn" onclick="deleteShift(${s.id})" title="${t('elimina')}">✕</button>` : ''}</div>`).join('')
+    : `<p class="muted">${t('nessun_turno')}</p>`);
+}
+
+/* --- inserimento: un dipendente, tanti giorni scelti toccandoli --- */
+let pickYM = isoLocal(new Date()).slice(0, 7);
+const pickSel = new Set();
+function pickMove(d) { pickYM = shiftYM(pickYM, d); loadPicker(); }
+function pickToggle(d) { pickSel.has(d) ? pickSel.delete(d) : pickSel.add(d); loadPicker(); }
+function pickClear() { pickSel.clear(); loadPicker(); }
+async function loadPicker() {
+  if (!can('turni.manage')) return;
+  const emp = +$('#sh-emp').value;
+  // i turni che ha gia' quel mese, per non scegliere a vuoto
+  const gia = emp ? (await api(`/shifts?from=${pickYM}-01&to=${pickYM}-31`)).filter(s => s.employee_id === emp) : [];
+  $('#pick-title').textContent = monthTitle(pickYM);
+  $('#pick-grid').innerHTML = calHtml(pickYM, d => `<button class="cal-d${pickSel.has(d) ? ' picked' : ''}" onclick="pickToggle('${d}')">
+      <span>${+d.slice(8)}</span><div class="dots">${shiftDots(gia.filter(s => s.date === d))}</div></button>`);
+  $('#pick-add').textContent = t('aggiungi_n_turni', { n: pickSel.size });
+  $('#pick-add').disabled = !pickSel.size;
+}
+async function addShifts() {
+  const body = { employee_id: +$('#sh-emp').value, dates: [...pickSel].sort(),
+    start: $('#sh-start').value, end: $('#sh-end').value, role: $('#sh-role').value };
+  if (!body.employee_id || !body.dates.length) return alert('Servono dipendente e almeno un giorno');
+  try {
+    const r = await api('/shifts/bulk', 'POST', body);
+    if (r.skipped) alert(t('turni_saltati', { n: r.skipped }));
+    pickSel.clear(); refreshTurni();
+  } catch (e) { alert(e.message); }
+}
+
+/* --- task: spuntata = sparisce dalla lista e va nello storico, firmata --- */
 async function loadTasks() {
   const tasks = await api('/tasks?date=' + todayISO());
   const editable = can('task.check') || can('task.manage');
-  $('#tasks-list').innerHTML = tasks.length ? tasks.map(t => `
+  const oggi = todayISO();
+  $('#tasks-list').innerHTML = tasks.length ? tasks.map(x => `
     <label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);">
-      <input type="checkbox" style="width:auto" ${t.done ? 'checked' : ''} ${editable ? '' : 'disabled'} onchange="toggleTask(${t.id}, this.checked)">
-      <span style="${t.done ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.title}</span>
-      <span style="flex:1"></span><span class="muted">${t.assignee || ''}</span>
+      <input type="checkbox" style="width:auto" ${editable ? '' : 'disabled'} onchange="this.checked=false; signTask(${x.id})">
+      <span>${x.title}</span>${x.date < oggi ? `<span class="muted">(${new Date(x.date + 'T00:00').toLocaleDateString(locale(), { day: '2-digit', month: '2-digit' })})</span>` : ''}
+      <span style="flex:1"></span><span class="muted">${x.assignee || ''}</span>
     </label>`).join('') : `<p class="muted">${t('nessuna_task')}</p>`;
+}
+// i profili sono per ruolo (piu' persone usano lo stesso): la firma e' il nome di chi l'ha fatta
+async function signTask(id) {
+  const oggi = todayISO();
+  const [emps, turni] = await Promise.all([api('/employees'), api(`/shifts?from=${oggi}&to=${oggi}`)]);
+  if (!emps.length) return doneTask(id, null);
+  const inTurno = new Set(turni.map(s => s.employee_id));
+  const btn = (e) => `<button class="ghost who" onclick="doneTask(${id}, ${e.id})"><i class="dot" style="background:${e.color || '#888'}"></i>${e.name}</button>`;
+  const primi = emps.filter(e => inTurno.has(e.id)), altri = emps.filter(e => !inTurno.has(e.id));
+  $('#modal-root').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <h3>${t('chi_ha_fatto')}</h3>
+        ${primi.length ? `<label>${t('in_turno_oggi')}</label><div class="who-grid">${primi.map(btn).join('')}</div>` : ''}
+        ${altri.length ? `<label style="margin-top:10px">${primi.length ? t('altri_dip') : t('dipendente')}</label><div class="who-grid">${altri.map(btn).join('')}</div>` : ''}
+        <div class="onb-actions" style="margin-top:14px"><button class="ghost" onclick="closeModal()">${t('annulla')}</button></div>
+      </div>
+    </div>`;
+}
+async function doneTask(id, empId) {
+  try {
+    await api('/tasks/' + id, 'PUT', { done: true, employee_id: empId });
+    closeModal(); loadTasks();
+    if (!$('#task-history').classList.contains('hidden')) loadTaskHistory();
+  } catch (e) { alert(e.message); }
+}
+function toggleTaskHistory() {
+  const box = $('#task-history');
+  box.classList.toggle('hidden');
+  if (!box.classList.contains('hidden')) loadTaskHistory();
+}
+async function loadTaskHistory() {
+  const d = new Date(); d.setDate(d.getDate() - 30);
+  const rows = await api('/tasks/history?from=' + isoLocal(d));
+  const undo = can('task.manage');
+  $('#task-history').innerHTML = `<h3 style="margin-top:14px">${t('storico_task')}</h3>` + (rows.length ? `<table>` + rows.map(x => `
+    <tr><td>${x.title}</td>
+      <td><i class="dot" style="background:${x.color || '#888'}"></i>${x.done_by_name || '—'}
+        <div class="muted" style="font-size:11px">${t('spuntata_da', { p: x.done_profile || '?' })}</div></td>
+      <td class="muted">${new Date(x.done_at).toLocaleString(locale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+      ${undo ? `<td class="right"><button class="iconbtn" onclick="undoTask(${x.id})" title="${t('rimetti_da_fare')}">↩</button></td>` : ''}</tr>`).join('') + `</table>`
+    : `<p class="muted">${t('nessuno_storico')}</p>`);
+}
+async function undoTask(id) {
+  try { await api('/tasks/' + id, 'PUT', { done: false }); loadTasks(); loadTaskHistory(); } catch (e) { alert(e.message); }
 }
 async function addTask() {
   const title = $('#task-title').value.trim(); if (!title) return;
   await api('/tasks', 'POST', { title, date: todayISO() });
   $('#task-title').value = ''; notify('Nuova task', title); loadTasks();
 }
-async function toggleTask(id, done) { try { await api('/tasks/' + id, 'PUT', { done }); } catch (e) { alert(e.message); loadTasks(); } }
 
 
 /* ===================== FERIE, PERMESSI, CAMBI TURNO =====================
@@ -720,7 +867,7 @@ const rqEtichetta = (k) => ({ ferie: '🏖 ' + t('ferie'), permesso: '🕒 ' + t
 const rqData = (s) => s ? new Date(s + 'T00:00').toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
 
 async function loadRichieste() {
-  const puoChiedere = can('ferie.request'), puoApprovare = can('ferie.approve');
+  const puoChiedere = canProprio('ferie.request'), puoApprovare = can('ferie.approve');
   $('#rq-hello').innerHTML = mascotSays(puoApprovare
     ? t('rq_hello_capo')
     : t('rq_hello_dip'), 48);
@@ -768,7 +915,7 @@ async function loadRichieste() {
   }
 
   // lo storico completo
-  const puoRitirare = can('ferie.request');
+  const puoRitirare = canProprio('ferie.request');
   $('#rq-list').innerHTML = r.rows.map(c => {
     const cls = c.status === 'in attesa' ? 'wait' : c.status === 'approvato' ? 'ok' : 'low';
     return `<tr>
@@ -928,7 +1075,7 @@ async function loadEmployees() {
   const emps = await api('/employees');
   window._employees = emps;
   $('#emp-list').innerHTML = emps.map(e => `<tr>
-    <td>${e.name}</td><td class="muted">${e.role || ''}</td>
+    <td><input type="color" class="swatch" value="${e.color || '#888888'}" title="${t('colore')}" onchange="setEmpColor(${e.id}, this.value)">${e.name}</td><td class="muted">${e.role || ''}</td>
     <td class="right">
       <button class="iconbtn" onclick="editEmployee(${e.id})" title="${t('modifica')}">✏️</button>
       <button class="iconbtn" onclick="removeEmployee(${e.id})" title="${t('elimina')}">🗑</button>
@@ -948,6 +1095,11 @@ function editEmployee(id) {
   const nome = prompt('Nome del dipendente:', e.name); if (nome === null) return;
   const ruolo = prompt('Ruolo:', e.role || ''); if (ruolo === null) return;
   api('/employees/' + id, 'PUT', { name: nome.trim(), role: ruolo.trim() })
+    .then(loadTurni).catch(err => alert(err.message));
+}
+function setEmpColor(id, color) {
+  const e = (window._employees || []).find(x => x.id === id); if (!e) return;
+  api('/employees/' + id, 'PUT', { name: e.name, role: e.role || '', color })
     .then(loadTurni).catch(err => alert(err.message));
 }
 async function removeEmployee(id) {

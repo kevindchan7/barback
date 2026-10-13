@@ -157,20 +157,21 @@ api.delete('/products/:id', need('magazzino.view'), (req, res) => {
 /* ---------------- PERSONALE ----------------
    Finora i dipendenti si potevano solo leggere: un locale nuovo non
    riusciva a inserire i propri. Ora si aggiungono e si modificano.   */
+const coloreValido = (c) => /^#[0-9a-f]{6}$/i.test(String(c || '')) ? c : null;
 api.post('/employees', need('turni.manage'), (req, res) => {
   const name = String(req.body.name || '').trim();
   if (!name) return bad(res, 400, 'Serve il nome');
   if (db.prepare('SELECT 1 FROM employees WHERE lower(name)=lower(?)').get(name))
     return bad(res, 409, 'C\'e\' gia\' un dipendente con questo nome');
-  const r = db.prepare('INSERT INTO employees (name,role) VALUES (?,?)')
-    .run(name, String(req.body.role || 'barista').trim());
+  const r = db.prepare('INSERT INTO employees (name,role,color) VALUES (?,?,?)')
+    .run(name, String(req.body.role || 'barista').trim(), coloreValido(req.body.color) || db.prossimoColore());
   ok(res, { id: r.lastInsertRowid });
 });
 api.put('/employees/:id', need('turni.manage'), (req, res) => {
   const name = String(req.body.name || '').trim();
   if (!name) return bad(res, 400, 'Serve il nome');
-  db.prepare('UPDATE employees SET name=?, role=? WHERE id=?')
-    .run(name, String(req.body.role || '').trim(), req.params.id);
+  db.prepare('UPDATE employees SET name=?, role=?, color=COALESCE(?, color) WHERE id=?')
+    .run(name, String(req.body.role || '').trim(), coloreValido(req.body.color), req.params.id);
   ok(res, { ok: true });
 });
 api.delete('/employees/:id', need('turni.manage'), (req, res) => {
@@ -194,6 +195,7 @@ const RUOLI = {
   'responsabile': ['turni.manage','turni.view','task.manage','task.view','ferie.view','ferie.approve','inventario.view'],
   'barman':       ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
   'bar manager':  ['turni.view','task.view','vuoti.view','vuoti.do','carico.do','magazzino.view','manuale.view','ferie.view','inventario.view','inventario.do','inventario.close'],
+  'barback':      ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
 };
 const pinValido = (p) => /^[0-9]{4}$/.test(String(p || ''));
 
@@ -708,7 +710,7 @@ api.get('/employees', (req, res) => ok(res, db.prepare('SELECT * FROM employees 
 
 api.get('/shifts', need('turni.view'), (req, res) => {
   const { from, to } = req.query;
-  ok(res, db.prepare(`SELECT s.*, e.name employee FROM shifts s JOIN employees e ON e.id=s.employee_id
+  ok(res, db.prepare(`SELECT s.*, e.name employee, e.color FROM shifts s JOIN employees e ON e.id=s.employee_id
     WHERE s.date BETWEEN ? AND ? ORDER BY s.date,s.start`).all(from || '0000', to || '9999'));
 });
 api.post('/shifts', need('turni.manage'), (req, res) => {
@@ -717,12 +719,40 @@ api.post('/shifts', need('turni.manage'), (req, res) => {
     .run(employee_id, date, start, end, role || '', note || '');
   ok(res, { id: r.lastInsertRowid });
 });
+/* Piu' turni in un colpo: stesso dipendente e orario su tutti i giorni scelti.
+   Un turno alla volta era troppo lento (tanti dipendenti, 3-5 turni a testa).
+   Se quel turno c'e' gia' quel giorno, non lo si duplica.                   */
+api.post('/shifts/bulk', need('turni.manage'), (req, res) => {
+  const { employee_id, dates, start, end, role, note } = req.body;
+  const giorni = [...new Set((Array.isArray(dates) ? dates : []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)))];
+  if (!employee_id || !giorni.length) return bad(res, 400, 'Servono dipendente e almeno un giorno');
+  if (giorni.length > 62) return bad(res, 400, 'Troppi giorni in una volta');
+  if (!db.prepare('SELECT 1 FROM employees WHERE id=?').get(employee_id)) return bad(res, 404, 'Dipendente non trovato');
+  const esiste = db.prepare('SELECT 1 FROM shifts WHERE employee_id=? AND date=? AND start=? AND end=?');
+  const ins = db.prepare('INSERT INTO shifts (employee_id,date,start,end,role,note) VALUES (?,?,?,?,?,?)');
+  let added = 0;
+  db.exec('BEGIN');
+  try {
+    giorni.forEach(d => { if (!esiste.get(employee_id, d, start, end)) { ins.run(employee_id, d, start, end, role || '', note || ''); added++; } });
+    db.exec('COMMIT');
+  } catch (e) { db.exec('ROLLBACK'); throw e; }
+  ok(res, { added, skipped: giorni.length - added });
+});
 api.delete('/shifts/:id', need('turni.manage'), (req, res) => { db.prepare('DELETE FROM shifts WHERE id=?').run(req.params.id); ok(res, { ok: true }); });
 
+// le task da fare: quelle fatte spariscono dalla lista e finiscono nello storico.
+// Restano anche quelle dei giorni passati non ancora fatte, altrimenti si perderebbero.
 api.get('/tasks', need('task.view'), (req, res) => {
   const date = req.query.date || todayISO();
   ok(res, db.prepare(`SELECT t.*, e.name assignee FROM tasks t LEFT JOIN employees e ON e.id=t.assignee_id
-    WHERE t.date=? ORDER BY t.done, t.id`).all(date));
+    WHERE t.done=0 AND t.date<=? ORDER BY t.date, t.id`).all(date));
+});
+// storico: chi ha fatto cosa e quando, le piu' recenti prima
+api.get('/tasks/history', need('task.view'), (req, res) => {
+  const { from, to } = req.query;
+  ok(res, db.prepare(`SELECT t.*, e.color FROM tasks t LEFT JOIN employees e ON e.id=t.done_by_emp
+    WHERE t.done=1 AND substr(t.done_at,1,10) BETWEEN ? AND ? ORDER BY t.done_at DESC LIMIT 500`)
+    .all(from || '0000', to || '9999'));
 });
 api.post('/tasks', need('task.manage'), (req, res) => {
   const { date, title, assignee_id } = req.body;
@@ -733,7 +763,18 @@ api.post('/tasks', need('task.manage'), (req, res) => {
 // spuntare una task richiede 'task.check' (oppure gestione completa)
 api.put('/tasks/:id', (req, res) => {
   if (!can(req, 'task.check') && !can(req, 'task.manage')) return bad(res, 403, 'Permesso negato (task.check)');
-  db.prepare('UPDATE tasks SET done=? WHERE id=?').run(req.body.done ? 1 : 0, req.params.id);
+  if (req.body.done) {
+    // la "firma": il dipendente che l'ha fatta, piu' il profilo con cui e' stata spuntata
+    const emp = req.body.employee_id ? db.prepare('SELECT id,name FROM employees WHERE id=?').get(req.body.employee_id) : null;
+    if (req.body.employee_id && !emp) return bad(res, 404, 'Dipendente non trovato');
+    db.prepare('UPDATE tasks SET done=1, done_by_emp=?, done_by_name=?, done_profile=?, done_at=? WHERE id=?')
+      .run(emp ? emp.id : null, emp ? emp.name : null, req.user.name, now(), req.params.id);
+  } else {
+    // rimetterla fra le cose da fare cancella la firma: solo chi gestisce le task
+    if (!can(req, 'task.manage')) return bad(res, 403, 'Permesso negato (task.manage)');
+    db.prepare('UPDATE tasks SET done=0, done_by_emp=NULL, done_by_name=NULL, done_profile=NULL, done_at=NULL WHERE id=?')
+      .run(req.params.id);
+  }
   ok(res, { ok: true });
 });
 
@@ -773,7 +814,11 @@ function giorniTra(a, b) {
   return Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
 }
 
-api.post('/shift-changes', need('ferie.request'), (req, res) => {
+/* Le ferie le chiede solo chi ha il permesso SCRITTO nel profilo (barman,
+   barback). Il proprietario, che puo' tutto, le approva ma non le chiede. */
+const needProprio = (cap) => (req, res, next) =>
+  (req.user.permissions || []).includes(cap) ? next() : bad(res, 403, 'Permesso negato (' + cap + ')');
+api.post('/shift-changes', needProprio('ferie.request'), (req, res) => {
   const { employee_id, type, from_date, to_date, note } = req.body;
   if (!employee_id) return bad(res, 400, 'Scegli il dipendente');
   if (!['cambio', 'ferie', 'permesso'].includes(type)) return bad(res, 400, 'Tipo non valido');
@@ -805,7 +850,7 @@ api.put('/shift-changes/:id', need('ferie.approve'), (req, res) => {
 });
 
 // chi ha chiesto puo' ritirare la richiesta finche' nessuno ha deciso
-api.delete('/shift-changes/:id', need('ferie.request'), (req, res) => {
+api.delete('/shift-changes/:id', needProprio('ferie.request'), (req, res) => {
   const c = db.prepare('SELECT * FROM shift_changes WHERE id=?').get(req.params.id);
   if (!c) return bad(res, 404, 'Richiesta non trovata');
   if (c.status !== 'in attesa') return bad(res, 409, 'Si possono ritirare solo le richieste in attesa');

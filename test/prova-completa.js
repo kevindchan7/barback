@@ -227,9 +227,26 @@ async function aspettaServer() {
   verifica('il barman non crea turni', (await chiama('/shifts', { metodo: 'POST', token: B, corpo: { employee_id: dip[0].id, date: oggi, start: '9:00', end: '12:00' } })).stato === 403);
   verifica('si elimina un turno', (await chiama('/shifts/' + turno.dati.id, { metodo: 'DELETE', token: R })).stato === 200);
 
+  // colori dei dipendenti e turni in blocco
+  const dipC = (await chiama('/employees', { token: R })).dati;
+  verifica('ogni dipendente ha un colore', dipC.every(e => /^#[0-9a-f]{6}$/i.test(e.color)));
+  const giorni = ['2031-03-03', '2031-03-05', '2031-03-07'];
+  const blocco = await chiama('/shifts/bulk', { metodo: 'POST', token: R, corpo: { employee_id: dip[0].id, dates: giorni, start: '18:00', end: '23:00' } });
+  verifica('piu\' turni in un colpo', blocco.stato === 200 && blocco.dati.added === 3);
+  const ripetuto = await chiama('/shifts/bulk', { metodo: 'POST', token: R, corpo: { employee_id: dip[0].id, dates: giorni, start: '18:00', end: '23:00' } });
+  verifica('gli stessi turni non si duplicano', ripetuto.dati.added === 0 && ripetuto.dati.skipped === 3);
+  verifica('il barman non crea turni in blocco', (await chiama('/shifts/bulk', { metodo: 'POST', token: B, corpo: { employee_id: dip[0].id, dates: giorni, start: '9:00', end: '12:00' } })).stato === 403);
+  const marzo = (await chiama('/shifts?from=2031-03-01&to=2031-03-31', { token: R })).dati;
+  verifica('i turni portano il colore del dipendente', marzo.length === 3 && marzo.every(s => s.color));
+  for (const s of marzo) await chiama('/shifts/' + s.id, { metodo: 'DELETE', token: R });
+
   const task = await chiama('/tasks', { metodo: 'POST', token: R, corpo: { title: 'Prova task', date: oggi } });
   verifica('il responsabile crea una task', task.stato === 200);
-  verifica('il barman puo\' spuntare una task', (await chiama('/tasks/' + task.dati.id, { metodo: 'PUT', token: B, corpo: { done: true } })).stato === 200);
+  verifica('il barman puo\' spuntare una task', (await chiama('/tasks/' + task.dati.id, { metodo: 'PUT', token: B, corpo: { done: true, employee_id: dip[0].id } })).stato === 200);
+  verifica('la task fatta sparisce dalla lista', !(await chiama('/tasks', { token: B })).dati.some(x => x.id === task.dati.id));
+  const fatta = (await chiama('/tasks/history', { token: B })).dati.find(x => x.id === task.dati.id);
+  verifica('nello storico si vede chi l\'ha fatta', fatta && fatta.done_by_name === dip[0].name && fatta.done_profile && fatta.done_at);
+  verifica('il barman non toglie la firma', (await chiama('/tasks/' + task.dati.id, { metodo: 'PUT', token: B, corpo: { done: false } })).stato === 403);
   verifica('il barman non crea task', (await chiama('/tasks', { metodo: 'POST', token: B, corpo: { title: 'Abusiva' } })).stato === 403);
 
   /* ---------------- FERIE E PERMESSI ---------------- */

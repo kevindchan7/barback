@@ -128,6 +128,27 @@ addColumn('shift_changes', 'decided_by', 'INTEGER');
 addColumn('shift_changes', 'motivo', "TEXT DEFAULT ''");
 // 1 = il PIN e' ancora quello di fabbrica: l'app lo segnala finche' non si cambia
 addColumn('profiles', 'pin_default', 'INTEGER DEFAULT 0');
+// ogni dipendente ha un colore: nel calendario dei turni si riconosce dal puntino
+addColumn('employees', 'color', 'TEXT');
+// task "firmate": chi l'ha fatta (dipendente), da quale profilo e' stata spuntata, quando.
+// Il nome si copia: se il dipendente viene eliminato, lo storico resta leggibile.
+addColumn('tasks', 'done_by_emp', 'INTEGER');
+addColumn('tasks', 'done_by_name', 'TEXT');
+addColumn('tasks', 'done_profile', 'TEXT');
+addColumn('tasks', 'done_at', 'TEXT');
+
+/* Colori ben distinguibili fra loro, anche come puntini piccoli. */
+const COLORI = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4',
+  '#f032e6', '#bfef45', '#ffe119', '#469990', '#9a6324', '#dcbeff'];
+// il colore meno usato finora, cosi' due dipendenti si somigliano il meno possibile
+db.prossimoColore = function () {
+  const usati = db.prepare('SELECT color FROM employees').all().map(r => r.color);
+  return COLORI.map(c => [c, usati.filter(u => u === c).length]).sort((a, b) => a[1] - b[1])[0][0];
+};
+function coloraDipendenti() {
+  db.prepare("SELECT id FROM employees WHERE color IS NULL OR color='' ORDER BY id").all()
+    .forEach(e => db.prepare('UPDATE employees SET color=? WHERE id=?').run(db.prossimoColore(), e.id));
+}
 
 /* ---------- helper date per il seed ---------- */
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -309,6 +330,7 @@ seedIfEmpty();
 seedVendorsAndPar();
 seedInventario();
 segnalaPinDiFabbrica();
+coloraDipendenti();
 
 /* ---------------- LA VETRINA PUBBLICA ----------------
    La demo online e' aperta a chiunque: chi passa puo' cancellare
@@ -327,6 +349,7 @@ db.riseminaDemo = function () {
   seedVendorsAndPar();
   seedInventario();
   segnalaPinDiFabbrica();
+  coloraDipendenti();
 };
 
 module.exports = db;
