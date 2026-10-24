@@ -22,6 +22,16 @@ const PORT = process.env.PORT || 3100;
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 
 app.use(express.json({ limit: '5mb' }));
+/* L'app installata sul telefono deve aprirsi gia' nel bar giusto: su iPhone
+   l'icona sulla schermata Home non vede i dati di Safari, quindi il codice
+   del locale viaggia dentro il manifest (start_url /?l=codice).          */
+const MANIFEST = JSON.parse(fs.readFileSync(path.join(__dirname, 'public', 'manifest.webmanifest'), 'utf8'));
+app.get('/manifest.webmanifest', (req, res) => {
+  const m = { ...MANIFEST };
+  const info = req.query.l ? M.infoLocale(req.query.l) : null;
+  if (info) { m.start_url = '/?l=' + encodeURIComponent(info.codice); m.id = m.start_url; m.name = 'Barback — ' + info.nome; }
+  res.type('application/manifest+json').send(JSON.stringify(m));
+});
 app.use(express.static(path.join(__dirname, 'public')));
 // la lingua scelta nel browser accompagna ogni richiesta: gli errori e il
 // manuale escono gia' tradotti, senza che il frontend debba rimapparli

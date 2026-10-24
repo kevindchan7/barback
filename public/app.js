@@ -21,6 +21,12 @@ let LOCALE = (() => { try { return localStorage.getItem('bb_locale') || ''; } ca
     TOKEN = null; PROFILE = null;
   }
 })();
+// il manifest col codice del locale: l'icona installata si apre nel bar giusto
+function aggiornaManifest() {
+  const l = document.querySelector('link[rel="manifest"]');
+  if (l) l.href = 'manifest.webmanifest' + (LOCALE ? '?l=' + encodeURIComponent(LOCALE) : '');
+}
+aggiornaManifest();
 let pollTimer = null;
 
 // can(cap): il profilo ha quella capacità? 'all' (proprietario) supera tutto.
@@ -70,6 +76,7 @@ async function entraLocale(codice) {
   if (!c) return;
   LOCALE = c;
   try { localStorage.setItem('bb_locale', c); } catch {}
+  aggiornaManifest();
   $('#login-msg').textContent = '';
   await initLogin();
 }
