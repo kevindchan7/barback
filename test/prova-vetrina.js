@@ -6,13 +6,15 @@
    trova le macerie del primo — o peggio, non riesce nemmeno a entrare.
    Si lancia con:  npm run prova-vetrina
    ===================================================================== */
-process.env.SEED_DEMO = '1';
 const os = require('os'), path = require('path'), fs = require('fs');
-const dbFile = path.join(os.tmpdir(), `vetrina-${Date.now()}.db`);
-process.env.DB_PATH = dbFile;
+const dbFile = path.join(os.tmpdir(), `vetrina-${Date.now()}`);
+process.env.DATA_DIR = dbFile;
 
 const bcrypt = require('bcryptjs');
 const db = require('../db');
+const M = db.__multi;
+// tutto quello che segue gira dentro il bar "demo"
+M.contesto.enterWith(M.dbDel('demo'));
 
 let ok = 0, ko = 0;
 const conta = (t) => db.prepare(`SELECT COUNT(*) c FROM ${t}`).get().c;
@@ -37,7 +39,7 @@ db.prepare(`INSERT INTO impostazioni (chiave,valore) VALUES ('locale_nome','SCRI
   ON CONFLICT(chiave) DO UPDATE SET valore=excluded.valore`).run();
 verifica('il visitatore ha svuotato il magazzino', conta('products') === 0);
 
-db.riseminaDemo();
+M.riseminaDemo();
 
 verifica('i prodotti sono tornati', conta('products') === prima.prodotti, conta('products'));
 verifica('i fornitori sono tornati', conta('vendors') === prima.fornitori, conta('vendors'));
@@ -52,11 +54,11 @@ verifica('il profilo e\' di nuovo segnato come di fabbrica', pro2.pin_default ==
 const nome = db.prepare("SELECT valore v FROM impostazioni WHERE chiave='locale_nome'").get();
 verifica('il nome scritto dal passante e\' sparito',
   !nome || nome.v !== 'SCRITTO DA UN PASSANTE', nome);
+verifica('il nome torna "Bar Demo"', nome && nome.v === 'Bar Demo', nome);
 verifica('gli id ripartono da 1, la demo sembra nuova',
   db.prepare('SELECT MIN(id) m FROM products').get().m === 1);
 
-try { fs.rmSync(dbFile, { force: true }); } catch {}
-try { ['-wal', '-shm'].forEach(e => fs.rmSync(dbFile + e, { force: true })); } catch {}
+try { fs.rmSync(dbFile, { recursive: true, force: true }); } catch {}
 
 console.log(`\n${ok} passati, ${ko} falliti\n`);
 process.exit(ko ? 1 : 0);

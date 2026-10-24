@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Registra il tuo locale — Barback</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="icon.svg">
+<style>
+:root{
+  --bg:#0f1512; --panel:#16201b; --panel2:#1d2b23; --line:#2c3d33;
+  --txt:#eaf4ee; --muted:#8fa89a; --accent:#3ecf8e; --accent-ink:#06120c; --red:#ff6b6b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px))}
+.card{max-width:440px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
+h1{font-size:24px;margin:0 0 6px}
+p.sub{color:var(--muted);margin:0 0 20px}
+label{display:block;font-size:14px;color:var(--muted);margin:14px 0 6px}
+input{width:100%;font-size:16px;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--txt)}
+input:focus{outline:2px solid var(--accent);border-color:transparent}
+.hint{font-size:13px;color:var(--muted);margin-top:4px}
+button{width:100%;margin-top:22px;padding:14px;font-size:16px;font-weight:700;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);cursor:pointer}
+button:disabled{opacity:.6}
+.err{color:var(--red);margin-top:12px;min-height:1.2em}
+.codice{font-size:28px;font-weight:800;color:var(--accent);background:var(--panel2);border-radius:12px;padding:14px;text-align:center;margin:14px 0;word-break:break-all}
+a{color:var(--accent)}
+.btn{display:block;text-align:center;text-decoration:none;margin-top:16px;padding:14px;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:700}
+ol{padding-left:20px;color:var(--muted)} ol li{margin:6px 0}
+.foot{text-align:center;color:var(--muted);font-size:13px;margin-top:18px}
+</style>
+</head>
+<body>
+<div class="card" id="form-card">
+  <h1>Registra il tuo locale</h1>
+  <p class="sub">Un minuto, e Barback è pronto per il tuo bar. I tuoi dati restano solo tuoi.</p>
+  <form id="f">
+    <label for="nome">Nome del locale</label>
+    <input id="nome" required maxlength="60" placeholder="es. Bar Sport">
+    <label for="citta">Città</label>
+    <input id="citta" maxlength="60" placeholder="es. Roma">
+    <label for="email">Email del titolare</label>
+    <input id="email" type="email" required maxlength="120" placeholder="nome@esempio.it">
+    <label for="telefono">Telefono / WhatsApp</label>
+    <input id="telefono" type="tel" maxlength="30" placeholder="+39 ...">
+    <label for="pin">Scegli il tuo PIN da titolare (4 cifre)</label>
+    <input id="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required autocomplete="new-password" placeholder="••••">
+    <div class="hint">Con questo PIN entri come Proprietario e vedi tutto. Non usare 1111 o 1234.</div>
+    <button id="invia" type="submit">Crea il mio locale</button>
+    <div class="err" id="err"></div>
+  </form>
+  <div class="foot"><a href="./">Ho già un locale: entra</a></div>
+</div>
+
+<div class="card" id="ok-card" hidden>
+  <h1>Fatto! 🎉</h1>
+  <p class="sub">Il tuo locale è pronto. Questo è il suo codice: tienilo, lo usa tutto lo staff per entrare.</p>
+  <div class="codice" id="codice"></div>
+  <ol>
+    <li>Entra come <b>Proprietario</b> col PIN che hai scelto.</li>
+    <li>Cambia i PIN degli altri profili (l'app te lo ricorda).</li>
+    <li>Aggiungi le tue bottiglie e i tuoi cocktail.</li>
+  </ol>
+  <a class="btn" id="apri" href="./">Apri Barback</a>
+  <div class="foot">Allo staff basta mandare questo link: <br><a id="link" href="./"></a></div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+$('#f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('#err').textContent = ''; $('#invia').disabled = true; $('#invia').textContent = 'Creo il locale…';
+  try {
+    const r = await fetch('/api/registra', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome: $('#nome').value, citta: $('#citta').value, email: $('#email').value,
+        telefono: $('#telefono').value, pin: $('#pin').value }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'Errore ' + r.status);
+    const url = location.origin + '/?l=' + encodeURIComponent(d.codice);
+    $('#codice').textContent = d.codice;
+    $('#apri').href = url; $('#link').href = url; $('#link').textContent = url;
+    try { localStorage.setItem('bb_locale', d.codice); localStorage.removeItem('bb_token'); localStorage.removeItem('bb_profile'); } catch {}
+    $('#form-card').hidden = true; $('#ok-card').hidden = false; scrollTo(0, 0);
+  } catch (err) {
+    $('#err').textContent = '⚠ ' + err.message;
+  } finally { $('#invia').disabled = false; $('#invia').textContent = 'Crea il mio locale'; }
+});
+</script>
+</body>
+</html>

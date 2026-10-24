@@ -15,6 +15,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 
 const PORT = Number(process.env.PORT_TEST || 3196);
+const LOCALE_PROVA = 'demo';
 const BASE = `http://127.0.0.1:${PORT}`;
 const DB = path.join(os.tmpdir(), `barback-lingue-${Date.now()}.db`);
 
@@ -29,7 +30,7 @@ const titolo = (t) => console.log(`\n${t}`);
 async function chiama(p, { metodo = 'GET', corpo, token, lang } = {}) {
   const r = await fetch(BASE + '/api' + p, {
     method: metodo,
-    headers: { 'Content-Type': 'application/json',
+    headers: { 'Content-Type': 'application/json', 'X-Locale': LOCALE_PROVA,
       ...(lang ? { 'X-Lang': lang } : {}),
       ...(token ? { Authorization: 'Bearer ' + token } : {}) },
     body: corpo ? JSON.stringify(corpo) : undefined,
@@ -90,11 +91,11 @@ async function chiama(p, { metodo = 'GET', corpo, token, lang } = {}) {
   /* ---------- 4. il server risponde tradotto ---------- */
   titolo('4. IL SERVER RISPONDE NELLA LINGUA CHIESTA');
   const server = spawn(process.execPath, ['--experimental-sqlite', path.join(__dirname, '..', 'server.js')],
-    { env: { ...process.env, PORT: String(PORT), DB_PATH: DB, JWT_SECRET: 'prova', SEED_DEMO: '1' }, stdio: 'ignore' });
+    { env: { ...process.env, PORT: String(PORT), DATA_DIR: DB + '-dir', JWT_SECRET: 'prova', SEED_DEMO: '1' }, stdio: 'ignore' });
 
   const chiudi = (c) => {
     server.kill();
-    try { for (const s of ['', '-wal', '-shm']) fs.rmSync(DB + s, { force: true }); } catch {}
+    try { fs.rmSync(DB + '-dir', { recursive: true, force: true }); } catch {}
     console.log(`\n${'='.repeat(52)}`);
     console.log(`Superati: ${passati}   Falliti: ${falliti}`);
     if (falliti) console.log('Non passano:\n  - ' + problemi.join('\n  - '));
@@ -105,7 +106,7 @@ async function chiama(p, { metodo = 'GET', corpo, token, lang } = {}) {
 
   let su = false;
   for (let i = 0; i < 60 && !su; i++) {
-    try { const r = await fetch(BASE + '/api/profiles'); su = r.ok; } catch {}
+    try { const r = await fetch(BASE + '/api/locale/demo'); su = r.ok; } catch {}
     if (!su) await new Promise(s => setTimeout(s, 250));
   }
   if (!su) { console.log('Il server non risponde.'); return chiudi(1); }

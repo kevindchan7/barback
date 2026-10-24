@@ -6,7 +6,7 @@
    ===================================================================== */
 /* La versione va cambiata ogni volta che cambia questa lista, altrimenti
    chi ha gia' installato l'app resta con il guscio vecchio. */
-const CACHE = 'barback-guscio-v2';
+const CACHE = 'barback-guscio-v3';
 const GUSCIO = ['./', 'index.html', 'style.css', 'app.js', 'mascot.js', 'i18n.js',
   'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'manifest.webmanifest'];
 

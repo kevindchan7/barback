@@ -37,7 +37,17 @@
   <div style="display:flex;justify-content:flex-end"><button class="langbtn themebtn" onclick="toggleLang()" title="Cambia lingua" data-i18n-title="cambia_lingua">IT</button>
     <button class="themebtn" onclick="toggleTheme()" title="Cambia tema" data-i18n-title="cambia_tema">🌙</button></div>
   <div class="login-head" id="login-head"></div>
-  <div id="profiles-wrap">
+  <div id="locale-wrap" class="hidden" style="max-width:340px;margin:0 auto;text-align:center">
+    <p class="muted" data-i18n="locale_scrivi">Scrivi il codice del tuo locale</p>
+    <form onsubmit="entraLocale();return false" style="display:flex;gap:8px">
+      <input id="locale-codice" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="es. bar-sport-roma" data-i18n-ph="locale_ph" style="flex:1;font-size:16px">
+      <button type="submit" data-i18n="locale_entra">Entra</button>
+    </form>
+    <p class="muted" style="margin-top:18px;font-size:14px"><span data-i18n="locale_prova">Vuoi solo provarla?</span> <a href="#" onclick="entraLocale('demo');return false" data-i18n="locale_demo">Apri il bar demo</a> (PIN 1111)<br>
+      <span data-i18n="locale_nuovo">Locale nuovo?</span> <a href="registra.html" data-i18n="locale_registra">Registralo qui</a></p>
+  </div>
+  <div id="profiles-wrap" class="hidden">
+    <p class="muted" style="text-align:center;font-size:14px" id="locale-nome"></p>
     <p class="muted" style="text-align:center" data-i18n="scegli_profilo">Scegli il tuo profilo</p>
     <div class="profiles" id="profiles"></div>
   </div>

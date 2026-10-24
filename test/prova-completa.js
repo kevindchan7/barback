@@ -14,6 +14,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 
 const PORT = Number(process.env.PORT_TEST || 3199);
+const LOCALE_PROVA = 'demo';
 const BASE = `http://127.0.0.1:${PORT}`;
 const DB = path.join(os.tmpdir(), `barback-prova-${Date.now()}.db`);
 
@@ -32,7 +33,7 @@ function titolo(t) { console.log(`\n${t}`); }
 async function chiama(percorso, { metodo = 'GET', corpo, token } = {}) {
   const r = await fetch(BASE + '/api' + percorso, {
     method: metodo,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    headers: { 'Content-Type': 'application/json', 'X-Locale': LOCALE_PROVA, ...(token ? { Authorization: 'Bearer ' + token } : {}) },
     body: corpo ? JSON.stringify(corpo) : undefined,
   });
   let dati = null;
@@ -44,7 +45,7 @@ const entra = async (profileId, pin) =>
 
 async function aspettaServer() {
   for (let i = 0; i < 60; i++) {
-    try { const r = await fetch(BASE + '/api/profiles'); if (r.ok) return true; } catch {}
+    try { const r = await fetch(BASE + '/api/locale/demo'); if (r.ok) return true; } catch {}
     await new Promise(s => setTimeout(s, 250));
   }
   return false;
@@ -55,11 +56,11 @@ async function aspettaServer() {
   console.log('database usa-e-getta:', DB);
 
   const server = spawn(process.execPath, ['--experimental-sqlite', path.join(__dirname, '..', 'server.js')],
-    { env: { ...process.env, PORT: String(PORT), DB_PATH: DB, JWT_SECRET: 'prova-non-segreta', SEED_DEMO: '1' }, stdio: 'ignore' });
+    { env: { ...process.env, PORT: String(PORT), DATA_DIR: DB + '-dir', JWT_SECRET: 'prova-non-segreta', SEED_DEMO: '1' }, stdio: 'ignore' });
 
   const chiudi = (codice) => {
     server.kill();
-    try { for (const s of ['', '-wal', '-shm']) fs.rmSync(DB + s, { force: true }); } catch {}
+    try { fs.rmSync(DB + '-dir', { recursive: true, force: true }); } catch {}
     console.log(`\n${'='.repeat(52)}`);
     console.log(`Superati: ${passati}   Falliti: ${falliti}`);
     if (falliti) console.log('Non passano:\n  - ' + problemi.join('\n  - '));
@@ -322,7 +323,7 @@ async function aspettaServer() {
   verifica('si entra col PIN nuovo', !!T2);
 
   // nome del locale
-  verifica('all\'inizio il nome del locale e\' vuoto', (await chiama('/impostazioni', { token: T2 })).dati.locale_nome === '');
+  verifica('il bar demo nasce col suo nome', (await chiama('/impostazioni', { token: T2 })).dati.locale_nome === 'Bar Demo');
   verifica('si salva il nome del locale',
     (await chiama('/impostazioni', { metodo: 'PUT', token: T2, corpo: { locale_nome: 'Bar della Prova' } })).stato === 200);
   verifica('il nome torna indietro', (await chiama('/impostazioni', { token: T2 })).dati.locale_nome === 'Bar della Prova');

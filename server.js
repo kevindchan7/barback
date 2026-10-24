@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const db = require('./db');
+const M = db.__multi;   // i locali: registro, apertura, creazione
 const { linguaDi, traduciErrore, REGOLE, PREPARAZIONI } = require('./messaggi');
 
 const app = express();
@@ -34,12 +35,98 @@ const bad = (res, c, m) => res.status(c).json({ error: traduciErrore(m, res.loca
 const monthOf = (q) => q || now().slice(0, 7);
 
 
+/* ---------------- I LOCALI ----------------
+   Tutte le chiamate /api lavorano sul database di UN locale. Quale?
+   - chi e' gia' entrato: quello scritto nel suo token (non si puo' cambiare)
+   - chi sta entrando: quello che manda nell'intestazione X-Locale       */
+const limiti = new Map();   // ip -> [orari]: freno contro chi crea locali a raffica
+function troppi(ip, quanti, minuti) {
+  const ora = Date.now(), da = ora - minuti * 60000;
+  const l = (limiti.get(ip) || []).filter(t => t > da);
+  l.push(ora); limiti.set(ip, l);
+  return l.length > quanti;
+}
+const pinNuovoOk = (p) => /^\d{4}$/.test(String(p || ''));
+
+// esiste questo locale? (la schermata d'accesso mostra il nome prima dei profili)
+app.get('/api/locale/:codice', (req, res) => {
+  const l = M.infoLocale(req.params.codice);
+  if (!l) return bad(res, 404, 'Locale non trovato: controlla il codice');
+  if (!l.attivo) return bad(res, 403, 'Locale sospeso: contatta Barback');
+  ok(res, { codice: l.codice, nome: l.nome, demo: !!l.demo });
+});
+
+// registrazione di un locale nuovo, da /registra.html
+app.post('/api/registra', (req, res) => {
+  const ip = req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : req.ip;
+  if (troppi(ip, 5, 60)) return bad(res, 429, 'Troppe registrazioni da questa rete: riprova fra un\'ora');
+  const b = req.body || {};
+  const nome = String(b.nome || '').trim().slice(0, 60);
+  const email = String(b.email || '').trim().slice(0, 120);
+  if (nome.length < 2) return bad(res, 400, 'Scrivi il nome del locale');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return bad(res, 400, 'Email non valida');
+  if (!pinNuovoOk(b.pin)) return bad(res, 400, 'Il PIN deve essere di 4 cifre');
+  if (['1111', '2222', '3333', '4444', '0000', '1234'].includes(String(b.pin))) return bad(res, 400, 'Scegli un PIN meno facile da indovinare');
+  // il codice: quello scelto, oppure ricavato dal nome; se e' preso, aggiungo un numero
+  let base = M.pulisciCodice(b.codice || nome) || 'bar';
+  if (base.length < 3) base = (base + '-bar').slice(0, 30);
+  if (['demo', 'admin', 'api', 'www', 'barback'].includes(base)) base = base + '-bar';
+  let codice = base, n = 2;
+  while (M.infoLocale(codice)) { if (b.codice) return bad(res, 409, 'Questo codice è già usato da un altro locale'); codice = base.slice(0, 26) + '-' + n++; }
+  try {
+    codice = M.creaLocale({ codice, nome, email, telefono: String(b.telefono || '').slice(0, 30), citta: String(b.citta || '').slice(0, 60), pin: b.pin });
+  } catch (e) { return bad(res, 400, e.message); }
+  console.log('Nuovo locale registrato: ' + codice + ' (' + nome + ')');
+  ok(res, { codice, nome });
+});
+
+/* ---------------- PANNELLO DEL TITOLARE DI BARBACK ----------------
+   Solo per te: elenco dei bar iscritti, sospendere chi non paga.
+   Serve la chiave ADMIN_KEY (Render la genera; la trovi in Environment). */
+const ADMIN_KEY = process.env.ADMIN_KEY || '';
+function admin(req, res, next) {
+  const k = req.headers['x-admin-key'] || '';
+  if (!ADMIN_KEY || k.length !== ADMIN_KEY.length ||
+    !crypto.timingSafeEqual(Buffer.from(k), Buffer.from(ADMIN_KEY))) return bad(res, 401, 'Chiave admin errata');
+  next();
+}
+app.get('/api/admin/locali', admin, (req, res) => ok(res, M.elenco().map(l => {
+  let profili = 0, prodotti = 0;
+  try { const d = M.dbDel(l.codice); profili = d.prepare('SELECT COUNT(*) c FROM profiles').get().c; prodotti = d.prepare('SELECT COUNT(*) c FROM products').get().c; } catch {}
+  return { ...l, profili, prodotti };
+})));
+app.post('/api/admin/locali/:codice/attivo', admin, (req, res) => {
+  if (!M.infoLocale(req.params.codice)) return bad(res, 404, 'Locale non trovato');
+  M.sospendi(req.params.codice, !!(req.body || {}).attivo);
+  ok(res, { ok: true });
+});
+
+// da qui in poi ogni chiamata gira dentro il database del suo locale
+app.use('/api', (req, res, next) => {
+  let codice = req.headers['x-locale'] || '';
+  const h = req.headers.authorization || '';
+  if (h.startsWith('Bearer ')) {
+    try { const t = jwt.verify(h.slice(7), JWT_SECRET); if (t.loc) codice = t.loc; } catch { /* ci pensa auth() */ }
+  }
+  if (!codice) return bad(res, 400, 'Manca il codice del locale');
+  const info = M.infoLocale(codice);
+  if (!info) return bad(res, 404, 'Locale non trovato: controlla il codice');
+  if (!info.attivo) return bad(res, 403, 'Locale sospeso: contatta Barback');
+  res.locals.locale = info.codice;
+  M.contesto.run(M.dbDel(info.codice), next);
+});
+
 /* ---------------- AUTH ---------------- */
 function auth(req, res, next) {
   const h = req.headers.authorization || '';
   const token = h.startsWith('Bearer ') ? h.slice(7) : null;
   if (!token) return bad(res, 401, 'Token mancante');
-  try { req.user = jwt.verify(token, JWT_SECRET); next(); }
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    // un token di un altro locale (o di prima del multi-locale) non vale qui
+    if (req.user.loc !== res.locals.locale) return bad(res, 401, 'Token non valido');
+    next();
+  }
   catch { return bad(res, 401, 'Token non valido'); }
 }
 // controllo permessi: 'all' (proprietario) supera tutto
@@ -55,8 +142,9 @@ app.post('/api/auth/pin', (req, res) => {
   const p = db.prepare('SELECT * FROM profiles WHERE id=?').get(profileId);
   if (!p || !bcrypt.compareSync(String(pin || ''), p.pin_hash)) return bad(res, 401, 'PIN errato');
   const permissions = JSON.parse(p.permissions || '[]');
-  const token = jwt.sign({ id: p.id, name: p.name, permissions }, JWT_SECRET, { expiresIn: '12h' });
-  ok(res, { token, profile: { id: p.id, name: p.name, permissions } });
+  const token = jwt.sign({ id: p.id, name: p.name, permissions, loc: res.locals.locale }, JWT_SECRET, { expiresIn: '12h' });
+  try { M.segnaAccesso(res.locals.locale); } catch {}
+  ok(res, { token, profile: { id: p.id, name: p.name, permissions }, locale: res.locals.locale });
 });
 
 const api = express.Router();
@@ -903,7 +991,7 @@ api.put('/impostazioni', need('all'), (req, res) => {
    chi vende: un locale che perde un mese di conteggi non torna piu'.
    Il file si rimette al suo posto e l'app riparte da li'.          */
 api.get('/backup', need('all'), (req, res) => {
-  const percorso = process.env.DB_PATH || path.join(__dirname, 'data.db');
+  const percorso = db.percorso;
   // WAL: prima riversiamo tutto nel file principale, sennon la copia
   // sarebbe incompleta e i dati piu' recenti mancherebbero
   try { db.exec('PRAGMA wal_checkpoint(TRUNCATE);'); } catch {}
@@ -921,7 +1009,7 @@ api.get('/backup/info', need('all'), (req, res) => {
   // come per il download: prima riversiamo il WAL, sennò la dimensione
   // e il numero di righe sarebbero quelli di prima degli ultimi cambiamenti
   try { db.exec('PRAGMA wal_checkpoint(TRUNCATE);'); } catch {}
-  const percorso = process.env.DB_PATH || path.join(__dirname, 'data.db');
+  const percorso = db.percorso;
   if (!fs.existsSync(percorso)) return ok(res, { esiste: false });
   const s = fs.statSync(percorso);
   const conta = (t) => { try { return db.prepare(`SELECT COUNT(*) c FROM ${t}`).get().c; } catch { return 0; } };
@@ -930,34 +1018,17 @@ api.get('/backup/info', need('all'), (req, res) => {
       dipendenti: conta('employees'), turni: conta('shifts'),
       inventari: conta('inv_sessions'), conteggi: conta('inv_counts') } });
 });
-/* ---------------- LA VETRINA PUBBLICA ----------------
-   Con DEMO_MODE=1 l'app diventa la demo aperta a tutti: chiunque puo'
-   entrare e toccare qualsiasi cosa. Ogni notte torna com'era, cosi'
-   chi la apre domani mattina la trova intatta come chi l'ha aperta ieri.
-   Non serve a nessun locale vero: la' questa variabile non c'e'.     */
-const VETRINA = process.env.DEMO_MODE === '1';
-if (VETRINA) {
-  const nomeDemo = () => db.prepare(`INSERT INTO impostazioni (chiave,valore)
-    VALUES ('locale_nome','Bar Demo') ON CONFLICT(chiave)
-    DO UPDATE SET valore=excluded.valore`).run();
-  nomeDemo();
-
-  // l'ora e' quella del server (UTC su Render): le 4 UTC sono le 6 in Italia,
-  // comunque un orario in cui nessuno sta guardando la demo
-  let ultimoGiorno = new Date().toISOString().slice(0, 10);
-  setInterval(() => {
-    const ora = new Date();
-    const oggi = ora.toISOString().slice(0, 10);
-    if (ora.getUTCHours() !== 4 || oggi === ultimoGiorno) return;
-    ultimoGiorno = oggi;
-    try {
-      db.riseminaDemo();
-      nomeDemo();
-      console.log('Demo rimessa a nuovo (' + oggi + ')');
-    } catch (e) { console.error('Demo: ripulitura fallita', e); }
-  }, 10 * 60 * 1000);
-
-  console.log("Modalita' vetrina: i dati si azzerano ogni notte alle 4 UTC");
-}
+/* ---------------- IL BAR DEMO ----------------
+   Il locale "demo" (PIN 1111) e' aperto a tutti: chiunque puo' toccare
+   tutto. Ogni notte alle 4 UTC (6 in Italia) torna com'era.          */
+let ultimoGiorno = new Date().toISOString().slice(0, 10);
+setInterval(() => {
+  const ora = new Date();
+  const oggi = ora.toISOString().slice(0, 10);
+  if (ora.getUTCHours() !== 4 || oggi === ultimoGiorno) return;
+  ultimoGiorno = oggi;
+  try { M.riseminaDemo(); console.log('Demo rimessa a nuovo (' + oggi + ')'); }
+  catch (e) { console.error('Demo: ripulitura fallita', e); }
+}, 10 * 60 * 1000);
 
 app.listen(PORT, () => console.log(`Barback avviato su http://localhost:${PORT}`));

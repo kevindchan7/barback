@@ -7,6 +7,18 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 let TOKEN = localStorage.getItem('bb_token') || null;
 let PROFILE = JSON.parse(localStorage.getItem('bb_profile') || 'null');
 let currentView = 'home';
+/* IL LOCALE: su questo server ci sono tanti bar, ognuno col suo codice.
+   Il codice si scrive una volta e il telefono lo ricorda. Arriva anche dal
+   link:  ...onrender.com/?l=codice  (es. il QR attaccato dietro al banco). */
+let LOCALE = (() => { try { return localStorage.getItem('bb_locale') || ''; } catch { return ''; } })();
+(() => {
+  const dalLink = new URLSearchParams(location.search).get('l');
+  if (dalLink && dalLink.toLowerCase() !== LOCALE) {
+    LOCALE = dalLink.toLowerCase();
+    try { localStorage.setItem('bb_locale', LOCALE); localStorage.removeItem('bb_token'); localStorage.removeItem('bb_profile'); } catch {}
+    TOKEN = null; PROFILE = null;
+  }
+})();
 let pollTimer = null;
 
 // can(cap): il profilo ha quella capacità? 'all' (proprietario) supera tutto.
@@ -17,7 +29,7 @@ function canProprio(cap) { return ((PROFILE && PROFILE.permissions) || []).inclu
 async function api(path, method = 'GET', body) {
   const res = await fetch('/api' + path, {
     method,
-    headers: { 'Content-Type': 'application/json', 'X-Lang': (typeof LANG !== 'undefined' ? LANG : 'it'),
+    headers: { 'Content-Type': 'application/json', 'X-Lang': (typeof LANG !== 'undefined' ? LANG : 'it'), 'X-Locale': LOCALE,
       ...(TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -31,12 +43,38 @@ const show = (sel, on) => { const e = $(sel); if (e) e.classList.toggle('hidden'
 let selProfile = null, pinBuf = '';
 async function initLogin() {
   $('#login-head').innerHTML = mascotSays(t('ciao'));
+  if (!LOCALE) return mostraCodiceLocale();
+  let info;
+  try { info = await api('/locale/' + encodeURIComponent(LOCALE)); }
+  catch (e) { return mostraCodiceLocale(e.message); }
+  $('#locale-wrap').classList.add('hidden'); $('#profiles-wrap').classList.remove('hidden');
+  $('#locale-nome').innerHTML = '📍 <b>' + info.nome.replace(/</g, '&lt;') + '</b>' + (info.demo ? ' · PIN 1111' : '')
+    + ' · <a href="#" onclick="cambiaLocale();return false">' + t('locale_cambia') + '</a>';
   const profiles = await api('/profiles');
   $('#profiles').innerHTML = profiles.map(p => `
     <div class="profile" onclick="selectProfile(${p.id}, '${p.name.replace(/'/g, "\\'")}')">
       ${mascot(40)}
       <div><div class="pn">${nomeProfilo(p.name)}</div><div class="pr">${p.permissions.includes('all') ? t('accesso_completo') : t('permessi_n', { n: p.permissions.length })}</div></div>
     </div>`).join('');
+}
+function mostraCodiceLocale(errore) {
+  $('#profiles-wrap').classList.add('hidden'); $('#pin-wrap').classList.add('hidden');
+  $('#locale-wrap').classList.remove('hidden');
+  $('#login-msg').textContent = errore ? '⚠ ' + errore : '';
+  const c = $('#locale-codice'); c.value = LOCALE || ''; setTimeout(() => c.focus(), 50);
+}
+async function entraLocale(codice) {
+  const c = String(codice || $('#locale-codice').value || '').trim().toLowerCase();
+  if (!c) return;
+  LOCALE = c;
+  try { localStorage.setItem('bb_locale', c); } catch {}
+  $('#login-msg').textContent = '';
+  await initLogin();
+}
+function cambiaLocale() {
+  LOCALE = ''; TOKEN = null; PROFILE = null;
+  try { localStorage.removeItem('bb_locale'); localStorage.removeItem('bb_token'); localStorage.removeItem('bb_profile'); } catch {}
+  mostraCodiceLocale();
 }
 function selectProfile(id, name) {
   selProfile = { id, name }; pinBuf = '';

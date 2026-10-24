@@ -57,6 +57,7 @@ const I18N = {
     inst_banner: 'Mettila fra le tue app',
 
     /* --- accesso --- */
+    locale_scrivi: 'Scrivi il codice del tuo locale', locale_entra: 'Entra', locale_ph: 'es. bar-sport-roma', locale_prova: 'Vuoi solo provarla?', locale_demo: 'Apri il bar demo', locale_nuovo: 'Locale nuovo?', locale_registra: 'Registralo qui', locale_cambia: 'cambia locale',
     scegli_profilo: 'Scegli il tuo profilo', cambia_profilo: '← Cambia profilo',
     pin_per: 'PIN per', accesso_completo: 'accesso completo', permessi_n: '{n} permessi',
     ciao: 'Ciao! Sono Barback. Scegli un profilo per entrare.',
@@ -245,6 +246,7 @@ const I18N = {
     inst_manuale: 'From the browser menu, choose "Install app" or "Add to Home screen".',
     inst_banner: 'Keep it with your apps',
 
+    locale_scrivi: 'Enter your venue code', locale_entra: 'Enter', locale_ph: 'e.g. sports-bar-london', locale_prova: 'Just want to try it?', locale_demo: 'Open the demo bar', locale_nuovo: 'New venue?', locale_registra: 'Register it here', locale_cambia: 'change venue',
     scegli_profilo: 'Choose your profile', cambia_profilo: '← Change profile',
     pin_per: 'PIN for', accesso_completo: 'full access', permessi_n: '{n} permissions',
     ciao: 'Hi! I am Barback. Pick a profile to get in.',
@@ -422,6 +424,7 @@ const I18N = {
     inst_manuale: 'Desde el menú del navegador, elige "Instalar app" o "Agregar a pantalla de inicio".',
     inst_banner: 'Tenla junto a tus apps',
 
+    locale_scrivi: 'Escribe el código de tu local', locale_entra: 'Entrar', locale_ph: 'p. ej. bar-sport-madrid', locale_prova: '¿Solo quieres probarla?', locale_demo: 'Abre el bar demo', locale_nuovo: '¿Local nuevo?', locale_registra: 'Regístralo aquí', locale_cambia: 'cambiar local',
     scegli_profilo: 'Elige tu perfil', cambia_profilo: '← Cambiar perfil',
     pin_per: 'PIN de', accesso_completo: 'acceso completo', permessi_n: '{n} permisos',
     ciao: '¡Hola! Soy Barback. Elige un perfil para entrar.',

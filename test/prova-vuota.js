@@ -15,6 +15,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 
 const PORT = Number(process.env.PORT_TEST || 3197);
+const LOCALE_PROVA = 'prova-vuota';
 const BASE = `http://127.0.0.1:${PORT}`;
 const DB = path.join(os.tmpdir(), `barback-vuota-${Date.now()}.db`);
 
@@ -29,7 +30,7 @@ const titolo = (t) => console.log(`\n${t}`);
 async function chiama(p, { metodo = 'GET', corpo, token } = {}) {
   const r = await fetch(BASE + '/api' + p, {
     method: metodo,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    headers: { 'Content-Type': 'application/json', 'X-Locale': LOCALE_PROVA, ...(token ? { Authorization: 'Bearer ' + token } : {}) },
     body: corpo ? JSON.stringify(corpo) : undefined,
   });
   let dati = null; try { dati = await r.json(); } catch {}
@@ -42,11 +43,11 @@ async function chiama(p, { metodo = 'GET', corpo, token } = {}) {
 
   // niente SEED_DEMO: l'app deve nascere vuota
   const server = spawn(process.execPath, ['--experimental-sqlite', path.join(__dirname, '..', 'server.js')],
-    { env: { ...process.env, PORT: String(PORT), DB_PATH: DB, JWT_SECRET: 'prova-non-segreta' }, stdio: 'ignore' });
+    { env: { ...process.env, PORT: String(PORT), DATA_DIR: DB + '-dir', JWT_SECRET: 'prova-non-segreta' }, stdio: 'ignore' });
 
   const chiudi = (c) => {
     server.kill();
-    try { for (const s of ['', '-wal', '-shm']) fs.rmSync(DB + s, { force: true }); } catch {}
+    try { fs.rmSync(DB + '-dir', { recursive: true, force: true }); } catch {}
     console.log(`\n${'='.repeat(52)}`);
     console.log(`Superati: ${passati}   Falliti: ${falliti}`);
     if (falliti) console.log('Non passano:\n  - ' + problemi.join('\n  - '));
@@ -57,17 +58,20 @@ async function chiama(p, { metodo = 'GET', corpo, token } = {}) {
 
   let su = false;
   for (let i = 0; i < 60 && !su; i++) {
-    try { const r = await fetch(BASE + '/api/profiles'); su = r.ok; } catch {}
+    try { const r = await fetch(BASE + '/api/locale/demo'); su = r.ok; } catch {}
     if (!su) await new Promise(s => setTimeout(s, 250));
   }
   if (!su) { console.log('Il server non risponde.'); return chiudi(1); }
 
+  // un locale vero si crea dalla registrazione, col PIN scelto dal titolare
+  const reg = await chiama('/registra', { metodo: 'POST', corpo: { nome: 'Prova Vuota', email: 'prova@esempio.it', pin: '5823' } });
+  verifica('la registrazione crea il locale', reg.stato === 200 && reg.dati.codice === LOCALE_PROVA, reg.dati);
   /* ---------------- 1. NASCE VUOTA ---------------- */
   titolo('1. L\'APP NASCE VUOTA');
   const profili = (await chiama('/profiles')).dati;
   verifica('i profili di accesso ci sono (senza, non si entrerebbe)', profili.length === 4, profili.length);
 
-  const { token: T } = (await chiama('/auth/pin', { metodo: 'POST', corpo: { profileId: profili.find(p => p.permissions.includes('all')).id, pin: '1111' } })).dati;
+  const { token: T } = (await chiama('/auth/pin', { metodo: 'POST', corpo: { profileId: profili.find(p => p.permissions.includes('all')).id, pin: '5823' } })).dati;
   verifica('il proprietario entra', !!T);
 
   for (const [nome, rotta] of [['prodotti', '/products'], ['dipendenti', '/employees'],
@@ -158,7 +162,7 @@ async function chiama(p, { metodo = 'GET', corpo, token } = {}) {
   verifica('i prodotti sono spariti', (await chiama('/products', { token: T })).dati.length === 0);
   verifica('i dipendenti sono spariti', (await chiama('/employees', { token: T })).dati.length === 0);
   verifica('gli inventari sono spariti', (await chiama('/inventory/history', { token: T })).dati.length === 0);
-  verifica('si entra ancora col proprio PIN', !!(await chiama('/auth/pin', { metodo: 'POST', corpo: { profileId: 1, pin: '1111' } })).dati.token);
+  verifica('si entra ancora col proprio PIN', !!(await chiama('/auth/pin', { metodo: 'POST', corpo: { profileId: 1, pin: '5823' } })).dati.token);
 
   chiudi(falliti ? 1 : 0);
 })().catch(e => { console.error('\nerrore inatteso:', e); process.exit(1); });

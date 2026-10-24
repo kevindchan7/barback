@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barback — I miei locali</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#0f1512;--panel:#16201b;--panel2:#1d2b23;--line:#2c3d33;--txt:#eaf4ee;--muted:#8fa89a;--accent:#3ecf8e;--red:#ff6b6b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:20px 16px}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-size:22px;margin:0 0 14px}
+input{width:100%;font-size:16px;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--txt)}
+button{padding:10px 14px;border:0;border-radius:10px;background:var(--accent);color:#06120c;font-weight:700;cursor:pointer}
+button.no{background:var(--red);color:#fff}
+.row{display:flex;gap:8px}
+.loc{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+.loc b{font-size:17px}
+.m{color:var(--muted);font-size:13.5px}
+.sosp{opacity:.55}
+.err{color:var(--red);margin:10px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>I miei locali</h1>
+  <form class="row" id="f"><input id="k" type="password" placeholder="Chiave admin (ADMIN_KEY su Render)" autocomplete="current-password"><button>Apri</button></form>
+  <div class="err" id="err"></div>
+  <div id="tot" class="m"></div>
+  <div id="lista"></div>
+</div>
+<script>
+const $ = (s) => document.querySelector(s);
+let KEY = sessionStorage.getItem('bb_admin') || '';
+const esc = (s) => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const data = (s) => s ? new Date(s).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+async function chiama(url, opt = {}) {
+  const r = await fetch(url, { ...opt, headers: { 'Content-Type': 'application/json', 'X-Admin-Key': KEY } });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'Errore ' + r.status);
+  return d;
+}
+async function carica() {
+  $('#err').textContent = '';
+  try {
+    const l = await chiama('/api/admin/locali');
+    sessionStorage.setItem('bb_admin', KEY);
+    const veri = l.filter(x => !x.demo);
+    $('#tot').textContent = veri.length + ' locali registrati · ' + veri.filter(x => x.attivo).length + ' attivi';
+    $('#lista').innerHTML = l.map(x => `
+      <div class="loc ${x.attivo ? '' : 'sosp'}">
+        <b>${esc(x.nome)}</b> ${x.demo ? '· demo' : ''} ${x.attivo ? '' : '· <span style="color:var(--red)">SOSPESO</span>'}
+        <div class="m">Codice: <b>${esc(x.codice)}</b> · ${esc(x.citta)}</div>
+        <div class="m">${esc(x.email)} · ${esc(x.telefono)}</div>
+        <div class="m">Registrato: ${data(x.creato_il)} · Ultimo accesso: ${data(x.ultimo_accesso)} · ${x.prodotti} prodotti</div>
+        ${x.demo ? '' : `<div style="margin-top:8px"><button class="${x.attivo ? 'no' : ''}" onclick="attiva('${esc(x.codice)}', ${x.attivo ? 0 : 1})">${x.attivo ? 'Sospendi' : 'Riattiva'}</button></div>`}
+      </div>`).join('');
+  } catch (e) { $('#err').textContent = '⚠ ' + e.message; $('#lista').innerHTML = ''; }
+}
+async function attiva(codice, on) {
+  if (!on && !confirm('Sospendere ' + codice + '? Lo staff non potrà più entrare (i dati restano).')) return;
+  try { await chiama('/api/admin/locali/' + encodeURIComponent(codice) + '/attivo', { method: 'POST', body: JSON.stringify({ attivo: !!on }) }); carica(); }
+  catch (e) { $('#err').textContent = '⚠ ' + e.message; }
+}
+$('#f').addEventListener('submit', (e) => { e.preventDefault(); KEY = $('#k').value.trim(); carica(); });
+if (KEY) carica();
+</script>
+</body>
+</html>

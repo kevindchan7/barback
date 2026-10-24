@@ -1,4 +1,5 @@
-# Configurazione per Render — VERSIONE ATTIVA: dati permanenti (a pagamento).
+# Configurazione per Render — VERSIONE ATTIVA: MULTI-LOCALE, dati permanenti.
+# UN solo server per TUTTI i bar: ognuno ha il suo database separato.
 #
 # E' questo il file che Render legge. I dati NON si azzerano: vivono su un
 # disco che Render conserva a ogni aggiornamento dell'app.
@@ -10,7 +11,8 @@
 #   3. Ricarica su GitHub: Render si aggiorna da solo.
 services:
   - type: web
-    name: barback
+    name: barback-app
+    region: frankfurt
     runtime: node
     plan: starter
     buildCommand: npm install
@@ -21,9 +23,14 @@ services:
       # Render genera da solo una chiave segreta sicura per i token di accesso.
       - key: JWT_SECRET
         generateValue: true
-      # Il database vive sul disco persistente, non dentro l'app.
-      - key: DB_PATH
-        value: /var/data/data.db
+      # Tutti i locali vivono sul disco persistente, non dentro l'app:
+      # /var/data/locali.db (l'elenco) e /var/data/locali/<codice>.db (uno per bar)
+      - key: DATA_DIR
+        value: /var/data
+      # La chiave per il pannello /admin.html (elenco locali, sospendere chi non paga).
+      # La trovi su Render -> barback-app -> Environment.
+      - key: ADMIN_KEY
+        generateValue: true
     disk:
       name: barback-dati
       mountPath: /var/data
