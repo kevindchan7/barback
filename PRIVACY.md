@@ -5,9 +5,9 @@
 
 ---
 
-**Titolare del trattamento:** [NOME O RAGIONE SOCIALE]
+**Titolare del trattamento:** ART& CREATION LLC
 **Indirizzo:** [INDIRIZZO]
-**Email:** [EMAIL]
+**Email:** kevindchan7@gmail.com
 **P. IVA:** [PARTITA IVA]
 
 Ultimo aggiornamento: [DATA]
@@ -22,7 +22,7 @@ Barback è un programma che un bar o un ristorante usa per gestire le scorte di 
 
 **Il locale che usa Barback è il Titolare** del trattamento dei dati dei propri dipendenti: decide lui quali dati inserire e perché.
 
-**[NOME O RAGIONE SOCIALE] è il Responsabile** del trattamento: fornisce e mantiene il programma, e tratta i dati solo su istruzione del locale. Il rapporto è regolato da un contratto di nomina a responsabile (art. 28 GDPR) che viene firmato insieme al contratto di servizio.
+**ART& CREATION LLC è il Responsabile** del trattamento: fornisce e mantiene il programma, e tratta i dati solo su istruzione del locale. Il rapporto è regolato da un contratto di nomina a responsabile (art. 28 GDPR) che viene firmato insieme al contratto di servizio.
 
 ## 3. Quali dati vengono trattati
 
@@ -62,26 +62,26 @@ Se non vi è bisogno di raccogliere il motivo, il consiglio è **non compilarlo*
 
 ## 6. Dove stanno i dati
 
-I dati sono conservati su server di **Render Services, Inc.**, nella regione [REGIONE, es. Frankfurt — Unione Europea]. Il collegamento è sempre cifrato (HTTPS).
+I dati sono conservati su server di **Render Services, Inc.**, nella regione di Francoforte (Germania, Unione Europea). Il collegamento è sempre cifrato (HTTPS).
 
-[SE LA REGIONE È FUORI DALL'UE: I dati sono trasferiti negli Stati Uniti sulla base delle Clausole Contrattuali Standard approvate dalla Commissione Europea.]
+Render Services, Inc. è una società statunitense: l'accesso tecnico dagli Stati Uniti è regolato dalle Clausole Contrattuali Standard approvate dalla Commissione Europea.
 
-Copie di sicurezza sono conservate da [NOME] su [DOVE], per un massimo di [QUANTI] mesi.
+Render fa una copia di sicurezza automatica del disco ogni giorno e la conserva per 7 giorni. Il titolare del locale può scaricare in ogni momento una copia completa dei propri dati dall'app.
 
 ## 7. Per quanto tempo
 
 | Dato | Conservazione |
 |---|---|
-| Turni e attività | [12] mesi |
-| Richieste di ferie e permessi chiuse | [12] mesi dalla decisione |
-| Movimenti di magazzino e inventari | [24] mesi |
+| Turni e attività | 12 mesi |
+| Richieste di ferie e permessi chiuse | 12 mesi dalla decisione |
+| Movimenti di magazzino e inventari | 24 mesi |
 | Profili di accesso | finché il rapporto di lavoro è attivo |
 
-Alla cessazione del contratto di servizio i dati vengono **restituiti al locale in un file** e cancellati dai nostri sistemi entro [30] giorni.
+Alla cessazione del contratto di servizio i dati vengono **restituiti al locale in un file** e cancellati dai nostri sistemi entro 30 giorni.
 
 ## 8. Chi può vederli
 
-Solo il personale del locale, secondo i permessi assegnati a ciascun profilo. Nessun dato viene ceduto o venduto a terzi. Il personale tecnico di [NOME] può accedervi **solo su richiesta del locale** e solo per risolvere un problema.
+Solo il personale del locale, secondo i permessi assegnati a ciascun profilo. Nessun dato viene ceduto o venduto a terzi. Il personale tecnico di ART& CREATION LLC può accedervi **solo su richiesta del locale** e solo per risolvere un problema.
 
 Fornitore tecnico: **Render Services, Inc.**, nominato sub-responsabile.
 
@@ -89,7 +89,7 @@ Fornitore tecnico: **Render Services, Inc.**, nominato sub-responsabile.
 
 Ogni persona può chiedere di accedere ai propri dati, correggerli, cancellarli, limitarne il trattamento, riceverli in un formato leggibile, e opporsi al trattamento.
 
-La richiesta va fatta **al proprio locale**, che è il Titolare. Se il locale ha bisogno di aiuto tecnico può scrivere a [EMAIL].
+La richiesta va fatta **al proprio locale**, che è il Titolare. Se il locale ha bisogno di aiuto tecnico può scrivere a kevindchan7@gmail.com.
 
 È sempre possibile presentare reclamo al **Garante per la protezione dei dati personali** ([garanteprivacy.it](https://www.garanteprivacy.it)).
 
@@ -105,4 +105,4 @@ La richiesta va fatta **al proprio locale**, che è il Titolare. Se il locale ha
 
 ## 11. Se cambia qualcosa
 
-Le modifiche a questa informativa vengono comunicate a [EMAIL DEL LOCALE] con almeno [15] giorni di anticipo.
+Le modifiche a questa informativa vengono comunicate a l'email indicata dal locale con almeno 15 giorni di anticipo.

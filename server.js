@@ -109,7 +109,9 @@ app.post('/api/registra', (req, res) => {
   let codice = base, n = 2;
   while (M.infoLocale(codice)) { if (b.codice) return bad(res, 409, 'Questo codice è già usato da un altro locale'); codice = base.slice(0, 26) + '-' + n++; }
   try {
-    codice = M.creaLocale({ codice, nome, email, telefono: String(b.telefono || '').slice(0, 30), citta: String(b.citta || '').slice(0, 60), pin: b.pin });
+    codice = M.creaLocale({ codice, nome, email, telefono: String(b.telefono || '').slice(0, 30), citta: String(b.citta || '').slice(0, 60), pin: b.pin,
+      referente: String(b.referente || '').slice(0, 80), piva: String(b.piva || '').replace(/\s/g, '').slice(0, 16),
+      piano: String(b.piano || ''), promo: String(b.promo || '').toUpperCase().slice(0, 24) });
   } catch (e) { return bad(res, 400, e.message); }
   console.log('Nuovo locale registrato: ' + codice + ' (' + nome + ')');
   ok(res, { codice, nome });

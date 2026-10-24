@@ -5,9 +5,9 @@
 
 ---
 
-**Provider:** [COMPANY NAME] LLC, a [STATE] limited liability company
+**Provider:** ART& CREATION LLC, a [STATE] limited liability company
 **Address:** [ADDRESS]
-**Contact:** [EMAIL]
+**Contact:** kevindchan7@gmail.com
 
 Effective: [DATE]
 
@@ -36,20 +36,20 @@ Stated plainly, because this is where misunderstandings start:
 
 | | |
 |---|---|
-| Standard | $[39] per month, per location |
-| Done For You | $[69] per month, per location |
+| Standard | $39 per month, per location |
+| Done For You | $69 per month, per location |
 | Billing | monthly, in advance, by card |
 | Sales tax | added where applicable |
 
-Prices may change with **[60] days' notice**. If you don't accept a change, you may cancel without charge before it takes effect.
+Prices may change with **60 days' notice**. If you don't accept a change, you may cancel without charge before it takes effect.
 
 ## 4. Free trial, renewal and cancellation
 
-Your first **[14] days are free**. We email you **two days before** the first charge.
+Your first **14 days are free**. We email you **two days before** the first charge.
 
 The subscription renews monthly until you cancel. **You may cancel at any time**, effective at the end of the period you've already paid for. We do not refund partial months.
 
-Either party may end this agreement with **[30] days' written notice**.
+Either party may end this agreement with **30 days' written notice**.
 
 ## 5. Your data is yours
 
@@ -57,7 +57,7 @@ Either party may end this agreement with **[30] days' written notice**.
 
 You can **download a complete copy at any time** from within the application.
 
-If this agreement ends, we provide a complete export and delete your data from our systems within **[30] days**.
+If this agreement ends, we provide a complete export and delete your data from our systems within **30 days**.
 
 ## 6. Customers in the European Union
 
@@ -70,9 +70,9 @@ If your business is established in the EU:
 
 ## 7. Support
 
-**[Standard]** Email support at [EMAIL], response within [3] business days.
+**Standard.** Email support at kevindchan7@gmail.com, response within 3 business days.
 
-**[Done For You]** Response by the end of the next business day, initial configuration of your location performed by us, and a monthly backup downloaded and retained on your behalf.
+**Done For You.** Response by the end of the next business day, initial configuration of your location performed by us, and a monthly backup downloaded and retained on your behalf.
 
 Support **does not include** ongoing data entry, staff training beyond an initial walkthrough, or on-site visits.
 
@@ -93,7 +93,7 @@ You agree to:
 
 ## 10. Limitation of liability
 
-We are liable only for direct damages actually proven, **capped at the amount you paid in the [12] months preceding the claim**.
+We are liable only for direct damages actually proven, **capped at the amount you paid in the 12 months preceding the claim**.
 
 We are **not liable** for lost profits, lost business, damages arising from data you entered incorrectly, or from business decisions made on the basis of the application's figures.
 
@@ -101,7 +101,7 @@ We are **not liable** for lost profits, lost business, damages arising from data
 
 ## 11. Ownership
 
-The software, its source code and its name remain the exclusive property of [COMPANY NAME] LLC. You receive a **non-exclusive, non-transferable right to use it**, limited to the term of this agreement and the number of locations paid for.
+The software, its source code and its name remain the exclusive property of ART& CREATION LLC. You receive a **non-exclusive, non-transferable right to use it**, limited to the term of this agreement and the number of locations paid for.
 
 You may not copy, resell, sublicense, or attempt to reverse-engineer the software.
 
@@ -111,7 +111,7 @@ This agreement is governed by the laws of the **State of [STATE]**, without rega
 
 ## 13. Changes to these terms
 
-We give at least **[15] days' notice** of changes to these terms, sent to the email address on your account. Continuing to use the service after that date means you accept them.
+We give at least **15 days' notice** of changes to these terms, sent to the email address on your account. Continuing to use the service after that date means you accept them.
 
 ---
 

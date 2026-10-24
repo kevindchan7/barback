@@ -184,7 +184,7 @@ footer a:hover{color:var(--accent)}
 
 <main><div class="wrap">
   <h1>Quattordici giorni gratis</h1>
-  <p class="lede">Oggi non paghi nulla. Ti avvisiamo due giorni prima del primo addebito, e puoi disdire quando vuoi.</p>
+  <p class="lede">Oggi non paghi nulla e non serve la carta. Prima della fine della prova ti scrivo io per attivare il pagamento: se non ti convince, finisce lì.</p>
 
   <form class="colonne" id="modulo" novalidate>
 
@@ -225,7 +225,7 @@ footer a:hover{color:var(--accent)}
         <div class="campo" id="c-email">
           <label for="email">Email</label>
           <input id="email" name="email" type="email" placeholder="mario@barcentrale.it" autocomplete="email" required>
-          <div class="aiuto">Qui arrivano il link dell'app, i PIN e l'avviso prima dell'addebito.</div>
+          <div class="aiuto">Qui ti arrivano il link dell'app e l'avviso prima della fine della prova.</div>
           <div class="errore">Controlla l'indirizzo email.</div>
         </div>
       </div>
@@ -292,7 +292,7 @@ footer a:hover{color:var(--accent)}
         <li><b id="t-addebito">Fra 14 giorni</b>Primo addebito, se non hai disdetto.</li>
       </ul>
 
-      <button class="vai" type="submit" id="vai">Continua al pagamento &rarr;</button>
+      <button class="vai" type="submit" id="vai">Crea il mio locale &rarr;</button>
       <p class="sicuro">Pagamento gestito da <b>Stripe</b>.<br>IVA esclusa. Disdici quando vuoi.</p>
 
       <div class="rassicura">
@@ -422,6 +422,7 @@ function valido(id, ok) {
   return ok;
 }
 
+var APP = 'https://barback-app.onrender.com';
 document.getElementById('modulo').addEventListener('submit', function (e) {
   e.preventDefault();
   var v = document.getElementById('locale').value.trim().length > 1;
@@ -432,18 +433,17 @@ document.getElementById('modulo').addEventListener('submit', function (e) {
   ok = valido('c-email', /^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/.test(document.getElementById('email').value.trim())) && ok;
   if (!ok) { document.querySelector('.campo.ko input').focus(); return; }
 
-  /* Qui, quando Stripe sara' attivo, si chiama il server che crea la
-     Checkout Session e si manda il browser sull'indirizzo che risponde. */
+  /* La prova parte subito: si passa all'app, dove il titolare sceglie il
+     suo PIN e il locale viene creato. I dati viaggiano dopo il "#", che il
+     browser non manda a nessun server: non finiscono in nessun registro.
+     Il pagamento (Stripe) si aggiunge qui quando e' attivo: PAGAMENTI.md. */
+  var piano = (document.querySelector('input[name="piano"]:checked') || {}).value || 'base';
+  var dati = { nome: document.getElementById('locale').value.trim(), referente: document.getElementById('nome').value.trim(),
+    telefono: document.getElementById('tel').value.trim(), piva: document.getElementById('piva').value.trim(),
+    email: document.getElementById('email').value.trim(), piano: piano, promo: (document.getElementById('codice').value || '').trim() };
   var b = document.getElementById('vai');
-  b.disabled = true;
-  b.textContent = 'Stripe non è ancora collegato';
-  setTimeout(function () {
-    alert('Questa è la pagina, non il pagamento.\n\n' +
-          'Quando Stripe sarà attivo, da qui si finisce sulla sua pagina di pagamento.\n' +
-          'I passi per collegarlo sono scritti in PAGAMENTI.md.');
-    b.disabled = false;
-    b.innerHTML = 'Continua al pagamento &rarr;';
-  }, 150);
+  b.disabled = true; b.textContent = 'Un attimo…';
+  location.href = APP + '/registra.html#' + Object.keys(dati).map(function (k) { return k + '=' + encodeURIComponent(dati[k]); }).join('&');
 });
 
 aggiorna();

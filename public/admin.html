@@ -54,6 +54,9 @@ async function carica() {
         <div class="m">Codice: <b>${esc(x.codice)}</b> · ${esc(x.citta)}</div>
         <div class="m">${esc(x.email)} · ${esc(x.telefono)}</div>
         <div class="m">Registrato: ${data(x.creato_il)} · Ultimo accesso: ${data(x.ultimo_accesso)} · ${x.prodotti} prodotti</div>
+        ${x.demo ? '' : `<div class="m">${x.referente ? 'Referente: <b>' + esc(x.referente) + '</b> · ' : ''}${x.piva ? 'P.IVA ' + esc(x.piva) + ' · ' : ''}Piano: <b>${esc(x.piano || 'base')}</b>${x.promo ? ' · Codice ' + esc(x.promo) : ''}</div>
+        <div class="m">${(() => { const fine = new Date(new Date(x.creato_il).getTime() + 14 * 86400000); const g = Math.ceil((fine - Date.now()) / 86400000);
+          return g > 0 ? `Prova gratuita: <b style="color:var(--accent)">ancora ${g} giorni</b> (fino al ${fine.toLocaleDateString('it-IT')})` : `<b style="color:var(--red)">Prova finita il ${fine.toLocaleDateString('it-IT')}</b>: da attivare il pagamento`; })()}</div>`}
         ${x.demo ? '' : `<div style="margin-top:8px"><button class="${x.attivo ? 'no' : ''}" onclick="attiva('${esc(x.codice)}', ${x.attivo ? 0 : 1})">${x.attivo ? 'Sospendi' : 'Riattiva'}</button></div>`}
       </div>`).join('');
   } catch (e) { $('#err').textContent = '⚠ ' + e.message; $('#lista').innerHTML = ''; }

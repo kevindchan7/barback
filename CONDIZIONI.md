@@ -5,8 +5,8 @@
 
 ---
 
-**Fornitore:** [NOME O RAGIONE SOCIALE], [INDIRIZZO], P. IVA [NUMERO]
-**Contatto:** [EMAIL]
+**Fornitore:** ART& CREATION LLC, [INDIRIZZO], P. IVA [NUMERO]
+**Contatto:** kevindchan7@gmail.com
 
 In vigore dal: [DATA]
 
@@ -19,7 +19,7 @@ L'accesso a **Barback**, un programma web per la gestione delle scorte di bevand
 Il servizio comprende:
 - un'installazione dedicata, con database separato da quello di ogni altro cliente
 - gli aggiornamenti del programma, installati automaticamente
-- [l'assistenza descritta al punto 6]
+- l'assistenza descritta al punto 6
 
 ## 2. Cosa NON comprende
 
@@ -35,17 +35,17 @@ Per chiarezza, perché è qui che nascono i malintesi:
 
 | | |
 |---|---|
-| Canone | [29] € al mese per locale, IVA esclusa |
-| Fatturazione | [mensile / annuale anticipata] |
-| Pagamento | entro [30] giorni dalla fattura |
+| Canone | 29 € al mese per locale, IVA esclusa |
+| Fatturazione | mensile anticipata |
+| Pagamento | entro 30 giorni dalla fattura |
 
-Il prezzo può essere modificato con **[60] giorni di preavviso**. Se il Cliente non accetta, può recedere senza costi entro la data di entrata in vigore.
+Il prezzo può essere modificato con **60 giorni di preavviso**. Se il Cliente non accetta, può recedere senza costi entro la data di entrata in vigore.
 
 ## 4. Durata e recesso
 
-Il contratto dura [12] mesi e si rinnova salvo disdetta con [30] giorni di preavviso.
+Il contratto dura 12 mesi e si rinnova salvo disdetta con 30 giorni di preavviso.
 
-**Entrambe le parti** possono recedere in qualsiasi momento con [30] giorni di preavviso scritto. In caso di recesso del Cliente non sono previsti rimborsi per il periodo già pagato.
+**Entrambe le parti** possono recedere in qualsiasi momento con 30 giorni di preavviso scritto. In caso di recesso del Cliente non sono previsti rimborsi per il periodo già pagato.
 
 ## 5. I dati sono del Cliente
 
@@ -53,13 +53,13 @@ Il contratto dura [12] mesi e si rinnova salvo disdetta con [30] giorni di preav
 
 Il Cliente può **scaricare in qualunque momento** una copia completa dei propri dati dal programma stesso.
 
-Alla cessazione del contratto il Fornitore consegna al Cliente una copia completa dei dati e li cancella dai propri sistemi entro [30] giorni.
+Alla cessazione del contratto il Fornitore consegna al Cliente una copia completa dei dati e li cancella dai propri sistemi entro 30 giorni.
 
 ## 6. Assistenza
 
-[Piano base] Assistenza via email a [EMAIL], risposta entro [3] giorni lavorativi.
+**Piano Base.** Assistenza via email a kevindchan7@gmail.com, risposta entro 3 giorni lavorativi.
 
-[Piano con assistenza] Risposta entro [24] ore nei giorni lavorativi, configurazione iniziale del locale a cura del Fornitore, copia di sicurezza scaricata e conservata mensilmente.
+**Piano con assistenza.** Risposta entro 24 ore nei giorni lavorativi, configurazione iniziale del locale a cura del Fornitore, copia di sicurezza scaricata e conservata mensilmente.
 
 L'assistenza **non comprende** l'inserimento continuativo dei dati, la formazione del personale oltre alla prima spiegazione, né interventi presso il locale.
 
@@ -80,7 +80,7 @@ Il Cliente si impegna a:
 
 ## 9. Limiti di responsabilità
 
-Il Fornitore risponde solo dei danni diretti effettivamente provati, **entro il limite di quanto pagato dal Cliente nei [12] mesi precedenti**.
+Il Fornitore risponde solo dei danni diretti effettivamente provati, **entro il limite di quanto pagato dal Cliente nei 12 mesi precedenti**.
 
 Il Fornitore **non risponde** di: mancato guadagno, perdita di clientela, danni derivanti da dati inseriti in modo errato dal Cliente, né da decisioni commerciali prese sulla base dei dati del programma.
 
@@ -88,7 +88,7 @@ Il Fornitore **non risponde** di: mancato guadagno, perdita di clientela, danni 
 
 ## 10. Proprietà del programma
 
-Il programma, il codice e il nome restano di proprietà esclusiva di [NOME O RAGIONE SOCIALE]. Il Cliente riceve un **diritto d'uso** non esclusivo e non cedibile, limitato alla durata del contratto e al numero di locali pagati.
+Il programma, il codice e il nome restano di proprietà esclusiva di ART& CREATION LLC. Il Cliente riceve un **diritto d'uso** non esclusivo e non cedibile, limitato alla durata del contratto e al numero di locali pagati.
 
 Il Cliente non può copiare, rivendere, concedere in uso a terzi né tentare di ricostruire il programma.
 

@@ -69,6 +69,14 @@ ol{padding-left:20px;color:var(--muted)} ol li{margin:6px 0}
 
 <script>
 const $ = (s) => document.querySelector(s);
+/* Arrivando dal sito ("Prova 14 giorni gratis") i dati sono gia' scritti:
+   stanno dopo il #, cosi' non passano da nessun server. Si chiede solo il PIN. */
+const dalSito = Object.fromEntries((location.hash.slice(1) || '').split('&').filter(Boolean)
+  .map(x => x.split('=')).map(([k, v]) => [k, decodeURIComponent(v || '')]));
+if (dalSito.nome) $('#nome').value = dalSito.nome;
+if (dalSito.email) $('#email').value = dalSito.email;
+if (dalSito.telefono) $('#telefono').value = dalSito.telefono;
+if (dalSito.nome) { setTimeout(() => $('#pin').focus(), 100); history.replaceState(null, '', location.pathname); }
 $('#f').addEventListener('submit', async (e) => {
   e.preventDefault();
   $('#err').textContent = ''; $('#invia').disabled = true; $('#invia').textContent = 'Creo il locale…';
@@ -76,7 +84,8 @@ $('#f').addEventListener('submit', async (e) => {
     const r = await fetch('/api/registra', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nome: $('#nome').value, citta: $('#citta').value, email: $('#email').value,
-        telefono: $('#telefono').value, pin: $('#pin').value }),
+        telefono: $('#telefono').value, pin: $('#pin').value,
+        referente: dalSito.referente || '', piva: dalSito.piva || '', piano: dalSito.piano || '', promo: dalSito.promo || '' }),
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'Errore ' + r.status);
