@@ -71,7 +71,72 @@ const ERRORI = {
   'Per svuotare serve la conferma':
     { en: 'Confirmation is required to erase', es: 'Hace falta confirmación para borrar' },
   'Permesso negato (ferie.view)': { en: 'Permission denied (ferie.view)', es: 'Permiso denegado (ferie.view)' },
-  'Permesso negato (task.check)': { en: 'Permission denied (task.check)', es: 'Permiso denegado (task.check)' },
+  'Permesso negato (task.check)': { en: 'Permission denied (task.check)', es: 'Permiso denegado (task.check)' },  "Locale non trovato: controlla il codice":
+    { en: "Venue not found: check the code", es: "Local no encontrado: revisa el código" },
+  "Locale sospeso: contatta Barback":
+    { en: "Venue suspended: contact Barback", es: "Local suspendido: contacta con Barback" },
+  "Manca il codice del locale":
+    { en: "The venue code is missing", es: "Falta el código del local" },
+  "Troppe registrazioni da questa rete: riprova fra un'ora":
+    { en: "Too many sign-ups from this network: try again in an hour", es: "Demasiados registros desde esta red: inténtalo dentro de una hora" },
+  "Scrivi il nome del locale":
+    { en: "Enter the venue name", es: "Escribe el nombre del local" },
+  "Email non valida":
+    { en: "Invalid email", es: "Email no válido" },
+  "Scegli un PIN meno facile da indovinare":
+    { en: "Choose a PIN that is harder to guess", es: "Elige un PIN más difícil de adivinar" },
+  "Questo codice è già usato da un altro locale":
+    { en: "This code is already used by another venue", es: "Este código ya lo usa otro local" },
+  "Chiave admin errata":
+    { en: "Wrong admin key", es: "Clave de administrador incorrecta" },
+  "Codice del locale troppo corto (minimo 3 caratteri)":
+    { en: "Venue code too short (at least 3 characters)", es: "Código del local demasiado corto (mínimo 3 caracteres)" },
+  "Ricetta non valida":
+    { en: "Invalid recipe", es: "Receta no válida" },
+  "Ingrediente non trovato nel magazzino":
+    { en: "Ingredient not found in stock", es: "Ingrediente no encontrado en el almacén" },
+  "Categoria non valida":
+    { en: "Invalid category", es: "Categoría no válida" },
+  "Permesso negato":
+    { en: "Permission denied", es: "Permiso denegado" },
+  "I movimenti si fanno sulle bottiglie, non sui cocktail":
+    { en: "Movements are recorded on bottles, not cocktails", es: "Los movimientos se registran en botellas, no en cócteles" },
+  "Data non valida":
+    { en: "Invalid date", es: "Fecha no válida" },
+  "Non si registra nel futuro":
+    { en: "You cannot record in the future", es: "No se puede registrar en el futuro" },
+  "Si può correggere al massimo una settimana indietro":
+    { en: "You can go back at most one week", es: "Se puede corregir como máximo una semana atrás" },
+  "Movimento non trovato":
+    { en: "Movement not found", es: "Movimiento no encontrado" },
+  "Le rettifiche d'inventario non si annullano":
+    { en: "Stocktake adjustments cannot be undone", es: "Los ajustes de inventario no se pueden deshacer" },
+  "Puoi annullare solo i tuoi movimenti delle ultime 12 ore":
+    { en: "You can only undo your own movements from the last 12 hours", es: "Solo puedes deshacer tus movimientos de las últimas 12 horas" },
+  "Serve il nome della postazione":
+    { en: "The area needs a name", es: "La zona necesita un nombre" },
+  "Postazione non trovata":
+    { en: "Area not found", es: "Zona no encontrada" },
+  "Orario non valido (es. 16:00)":
+    { en: "Invalid time (e.g. 16:00)", es: "Hora no válida (p. ej. 16:00)" },
+  "Inizio e fine sono uguali":
+    { en: "Start and end are the same", es: "Inicio y fin son iguales" },
+  "Turno non trovato":
+    { en: "Shift not found", es: "Turno no encontrado" },
+  "Scrivi cosa c'e' da fare":
+    { en: "Write what needs doing", es: "Escribe qué hay que hacer" },
+  "Scegli almeno un giorno":
+    { en: "Choose at least one day", es: "Elige al menos un día" },
+  "Checklist non trovata":
+    { en: "Checklist not found", es: "Checklist no encontrada" },
+  "Task non trovata":
+    { en: "Task not found", es: "Tarea no encontrada" },
+  "Puoi chiedere ferie solo per te":
+    { en: "You can only request leave for yourself", es: "Solo puedes pedir vacaciones para ti" },
+  "Puoi ritirare solo le tue richieste":
+    { en: "You can only withdraw your own requests", es: "Solo puedes retirar tus propias peticiones" },
+  "Nessun locale selezionato":
+    { en: "No venue selected", es: "Ningún local seleccionado" },
 };
 
 /* ---- messaggi che finiscono con un pezzo variabile ---- */
@@ -81,6 +146,17 @@ const PREFISSI = [
   ['Codice già associato a: ',     { en: 'Barcode already linked to: ', es: 'Código ya vinculado a: ' }],
   ['Usato nella ricetta di: ',     { en: 'Used in the recipe of: ',    es: 'Se usa en la receta de: ' }],
   ['Richiesta gia\' decisa (',     { en: 'Request already decided (',  es: 'Petición ya decidida (' }],
+  ['Quantità non valida per ',     { en: 'Invalid quantity for ',      es: 'Cantidad no válida para ' }],
+];
+
+/* ---- messaggi con pezzi variabili in mezzo ---- */
+const SCHEMI = [
+  [/^"(.+)" ha (\d+) movimenti e (\d+) conteggi: eliminarlo falserebbe lo storico\. Puoi portare la giacenza a zero\.$/, {
+    en: (m) => `"${m[1]}" has ${m[2]} movements and ${m[3]} counts: deleting it would falsify the history. You can set its stock to zero.`,
+    es: (m) => `"${m[1]}" tiene ${m[2]} movimientos y ${m[3]} recuentos: borrarlo falsearía el historial. Puedes poner sus existencias a cero.` }],
+  [/^(.+) ha (\d+) turni e (\d+) richieste\. Elimina prima quelli, oppure lascialo: non fa danno\.$/, {
+    en: (m) => `${m[1]} has ${m[2]} shifts and ${m[3]} requests. Delete those first, or keep them: it does no harm.`,
+    es: (m) => `${m[1]} tiene ${m[2]} turnos y ${m[3]} peticiones. Borra esos primero, o déjalo: no hace daño.` }],
 ];
 
 function traduciErrore(msg, lang) {
@@ -89,6 +165,10 @@ function traduciErrore(msg, lang) {
   if (esatto && esatto[lang]) return esatto[lang];
   for (const [pre, trad] of PREFISSI) {
     if (msg.startsWith(pre) && trad[lang]) return trad[lang] + msg.slice(pre.length);
+  }
+  for (const [re, trad] of SCHEMI) {
+    const m = msg.match(re);
+    if (m && trad[lang]) return trad[lang](m);
   }
   return msg;   // non tradotto: meglio l'italiano che niente
 }

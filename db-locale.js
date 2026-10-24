@@ -140,6 +140,27 @@ addColumn('tasks', 'done_by_emp', 'INTEGER');
 addColumn('tasks', 'done_by_name', 'TEXT');
 addColumn('tasks', 'done_profile', 'TEXT');
 addColumn('tasks', 'done_at', 'TEXT');
+// la "giornata di lavoro": una serata che chiude alle 2 resta tutta nello stesso giorno
+addColumn('movements', 'work_date', 'TEXT');
+db.exec("UPDATE movements SET work_date = substr(created_at,1,10) WHERE work_date IS NULL");
+// task che si ripetono (checklist di apertura/chiusura): da quale modello nasce la task
+addColumn('tasks', 'template_id', 'INTEGER');
+db.exec(`CREATE TABLE IF NOT EXISTS task_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  assignee_id INTEGER,
+  giorni TEXT DEFAULT '[1,2,3,4,5,6,7]',   -- 1 = lunedi' ... 7 = domenica
+  attivo INTEGER DEFAULT 1,
+  created_at TEXT
+)`);
+// un profilo personale puo' essere legato a un dipendente: allora le ferie le chiede solo per se'
+addColumn('profiles', 'employee_id', 'INTEGER');
+// i movimenti annullati non spariscono nel nulla: il titolare vede chi ha annullato cosa
+db.exec(`CREATE TABLE IF NOT EXISTS movimenti_annullati (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  movement_id INTEGER, product_id INTEGER, product_name TEXT, type TEXT, qty REAL,
+  work_date TEXT, creato_da TEXT, annullato_da TEXT, annullato_at TEXT
+)`);
 
 /* Colori ben distinguibili fra loro, anche come puntini piccoli. */
 const COLORI = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#42d4f4',
@@ -276,7 +297,7 @@ function seedInventario() {
     'Proprietario':            [],   // ha 'all', non serve aggiungere niente
     'Admin 1 · Responsabile':  ['inventario.view', 'ferie.approve'],
     'Admin 2 · Barman':        ['inventario.view', 'inventario.do'],
-    'Admin 3 · Bar Manager':   ['inventario.view', 'inventario.do', 'inventario.close'],
+    'Admin 3 · Bar Manager':   ['inventario.view', 'inventario.do', 'inventario.close', 'task.check', 'drinkcost.view'],
   };
   const upd = db.prepare('UPDATE profiles SET permissions=? WHERE id=?');
   db.prepare('SELECT id,name,permissions FROM profiles').all().forEach(p => {

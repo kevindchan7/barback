@@ -26,13 +26,38 @@ app.use(express.static(path.join(__dirname, 'public')));
 // la lingua scelta nel browser accompagna ogni richiesta: gli errori e il
 // manuale escono gia' tradotti, senza che il frontend debba rimapparli
 app.use((req, res, next) => { res.locals.lang = linguaDi(req); next(); });
+app.use((req, res, next) => {
+  oraFinta = PROVA && req.headers['x-ora-prova'] && !isNaN(Date.parse(req.headers['x-ora-prova'])) ? req.headers['x-ora-prova'] : null;
+  next();
+});
 
-const now = () => new Date().toISOString();
+/* L'orologio. Nelle prove automatiche (BARBACK_PROVA=1) si puo' far finta
+   che sia un altro giorno con l'intestazione X-Ora-Prova: cosi' si
+   simulano mesi di lavoro in pochi secondi. Online questa porta e' chiusa. */
+const PROVA = process.env.BARBACK_PROVA === '1';
+let oraFinta = null;
+const adesso = () => oraFinta ? new Date(oraFinta) : new Date();
+const now = () => adesso().toISOString();
 const todayISO = () => now().slice(0, 10);
 const ok = (res, d) => res.json(d);
 // l'errore esce nella lingua scelta nel browser (intestazione X-Lang)
 const bad = (res, c, m) => res.status(c).json({ error: traduciErrore(m, res.locals.lang || 'it') });
-const monthOf = (q) => q || now().slice(0, 7);
+/* LA GIORNATA DI LAVORO. Un bar chiude alle 2: i vuoti dell'una di notte
+   sono della serata prima, non del giorno dopo. La giornata cambia alle 6
+   del mattino, ora italiana (sul server Render l'orologio e' in UTC).   */
+const FUSO = process.env.FUSO_ORARIO || 'Europe/Rome';
+const CAMBIO_GIORNATA_ORE = 6;
+function workDate(d = adesso()) {
+  return new Date(d.getTime() - CAMBIO_GIORNATA_ORE * 3600000).toLocaleDateString('en-CA', { timeZone: FUSO });
+}
+const giornoValido = (g) => /^\d{4}-\d{2}-\d{2}$/.test(String(g || ''));
+const monthOf = (q) => (/^\d{4}-\d{2}$/.test(String(q || '')) ? q : workDate().slice(0, 7));
+// chi non vede i costi non li riceve nemmeno: nasconderli solo nell'app non basta
+const COSTI = ['cost', 'price', 'unit_price', 'total', 'consumato', 'costo'];
+function senzaCosti(req, righe) {
+  if (can(req, 'drinkcost.view')) return righe;
+  return righe.map(r => { const c = { ...r }; COSTI.forEach(k => delete c[k]); return c; });
+}
 
 
 /* ---------------- I LOCALI ----------------
@@ -125,6 +150,11 @@ function auth(req, res, next) {
     req.user = jwt.verify(token, JWT_SECRET);
     // un token di un altro locale (o di prima del multi-locale) non vale qui
     if (req.user.loc !== res.locals.locale) return bad(res, 401, 'Token non valido');
+    // un profilo cancellato (chi se ne e' andato) non entra piu', anche col vecchio token
+    const p = db.prepare('SELECT permissions FROM profiles WHERE id=?').get(req.user.id);
+    if (!p) return bad(res, 401, 'Token non valido');
+    // i permessi sono quelli di adesso, non quelli di quando e' entrato
+    req.user.permissions = JSON.parse(p.permissions || '[]');
     next();
   }
   catch { return bad(res, 401, 'Token non valido'); }
@@ -134,8 +164,9 @@ function can(req, cap) { const p = req.user.permissions || []; return p.includes
 function need(cap) { return (req, res, next) => can(req, cap) ? next() : bad(res, 403, 'Permesso negato (' + cap + ')'); }
 
 app.get('/api/profiles', (req, res) =>
-  ok(res, db.prepare('SELECT id,name,permissions,pin_default FROM profiles ORDER BY id').all()
-    .map(p => ({ id: p.id, name: p.name, permissions: JSON.parse(p.permissions || '[]'), pin_default: !!p.pin_default }))));
+  ok(res, db.prepare('SELECT id,name,permissions,pin_default,employee_id FROM profiles ORDER BY id').all()
+    .map(p => ({ id: p.id, name: p.name, permissions: JSON.parse(p.permissions || '[]'), pin_default: !!p.pin_default,
+      employee_id: p.employee_id || null }))));
 
 app.post('/api/auth/pin', (req, res) => {
   const { profileId, pin } = req.body || {};
@@ -166,11 +197,11 @@ api.get('/overview', (req, res) => {
   const bottles = db.prepare("SELECT * FROM products WHERE category='Bottiglia'").all();
   const giacenzaPezzi = bottles.reduce((s, p) => s + p.stock, 0);
   const giacenzaValore = bottles.reduce((s, p) => s + p.stock * p.cost, 0);
-  const mv = db.prepare(`SELECT type, SUM(qty) q FROM movements WHERE substr(created_at,1,7)=? GROUP BY type`).all(m);
+  const mv = db.prepare(`SELECT type, SUM(qty) q FROM movements WHERE substr(work_date,1,7)=? GROUP BY type`).all(m);
   const sum = (t) => (mv.find(x => x.type === t) || {}).q || 0;
   ok(res, {
     month: m,
-    giacenzaPezzi, giacenzaValore,
+    giacenzaPezzi, giacenzaValore: can(req, 'drinkcost.view') ? giacenzaValore : undefined,
     entrate: sum('carico'),
     uscite: sum('scarico') + sum('vuoto'),
     sottoSoglia: db.prepare("SELECT COUNT(*) c FROM products WHERE category='Bottiglia' AND stock<=threshold").get().c,
@@ -183,10 +214,34 @@ api.get('/products', (req, res) => {
   const rows = db.prepare(`SELECT p.*, v.name AS vendor FROM products p
     LEFT JOIN vendors v ON v.id=p.vendor_id ORDER BY p.category,p.name`).all()
     .map(p => { p.recipe = JSON.parse(p.recipe || '[]'); return p; });
-  ok(res, rows);
+  ok(res, senzaCosti(req, rows));
 });
-api.post('/products', need('magazzino.view'), (req, res) => {
+/* una ricetta valida: ingredienti che esistono, sono bottiglie, ml > 0 */
+function ricettaPulita(lista) {
+  if (!Array.isArray(lista)) return { errore: 'Ricetta non valida' };
+  const fuori = [];
+  for (const r of lista) {
+    const ing = product(r && r.ing);
+    const q = +(r && r.q);
+    if (!ing || ing.category !== 'Bottiglia') return { errore: 'Ingrediente non trovato nel magazzino' };
+    if (!(q > 0) || q > 5000) return { errore: 'Quantità non valida per ' + ing.name };
+    fuori.push({ ing: ing.id, q });
+  }
+  return { ricetta: fuori };
+}
+api.post('/products', (req, res, next) => {
+  // un cocktail lo crea chi vede i costi (titolare, bar manager); una bottiglia chi gestisce il magazzino
+  const cap = req.body.category === 'Cocktail' ? 'drinkcost.view' : 'magazzino.view';
+  return can(req, cap) ? next() : bad(res, 403, 'Permesso negato (' + cap + ')');
+}, (req, res) => {
   const { category, format, volume_ml, stock, threshold, par_level, unit, vendor_id, barcode } = req.body;
+  if (category && !['Bottiglia', 'Cocktail'].includes(category)) return bad(res, 400, 'Categoria non valida');
+  let ricetta = '[]';
+  if (category === 'Cocktail') {
+    const rp = ricettaPulita(req.body.recipe || []);
+    if (rp.errore) return bad(res, 400, rp.errore);
+    ricetta = JSON.stringify(rp.ricetta);
+  }
   const name = String(req.body.name || '').trim();
   if (!name) return bad(res, 400, 'Serve il nome del prodotto');
   if (db.prepare('SELECT 1 FROM products WHERE lower(name)=lower(?)').get(name))
@@ -201,26 +256,44 @@ api.post('/products', need('magazzino.view'), (req, res) => {
   // vuoti e il prodotto nasce a zero, da completare dopo
   const r = db.prepare(`INSERT INTO products
     (name,category,format,volume_ml,cost,price,stock,initial_stock,threshold,par_level,unit,vendor_id,barcode,recipe)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, '[]')`)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(name, category || 'Bottiglia', String(format || '').trim(), +volume_ml || 0,
-      +req.body.cost || 0, +req.body.price || 0,
-      +stock || 0, +stock || 0, soglia, ideale, String(unit || 'bott.').trim(),
-      vendor_id ? +vendor_id : null, code || null);
+      can(req, 'drinkcost.view') ? +req.body.cost || 0 : 0, can(req, 'drinkcost.view') ? +req.body.price || 0 : 0,
+      category === 'Cocktail' ? 0 : +stock || 0, category === 'Cocktail' ? 0 : +stock || 0,
+      soglia, ideale, String(unit || (category === 'Cocktail' ? 'drink' : 'bott.')).trim(),
+      vendor_id ? +vendor_id : null, code || null, ricetta);
   ok(res, { id: r.lastInsertRowid });
 });
-api.put('/products/:id', need('magazzino.view'), (req, res) => {
-  const { name, cost, price, volume_ml, threshold, par_level, vendor_id } = req.body;
+api.put('/products/:id', (req, res) => {
+  const { cost, price, volume_ml, threshold, par_level, vendor_id } = req.body;
   const p = product(req.params.id);
   if (!p) return bad(res, 404, 'Prodotto non trovato');
+  if (!can(req, p.category === 'Cocktail' ? 'drinkcost.view' : 'magazzino.view')) return bad(res, 403, 'Permesso negato');
+  const name = String(req.body.name || '').trim() || p.name;
+  if (name.toLowerCase() !== p.name.toLowerCase() &&
+      db.prepare('SELECT 1 FROM products WHERE lower(name)=lower(?) AND id<>?').get(name, p.id))
+    return bad(res, 409, 'C\'e\' gia\' un prodotto con questo nome');
+  // formato e unita': se arrivano si cambiano, se no restano
+  const formato = req.body.format !== undefined ? String(req.body.format).trim() : p.format;
+  const unita = req.body.unit !== undefined && String(req.body.unit).trim() ? String(req.body.unit).trim() : p.unit;
+  let ricetta = p.recipe;
+  if (p.category === 'Cocktail' && req.body.recipe !== undefined) {
+    const rp = ricettaPulita(req.body.recipe);
+    if (rp.errore) return bad(res, 400, rp.errore);
+    ricetta = JSON.stringify(rp.ricetta);
+  }
+  db.prepare('UPDATE products SET format=?, unit=?, recipe=? WHERE id=?').run(formato, unita, ricetta, p.id);
   /* Chi non puo' vedere i costi non li manda: in quel caso NON si
      azzerano, si lascia quello che c'era. Altrimenti un barista che
      corregge una soglia cancellerebbe il lavoro del proprietario. */
   const vedeCosti = can(req, 'drinkcost.view');
   db.prepare('UPDATE products SET name=?,cost=?,price=?,volume_ml=?,threshold=?,par_level=?,vendor_id=? WHERE id=?')
-    .run(name, vedeCosti ? +cost || 0 : p.cost,
-      vedeCosti ? +price || 0 : p.price,
+    .run(name, vedeCosti && cost !== undefined ? +cost || 0 : p.cost,
+      vedeCosti && price !== undefined ? +price || 0 : p.price,
       vedeCosti && volume_ml !== undefined ? +volume_ml || 0 : p.volume_ml,
-      +threshold, +par_level || 0, vendor_id ? +vendor_id : null, req.params.id);
+      threshold !== undefined ? +threshold || 0 : p.threshold,
+      par_level !== undefined ? +par_level || 0 : p.par_level,
+      vendor_id !== undefined ? (vendor_id ? +vendor_id : null) : p.vendor_id, req.params.id);
   ok(res, { ok: true });
 });
 
@@ -282,7 +355,7 @@ const RUOLI = {
   'proprietario': ['all'],
   'responsabile': ['turni.manage','turni.view','task.manage','task.view','ferie.view','ferie.approve','inventario.view'],
   'barman':       ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
-  'bar manager':  ['turni.view','task.view','vuoti.view','vuoti.do','carico.do','magazzino.view','manuale.view','ferie.view','inventario.view','inventario.do','inventario.close'],
+  'bar manager':  ['turni.view','task.view','task.check','vuoti.view','vuoti.do','carico.do','magazzino.view','drinkcost.view','manuale.view','ferie.view','inventario.view','inventario.do','inventario.close'],
   'barback':      ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
 };
 const pinValido = (p) => /^[0-9]{4}$/.test(String(p || ''));
@@ -297,8 +370,10 @@ api.post('/profiles', need('all'), (req, res) => {
   if (!pinValido(req.body.pin)) return bad(res, 400, 'Il PIN deve essere di 4 cifre');
   if (db.prepare('SELECT 1 FROM profiles WHERE lower(name)=lower(?)').get(name))
     return bad(res, 409, 'C\'e\' gia\' un profilo con questo nome');
-  const r = db.prepare('INSERT INTO profiles (name,pin_hash,permissions) VALUES (?,?,?)')
-    .run(name, bcrypt.hashSync(String(req.body.pin), 10), JSON.stringify(RUOLI[ruolo]));
+  const emp = req.body.employee_id ? +req.body.employee_id : null;
+  if (emp && !db.prepare('SELECT 1 FROM employees WHERE id=?').get(emp)) return bad(res, 404, 'Dipendente non trovato');
+  const r = db.prepare('INSERT INTO profiles (name,pin_hash,permissions,employee_id) VALUES (?,?,?,?)')
+    .run(name, bcrypt.hashSync(String(req.body.pin), 10), JSON.stringify(RUOLI[ruolo]), emp);
   ok(res, { id: r.lastInsertRowid });
 });
 
@@ -319,6 +394,12 @@ api.put('/profiles/:id', need('all'), (req, res) => {
     db.prepare('UPDATE profiles SET name=?, permissions=? WHERE id=?').run(name, JSON.stringify(RUOLI[ruolo]), p.id);
   } else {
     db.prepare('UPDATE profiles SET name=? WHERE id=?').run(name, p.id);
+  }
+  // il profilo personale di un dipendente: le sue ferie le chiede solo per se'
+  if (req.body.employee_id !== undefined) {
+    const emp = req.body.employee_id ? +req.body.employee_id : null;
+    if (emp && !db.prepare('SELECT 1 FROM employees WHERE id=?').get(emp)) return bad(res, 404, 'Dipendente non trovato');
+    db.prepare('UPDATE profiles SET employee_id=? WHERE id=?').run(emp, p.id);
   }
   ok(res, { ok: true });
 });
@@ -402,31 +483,97 @@ api.post('/movements', (req, res) => {
   if (!can(req, needed)) return bad(res, 403, 'Permesso negato (' + needed + ')');
   const p = product(productId);
   if (!p) return bad(res, 404, 'Prodotto non trovato');
+  if (p.category !== 'Bottiglia') return bad(res, 400, 'I movimenti si fanno sulle bottiglie, non sui cocktail');
   const n = Math.abs(+qty || 0);
-  if (!n) return bad(res, 400, 'Quantità non valida');
+  if (!n || n > 10000) return bad(res, 400, 'Quantità non valida');
+  /* La giornata: oggi, oppure (chi si dimentica e segna il mattino dopo)
+     uno dei 7 giorni prima. Nel futuro no.                                */
+  const oggi = workDate();
+  let giorno = oggi;
+  if (req.body.data) {
+    if (!giornoValido(req.body.data)) return bad(res, 400, 'Data non valida');
+    const limite = workDate(new Date(adesso().getTime() - 7 * 86400000));
+    if (req.body.data > oggi) return bad(res, 400, 'Non si registra nel futuro');
+    if (req.body.data < limite) return bad(res, 400, 'Si può correggere al massimo una settimana indietro');
+    giorno = req.body.data;
+  }
   const sign = type === 'carico' ? 1 : -1;
-  if (sign < 0 && p.stock < n) return bad(res, 409, 'Giacenza insufficiente: ' + p.name);
-  db.prepare('UPDATE products SET stock = stock + ? WHERE id=?').run(sign * n, p.id);
-  db.prepare(`INSERT INTO movements (product_id,type,qty,unit_price,total,source,note,profile_id,created_at)
-    VALUES (?,?,?,?,?,?,?,?,?)`).run(p.id, type, n, p.price, n * p.price, source || 'manuale',
-    note || '', req.user.id, now());
-  ok(res, { ok: true, stock: p.stock + sign * n });
+  /* Prima, se mancava un carico, il barman a fine serata restava bloccato.
+     Ora il vuoto si segna lo stesso: la giacenza va sotto zero e l'app
+     avvisa chi gestisce il magazzino che manca un carico.              */
+  const dopo = +(p.stock + sign * n).toFixed(2);
+  db.prepare('UPDATE products SET stock = ? WHERE id=?').run(dopo, p.id);
+  // i carichi si valutano a costo, i vuoti a prezzo di vendita (= quanto si e' incassato)
+  const unit = type === 'carico' ? p.cost : p.price;
+  const r = db.prepare(`INSERT INTO movements (product_id,type,qty,unit_price,total,source,note,profile_id,created_at,work_date)
+    VALUES (?,?,?,?,?,?,?,?,?,?)`).run(p.id, type, n, unit, n * unit, String(source || 'manuale').slice(0, 30),
+    String(note || '').slice(0, 200), req.user.id, now(), giorno);
+  ok(res, { ok: true, id: r.lastInsertRowid, stock: dopo, giacenzaNegativa: dopo < 0, giorno });
 });
+
+/* Lo storico dei movimenti: chi ha segnato cosa e quando.
+   Chi gestisce il magazzino vede tutto; gli altri solo i propri.  */
+api.get('/movements', (req, res) => {
+  if (!can(req, 'magazzino.view') && !can(req, 'vuoti.do') && !can(req, 'carico.do')) return bad(res, 403, 'Permesso negato');
+  const da = giornoValido(req.query.from) ? req.query.from : workDate(new Date(adesso().getTime() - 7 * 86400000));
+  const a = giornoValido(req.query.to) ? req.query.to : workDate();
+  const tutti = can(req, 'magazzino.view');
+  const righe = db.prepare(`SELECT m.id, m.product_id, p.name product, p.unit, m.type, m.qty, m.unit_price, m.total,
+      m.source, m.note, m.created_at, m.work_date, m.profile_id, pr.name profilo
+    FROM movements m LEFT JOIN products p ON p.id=m.product_id LEFT JOIN profiles pr ON pr.id=m.profile_id
+    WHERE m.work_date BETWEEN ? AND ? ${tutti ? '' : 'AND m.profile_id=?'}
+      ${req.query.product ? 'AND m.product_id=' + (+req.query.product || 0) : ''}
+    ORDER BY m.created_at DESC LIMIT 500`).all(...(tutti ? [da, a] : [da, a, req.user.id]));
+  righe.forEach(m => { m.annullabile = puoAnnullare(req, m); });
+  ok(res, senzaCosti(req, righe));
+});
+// annullare: il titolare/bar manager sempre; gli altri solo i propri, entro 12 ore
+function puoAnnullare(req, m) {
+  if (m.type === 'rettifica') return false;   // le rettifiche le crea l'inventario
+  if (can(req, 'magazzino.view')) return true;
+  return m.profile_id === req.user.id && (adesso().getTime() - new Date(m.created_at).getTime()) < 12 * 3600000;
+}
+api.delete('/movements/:id', (req, res) => {
+  const m = db.prepare('SELECT * FROM movements WHERE id=?').get(req.params.id);
+  if (!m) return bad(res, 404, 'Movimento non trovato');
+  if (!puoAnnullare(req, m)) return bad(res, 403, m.type === 'rettifica'
+    ? 'Le rettifiche d\'inventario non si annullano' : 'Puoi annullare solo i tuoi movimenti delle ultime 12 ore');
+  const p = product(m.product_id);
+  const segno = m.type === 'carico' ? -1 : 1;     // si torna indietro
+  const chi = db.prepare('SELECT name FROM profiles WHERE id=?').get(m.profile_id);
+  db.exec('BEGIN');
+  try {
+    if (p) db.prepare('UPDATE products SET stock = ROUND(stock + ?, 2) WHERE id=?').run(segno * m.qty, p.id);
+    db.prepare(`INSERT INTO movimenti_annullati (movement_id,product_id,product_name,type,qty,work_date,creato_da,annullato_da,annullato_at)
+      VALUES (?,?,?,?,?,?,?,?,?)`).run(m.id, m.product_id, p ? p.name : '?', m.type, m.qty, m.work_date,
+      chi ? chi.name : '', req.user.name, now());
+    db.prepare('DELETE FROM movements WHERE id=?').run(m.id);
+    db.exec('COMMIT');
+  } catch (e) { db.exec('ROLLBACK'); throw e; }
+  ok(res, { ok: true, stock: p ? product(p.id).stock : null });
+});
+// il titolare vede cosa e' stato annullato e da chi
+api.get('/movements/annullati', need('magazzino.view'), (req, res) =>
+  ok(res, db.prepare('SELECT * FROM movimenti_annullati ORDER BY id DESC LIMIT 200').all()));
+// prodotti sotto zero: manca un carico
+api.get('/products/negativi', need('magazzino.view'), (req, res) =>
+  ok(res, db.prepare("SELECT id,name,stock,unit FROM products WHERE category='Bottiglia' AND stock<0 ORDER BY name").all()));
 
 /* ---------------- SEZ.1 — CONTEGGIO VUOTI (giorno/mese + residuo) ---------------- */
 api.get('/empties', need('vuoti.view'), (req, res) => {
   const period = req.query.period === 'day' ? 'day' : 'month';
-  const date = req.query.date || todayISO();
+  const date = giornoValido(req.query.date) ? req.query.date : workDate();
   const key = period === 'day' ? date : date.slice(0, 7);
   const len = period === 'day' ? 10 : 7;
   const rows = db.prepare(`SELECT p.id, p.name, p.unit, p.price, p.stock AS residuo,
       COALESCE(SUM(CASE WHEN mv.type IN ('vuoto','scarico') THEN mv.qty END),0) qty
     FROM products p
-    LEFT JOIN movements mv ON mv.product_id=p.id AND substr(mv.created_at,1,?)=?
+    LEFT JOIN movements mv ON mv.product_id=p.id AND substr(mv.work_date,1,?)=?
     WHERE p.category='Bottiglia'
     GROUP BY p.id ORDER BY qty DESC, p.name`).all(len, key);
   rows.forEach(r => r.total = r.qty * r.price);
-  ok(res, { period, key, rows, totale: rows.reduce((s, r) => s + r.total, 0) });
+  const vede = can(req, 'drinkcost.view');
+  ok(res, { period, key, rows: senzaCosti(req, rows), totale: vede ? rows.reduce((s, r) => s + r.total, 0) : undefined });
 });
 // griglia del mese: per prodotto, vuoti giorno per giorno
 api.get('/empties/grid', need('vuoti.view'), (req, res) => {
@@ -434,9 +581,9 @@ api.get('/empties/grid', need('vuoti.view'), (req, res) => {
   const [y, mo] = m.split('-').map(Number);
   const giorni = new Date(y, mo, 0).getDate();
   const days = Array.from({ length: giorni }, (_, i) => String(i + 1).padStart(2, '0'));
-  const raw = db.prepare(`SELECT p.name, substr(mv.created_at,9,2) gg, SUM(mv.qty) q
+  const raw = db.prepare(`SELECT p.name, substr(mv.work_date,9,2) gg, SUM(mv.qty) q
     FROM movements mv JOIN products p ON p.id=mv.product_id
-    WHERE mv.type IN ('vuoto','scarico') AND substr(mv.created_at,1,7)=? AND p.category='Bottiglia'
+    WHERE mv.type IN ('vuoto','scarico') AND substr(mv.work_date,1,7)=? AND p.category='Bottiglia'
     GROUP BY p.name, gg`).all(m);
   const map = {};
   raw.forEach(r => { (map[r.name] = map[r.name] || {})[r.gg] = r.q; });
@@ -453,14 +600,14 @@ api.get('/reports/monthly', need('magazzino.view'), (req, res) => {
       COALESCE(SUM(CASE WHEN mv.type='carico' THEN mv.qty END),0) entrato,
       COALESCE(SUM(CASE WHEN mv.type IN ('scarico','vuoto') THEN mv.qty END),0) uscito
     FROM products p LEFT JOIN vendors v ON v.id=p.vendor_id
-    LEFT JOIN movements mv ON mv.product_id=p.id AND substr(mv.created_at,1,7)=?
+    LEFT JOIN movements mv ON mv.product_id=p.id AND substr(mv.work_date,1,7)=?
     WHERE p.category='Bottiglia'
     GROUP BY p.id ORDER BY p.name`).all(m);
   rows.forEach(r => { r.consumato = r.uscito * r.price; r.netto = r.entrato - r.uscito;
     // quanto ordinare per tornare alla scorta ideale (0 se non serve)
     r.daOrdinare = (r.residua <= r.threshold && r.par_level > r.residua) ? Math.ceil(r.par_level - r.residua) : 0; });
-  ok(res, { month: m, rows,
-    totaleConsumato: rows.reduce((s, r) => s + r.consumato, 0),
+  ok(res, { month: m, rows: senzaCosti(req, rows),
+    totaleConsumato: can(req, 'drinkcost.view') ? rows.reduce((s, r) => s + r.consumato, 0) : undefined,
     sottoSoglia: db.prepare("SELECT COUNT(*) c FROM products WHERE category='Bottiglia' AND stock<=threshold").get().c });
 });
 
@@ -474,6 +621,14 @@ api.post('/locations', need('magazzino.view'), (req, res) => {
   const max = db.prepare('SELECT COALESCE(MAX(sort_index),-1) m FROM locations').get().m;
   const r = db.prepare('INSERT INTO locations (name,sort_index) VALUES (?,?)').run(name, max + 1);
   ok(res, { id: r.lastInsertRowid });
+});
+api.put('/locations/:id', need('magazzino.view'), (req, res) => {
+  const name = String(req.body.name || '').trim().slice(0, 40);
+  if (!name) return bad(res, 400, 'Serve il nome della postazione');
+  if (!db.prepare('SELECT 1 FROM locations WHERE id=?').get(req.params.id)) return bad(res, 404, 'Postazione non trovata');
+  db.prepare('UPDATE locations SET name=? WHERE id=?').run(name, req.params.id);
+  if (req.body.sort_index !== undefined) db.prepare('UPDATE locations SET sort_index=? WHERE id=?').run(+req.body.sort_index || 0, req.params.id);
+  ok(res, { ok: true });
 });
 api.delete('/locations/:id', need('magazzino.view'), (req, res) => {
   if (db.prepare('SELECT COUNT(*) c FROM inv_counts WHERE location_id=?').get(req.params.id).c)
@@ -600,15 +755,20 @@ api.get('/inventory/:id/review', need('inventario.view'), (req, res) => {
 
   const mancanti = contati.filter(r => r.differenza < 0);
   const eccedenze = contati.filter(r => r.differenza > 0);
-  ok(res, { sessione: s, rows: contati, nonContati,
-    riepilogo: {
-      contati: contati.length,
-      nonContati: nonContati.length,
-      conScostamento: contati.filter(r => r.segnala).length,
-      valoreMancante: +mancanti.reduce((t, r) => t + r.valore, 0).toFixed(2),
-      valoreEccedenza: +eccedenze.reduce((t, r) => t + r.valore, 0).toFixed(2),
-      valoreNetto: +contati.reduce((t, r) => t + r.valore, 0).toFixed(2),
-    } });
+  const vede = can(req, 'drinkcost.view');
+  const riepilogo = {
+    contati: contati.length,
+    nonContati: nonContati.length,
+    conScostamento: contati.filter(r => r.segnala).length,
+  };
+  // quanto valgono gli ammanchi lo sa chi vede i costi, non chi conta
+  if (vede) Object.assign(riepilogo, {
+    valoreMancante: +mancanti.reduce((t, r) => t + r.valore, 0).toFixed(2),
+    valoreEccedenza: +eccedenze.reduce((t, r) => t + r.valore, 0).toFixed(2),
+    valoreNetto: +contati.reduce((t, r) => t + r.valore, 0).toFixed(2),
+  });
+  ok(res, { sessione: s, rows: vede ? contati : contati.map(r => { const c = { ...r }; delete c.cost; delete c.price; delete c.valore; return c; }),
+    nonContati, riepilogo });
 });
 
 /* chiusura: allinea le giacenze a quanto hai contato e registra le rettifiche.
@@ -624,8 +784,8 @@ api.post('/inventory/:id/close', need('inventario.close'), (req, res) => {
   const righe = db.prepare(`SELECT c.product_id, SUM(c.qty) contato, MAX(c.atteso) atteso
     FROM inv_counts c WHERE c.session_id=? GROUP BY c.product_id`).all(sid);
 
-  const mv = db.prepare(`INSERT INTO movements (product_id,type,qty,unit_price,total,source,note,profile_id,created_at)
-    VALUES (?,'rettifica',?,?,?,'inventario',?,?,?)`);
+  const mv = db.prepare(`INSERT INTO movements (product_id,type,qty,unit_price,total,source,note,profile_id,created_at,work_date)
+    VALUES (?,'rettifica',?,?,?,'inventario',?,?,?,?)`);
   const setStock = db.prepare('UPDATE products SET stock=? WHERE id=?');
   let rettifiche = 0;
 
@@ -635,7 +795,7 @@ api.post('/inventory/:id/close', need('inventario.close'), (req, res) => {
     if (diff !== 0) {
       const p = product(r.product_id);
       mv.run(r.product_id, Math.abs(diff), p.cost, Math.abs(diff) * p.cost,
-        `Inventario #${sid}: atteso ${r.atteso}, contato ${r.contato}`, req.user.id, now());
+        `Inventario #${sid}: atteso ${r.atteso}, contato ${r.contato}`, req.user.id, now(), workDate());
       rettifiche++;
     }
   });
@@ -682,7 +842,7 @@ api.get('/inventory/history', need('inventario.view'), (req, res) => {
       FROM (SELECT c.product_id, (SUM(c.qty) - MAX(c.atteso)) diff, MAX(p.cost) cost
             FROM inv_counts c JOIN products p ON p.id=c.product_id
             WHERE c.session_id=? GROUP BY c.product_id) d`).get(s.id);
-    s.valoreScostamento = +v.v.toFixed(2);
+    if (can(req, 'drinkcost.view')) s.valoreScostamento = +v.v.toFixed(2);
     s.conScostamento = v.n;
   });
   ok(res, rows);
@@ -801,8 +961,17 @@ api.get('/shifts', need('turni.view'), (req, res) => {
   ok(res, db.prepare(`SELECT s.*, e.name employee, e.color FROM shifts s JOIN employees e ON e.id=s.employee_id
     WHERE s.date BETWEEN ? AND ? ORDER BY s.date,s.start`).all(from || '0000', to || '9999'));
 });
+const oraValida = (o) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(o || ''));
+function controllaTurno(b) {
+  if (!b.employee_id || !db.prepare('SELECT 1 FROM employees WHERE id=?').get(b.employee_id)) return 'Dipendente non trovato';
+  if (!giornoValido(b.date)) return 'Data non valida';
+  if (!oraValida(b.start) || !oraValida(b.end)) return 'Orario non valido (es. 16:00)';
+  if (b.start === b.end) return 'Inizio e fine sono uguali';
+  return null;   // fine prima dell'inizio va bene: e' un turno che passa la mezzanotte
+}
 api.post('/shifts', need('turni.manage'), (req, res) => {
   const { employee_id, date, start, end, role, note } = req.body;
+  const err = controllaTurno(req.body); if (err) return bad(res, 400, err);
   const r = db.prepare('INSERT INTO shifts (employee_id,date,start,end,role,note) VALUES (?,?,?,?,?,?)')
     .run(employee_id, date, start, end, role || '', note || '');
   ok(res, { id: r.lastInsertRowid });
@@ -814,6 +983,7 @@ api.post('/shifts/bulk', need('turni.manage'), (req, res) => {
   const { employee_id, dates, start, end, role, note } = req.body;
   const giorni = [...new Set((Array.isArray(dates) ? dates : []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)))];
   if (!employee_id || !giorni.length) return bad(res, 400, 'Servono dipendente e almeno un giorno');
+  if (!oraValida(start) || !oraValida(end) || start === end) return bad(res, 400, 'Orario non valido (es. 16:00)');
   if (giorni.length > 62) return bad(res, 400, 'Troppi giorni in una volta');
   if (!db.prepare('SELECT 1 FROM employees WHERE id=?').get(employee_id)) return bad(res, 404, 'Dipendente non trovato');
   const esiste = db.prepare('SELECT 1 FROM shifts WHERE employee_id=? AND date=? AND start=? AND end=?');
@@ -826,14 +996,76 @@ api.post('/shifts/bulk', need('turni.manage'), (req, res) => {
   } catch (e) { db.exec('ROLLBACK'); throw e; }
   ok(res, { added, skipped: giorni.length - added });
 });
+api.put('/shifts/:id', need('turni.manage'), (req, res) => {
+  const t = db.prepare('SELECT * FROM shifts WHERE id=?').get(req.params.id);
+  if (!t) return bad(res, 404, 'Turno non trovato');
+  const nuovo = { employee_id: req.body.employee_id || t.employee_id, date: req.body.date || t.date,
+    start: req.body.start || t.start, end: req.body.end || t.end,
+    role: req.body.role !== undefined ? String(req.body.role) : t.role, note: req.body.note !== undefined ? String(req.body.note) : t.note };
+  const err = controllaTurno(nuovo); if (err) return bad(res, 400, err);
+  db.prepare('UPDATE shifts SET employee_id=?, date=?, start=?, end=?, role=?, note=? WHERE id=?')
+    .run(nuovo.employee_id, nuovo.date, nuovo.start, nuovo.end, nuovo.role, nuovo.note, t.id);
+  ok(res, { ok: true });
+});
 api.delete('/shifts/:id', need('turni.manage'), (req, res) => { db.prepare('DELETE FROM shifts WHERE id=?').run(req.params.id); ok(res, { ok: true }); });
 
 // le task da fare: quelle fatte spariscono dalla lista e finiscono nello storico.
 // Restano anche quelle dei giorni passati non ancora fatte, altrimenti si perderebbero.
+/* CHECKLIST CHE SI RIPETONO: apertura, chiusura, pulizie.
+   Si scrivono una volta coi giorni della settimana; ogni giorno l'app
+   crea da sola le task di quel giorno.                               */
+function creaTaskDelGiorno(giorno) {
+  const dow = ((new Date(giorno + 'T12:00:00Z').getUTCDay() + 6) % 7) + 1;   // 1 = lunedi'
+  const modelli = db.prepare('SELECT * FROM task_templates WHERE attivo=1').all();
+  const gia = db.prepare('SELECT 1 FROM tasks WHERE template_id=? AND date=?');
+  const ins = db.prepare('INSERT INTO tasks (date,title,assignee_id,template_id) VALUES (?,?,?,?)');
+  modelli.forEach(m => {
+    if (!JSON.parse(m.giorni || '[]').includes(dow)) return;
+    // un modello creato oggi non riempie i giorni passati
+    if (m.created_at && giorno < m.created_at.slice(0, 10) && giorno < workDate()) return;
+    if (!gia.get(m.id, giorno)) ins.run(giorno, m.title, m.assignee_id, m.id);
+  });
+}
+api.get('/task-templates', need('task.view'), (req, res) =>
+  ok(res, db.prepare(`SELECT t.*, e.name assignee FROM task_templates t LEFT JOIN employees e ON e.id=t.assignee_id
+    WHERE t.attivo=1 ORDER BY t.title`).all().map(t => ({ ...t, giorni: JSON.parse(t.giorni || '[]') }))));
+function giorniPuliti(g) {
+  const l = [...new Set((Array.isArray(g) ? g : [1, 2, 3, 4, 5, 6, 7]).map(Number).filter(n => n >= 1 && n <= 7))].sort();
+  return l.length ? l : null;
+}
+api.post('/task-templates', need('task.manage'), (req, res) => {
+  const title = String(req.body.title || '').trim().slice(0, 120);
+  if (!title) return bad(res, 400, 'Scrivi cosa c\'e\' da fare');
+  const giorni = giorniPuliti(req.body.giorni); if (!giorni) return bad(res, 400, 'Scegli almeno un giorno');
+  const r = db.prepare('INSERT INTO task_templates (title,assignee_id,giorni,created_at) VALUES (?,?,?,?)')
+    .run(title, req.body.assignee_id || null, JSON.stringify(giorni), now());
+  creaTaskDelGiorno(workDate());
+  ok(res, { id: r.lastInsertRowid });
+});
+api.put('/task-templates/:id', need('task.manage'), (req, res) => {
+  const t = db.prepare('SELECT * FROM task_templates WHERE id=? AND attivo=1').get(req.params.id);
+  if (!t) return bad(res, 404, 'Checklist non trovata');
+  const title = String(req.body.title || t.title).trim().slice(0, 120);
+  const giorni = req.body.giorni !== undefined ? giorniPuliti(req.body.giorni) : JSON.parse(t.giorni);
+  if (!giorni) return bad(res, 400, 'Scegli almeno un giorno');
+  db.prepare('UPDATE task_templates SET title=?, assignee_id=?, giorni=? WHERE id=?')
+    .run(title, req.body.assignee_id !== undefined ? (req.body.assignee_id || null) : t.assignee_id, JSON.stringify(giorni), t.id);
+  ok(res, { ok: true });
+});
+// si spegne, non si cancella: lo storico delle task gia' fatte resta leggibile
+api.delete('/task-templates/:id', need('task.manage'), (req, res) => {
+  db.prepare('UPDATE task_templates SET attivo=0 WHERE id=?').run(req.params.id);
+  db.prepare('DELETE FROM tasks WHERE template_id=? AND done=0 AND date>=?').run(req.params.id, workDate());
+  ok(res, { ok: true });
+});
+
 api.get('/tasks', need('task.view'), (req, res) => {
-  const date = req.query.date || todayISO();
+  const date = giornoValido(req.query.date) ? req.query.date : workDate();
+  creaTaskDelGiorno(date > workDate() ? workDate() : date);
   ok(res, db.prepare(`SELECT t.*, e.name assignee FROM tasks t LEFT JOIN employees e ON e.id=t.assignee_id
-    WHERE t.done=0 AND t.date<=? ORDER BY t.date, t.id`).all(date));
+    WHERE t.done=0 AND t.date<=?
+      AND (t.template_id IS NULL OR t.date=?)   -- la checklist di ieri non fatta non si accumula
+    ORDER BY t.date, t.id`).all(date, date));
 });
 // storico: chi ha fatto cosa e quando, le piu' recenti prima
 api.get('/tasks/history', need('task.view'), (req, res) => {
@@ -844,13 +1076,26 @@ api.get('/tasks/history', need('task.view'), (req, res) => {
 });
 api.post('/tasks', need('task.manage'), (req, res) => {
   const { date, title, assignee_id } = req.body;
+  if (!String(title || '').trim()) return bad(res, 400, 'Scrivi cosa c\'e\' da fare');
   const r = db.prepare('INSERT INTO tasks (date,title,assignee_id) VALUES (?,?,?)')
-    .run(date || todayISO(), title, assignee_id || null);
+    .run(giornoValido(date) ? date : workDate(), String(title || '').trim().slice(0, 120) || '?', assignee_id || null);
   ok(res, { id: r.lastInsertRowid });
 });
 // spuntare una task richiede 'task.check' (oppure gestione completa)
 api.put('/tasks/:id', (req, res) => {
   if (!can(req, 'task.check') && !can(req, 'task.manage')) return bad(res, 403, 'Permesso negato (task.check)');
+  if (!db.prepare('SELECT 1 FROM tasks WHERE id=?').get(req.params.id)) return bad(res, 404, 'Task non trovata');
+  // modificare testo, persona o giorno: solo chi gestisce le task
+  if (req.body.title !== undefined || req.body.assignee_id !== undefined || req.body.date !== undefined) {
+    if (!can(req, 'task.manage')) return bad(res, 403, 'Permesso negato (task.manage)');
+    const t = db.prepare('SELECT * FROM tasks WHERE id=?').get(req.params.id);
+    const title = req.body.title !== undefined ? String(req.body.title).trim().slice(0, 120) : t.title;
+    if (!title) return bad(res, 400, 'Scrivi cosa c\'e\' da fare');
+    db.prepare('UPDATE tasks SET title=?, assignee_id=?, date=? WHERE id=?').run(title,
+      req.body.assignee_id !== undefined ? (req.body.assignee_id || null) : t.assignee_id,
+      giornoValido(req.body.date) ? req.body.date : t.date, t.id);
+    if (req.body.done === undefined) return ok(res, { ok: true });
+  }
   if (req.body.done) {
     // la "firma": il dipendente che l'ha fatta, piu' il profilo con cui e' stata spuntata
     const emp = req.body.employee_id ? db.prepare('SELECT id,name FROM employees WHERE id=?').get(req.body.employee_id) : null;
@@ -863,6 +1108,11 @@ api.put('/tasks/:id', (req, res) => {
     db.prepare('UPDATE tasks SET done=0, done_by_emp=NULL, done_by_name=NULL, done_profile=NULL, done_at=NULL WHERE id=?')
       .run(req.params.id);
   }
+  ok(res, { ok: true });
+});
+
+api.delete('/tasks/:id', need('task.manage'), (req, res) => {
+  db.prepare('DELETE FROM tasks WHERE id=?').run(req.params.id);
   ok(res, { ok: true });
 });
 
@@ -906,8 +1156,16 @@ function giorniTra(a, b) {
    barback). Il proprietario, che puo' tutto, le approva ma non le chiede. */
 const needProprio = (cap) => (req, res, next) =>
   (req.user.permissions || []).includes(cap) ? next() : bad(res, 403, 'Permesso negato (' + cap + ')');
+const dipendenteDelProfilo = (req) => {
+  const p = db.prepare('SELECT employee_id FROM profiles WHERE id=?').get(req.user.id);
+  return p && p.employee_id ? p.employee_id : null;
+};
 api.post('/shift-changes', needProprio('ferie.request'), (req, res) => {
-  const { employee_id, type, from_date, to_date, note } = req.body;
+  const { type, from_date, to_date, note } = req.body;
+  // se il profilo e' di una persona, la richiesta e' per forza sua
+  const mio = dipendenteDelProfilo(req);
+  if (mio && req.body.employee_id && +req.body.employee_id !== mio) return bad(res, 403, 'Puoi chiedere ferie solo per te');
+  const employee_id = mio || req.body.employee_id;
   if (!employee_id) return bad(res, 400, 'Scegli il dipendente');
   if (!['cambio', 'ferie', 'permesso'].includes(type)) return bad(res, 400, 'Tipo non valido');
   if (!from_date) return bad(res, 400, 'Serve la data di inizio');
@@ -942,6 +1200,8 @@ api.delete('/shift-changes/:id', needProprio('ferie.request'), (req, res) => {
   const c = db.prepare('SELECT * FROM shift_changes WHERE id=?').get(req.params.id);
   if (!c) return bad(res, 404, 'Richiesta non trovata');
   if (c.status !== 'in attesa') return bad(res, 409, 'Si possono ritirare solo le richieste in attesa');
+  const mio = dipendenteDelProfilo(req);
+  if (mio && c.employee_id !== mio) return bad(res, 403, 'Puoi ritirare solo le tue richieste');
   db.prepare('DELETE FROM shift_changes WHERE id=?').run(req.params.id);
   ok(res, { ok: true });
 });

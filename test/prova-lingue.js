@@ -122,11 +122,11 @@ async function chiama(p, { metodo = 'GET', corpo, token, lang } = {}) {
   const { token: T } = (await chiama('/auth/pin', { metodo: 'POST', corpo: { profileId: 1, pin: '1111' } })).dati;
 
   // messaggio con una parte variabile: il nome del prodotto deve restare
-  const troppo = (lang) => chiama('/movements', { metodo: 'POST', token: T, lang, corpo: { productId: 1, type: 'vuoto', qty: 9999 } });
+  const troppo = (lang) => chiama('/products/1', { metodo: 'DELETE', token: T, lang });
   const itM = (await troppo('it')).dati.error, enM = (await troppo('en')).dati.error, esM = (await troppo('es')).dati.error;
-  verifica('messaggio con nome: italiano', itM.startsWith('Giacenza insufficiente: '), itM);
-  verifica('messaggio con nome: inglese', enM.startsWith('Not enough stock: '), enM);
-  verifica('messaggio con nome: spagnolo', esM.startsWith('Existencias insuficientes: '), esM);
+  verifica('messaggio con nome: italiano', itM.startsWith('Usato nella ricetta di: '), itM);
+  verifica('messaggio con nome: inglese', enM.startsWith('Used in the recipe of: '), enM);
+  verifica('messaggio con nome: spagnolo', esM.startsWith('Se usa en la receta de: '), esM);
   verifica('il nome del prodotto non viene tradotto', enM.endsWith(itM.split(': ')[1]), [itM, enM]);
 
   // il manuale del dipendente

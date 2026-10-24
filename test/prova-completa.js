@@ -131,7 +131,12 @@ async function aspettaServer() {
   verifica('il barman non puo\' fare un carico', (await chiama('/movements', { metodo: 'POST', token: B, corpo: { productId: vodka.id, type: 'carico', qty: 1 } })).stato === 403);
   verifica('il bar manager puo\' fare un carico', (await chiama('/movements', { metodo: 'POST', token: M, corpo: { productId: vodka.id, type: 'carico', qty: 3 } })).stato === 200);
   verifica('un tipo di movimento inventato e\' respinto', (await chiama('/movements', { metodo: 'POST', token: P, corpo: { productId: vodka.id, type: 'rettifica', qty: 1 } })).stato === 400);
-  verifica('non si scarica piu\' della giacenza', (await chiama('/movements', { metodo: 'POST', token: P, corpo: { productId: vodka.id, type: 'vuoto', qty: 9999 } })).stato === 409);
+  // senza carico il vuoto si segna lo stesso: la giacenza va sotto zero e lo si vede
+  const troppo = await chiama('/movements', { metodo: 'POST', token: P, corpo: { productId: vodka.id, type: 'vuoto', qty: 9999 } });
+  verifica('un vuoto oltre la giacenza si segna e avvisa', troppo.stato === 200 && troppo.dati.giacenzaNegativa === true, troppo.dati);
+  verifica('il prodotto sotto zero compare fra i negativi', (await chiama('/products/negativi', { token: P })).dati.some(p => p.id === vodka.id));
+  verifica('il titolare annulla lo sbaglio', (await chiama('/movements/' + troppo.dati.id, { metodo: 'DELETE', token: P })).stato === 200);
+  verifica('l\'annullamento resta scritto', (await chiama('/movements/annullati', { token: P })).dati.some(a => a.qty === 9999));
 
   const vuoti = (await chiama('/empties?period=month', { token: B })).dati;
   verifica('il conteggio vuoti mostra la Vodka', vuoti.rows.some(r => r.name === 'Vodka' && r.qty === 2));

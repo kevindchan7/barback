@@ -9,6 +9,7 @@
     "prova-vuota": "node --experimental-sqlite test/prova-vuota.js",
     "prova-lingue": "node --experimental-sqlite test/prova-lingue.js",
     "prova-vetrina": "node --experimental-sqlite test/prova-vetrina.js",
+    "prova-bar": "node --experimental-sqlite test/prova-bar-vero.js",
     "pagine-legali": "node strumenti/pagine-legali.js",
     "controlla": "node strumenti/controlla-sito.js"
   },
