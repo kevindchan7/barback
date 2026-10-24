@@ -3,7 +3,9 @@
    Mostra/nasconde funzioni in base ai PERMESSI del profilo (can()).
    ===================================================================== */
 const $ = (s) => document.querySelector(s);
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// la giornata di lavoro, ora locale del telefono: cambia alle 6 del mattino come sul server
+const todayISO = () => { const x = new Date(Date.now() - 6 * 3600000);
+  return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
 let TOKEN = localStorage.getItem('bb_token') || null;
 let PROFILE = JSON.parse(localStorage.getItem('bb_profile') || 'null');
 let currentView = 'home';
@@ -115,6 +117,7 @@ function buildBottomNav() {
     ['turni', '📅', t('nav_turni'), can('turni.view') || can('task.view')],
     ['richieste', '🏖', t('nav_ferie'), can('ferie.view') || can('ferie.request')],
     ['magazzino', '📦', t('nav_magazzino'), can('magazzino.view')],
+    ['costi', '🍸', t('nav_costi'), can('drinkcost.view')],
     ['inventario', '📋', t('nav_inventario'), can('inventario.view')],
     ['ordini', '🛒', t('nav_ordini'), can('magazzino.view')],
     ['manuale', '📖', t('nav_manuale'), can('manuale.view')],
@@ -177,6 +180,7 @@ async function loadHome() {
     ['turni', '📅', t('sez_turni'), t('d_turni'), can('turni.view') || can('task.view')],
     ['richieste', '🏖', t('sez_ferie'), t('d_ferie'), can('ferie.view') || can('ferie.request')],
     ['magazzino', '📦', t('sez_magazzino'), t('d_magazzino'), can('magazzino.view')],
+    ['costi', '🍸', t('sez_costi_drink'), t('d_costi_drink'), can('drinkcost.view')],
     ['inventario', '📋', t('sez_inventario'), t('d_inventario'), can('inventario.view')],
     ['ordini', '🛒', t('sez_ordini'), t('d_ordini'), can('magazzino.view')],
     ['manuale', '📖', t('sez_manuale'), t('d_manuale'), can('manuale.view')],
@@ -195,7 +199,7 @@ function go(view, silent) {
   if (silent) return;
   const loaders = { home: loadHome, vuoti: loadVuoti, turni: loadTurni,
     magazzino: loadMagazzino, inventario: loadInventario, ordini: loadOrdini,
-    richieste: loadRichieste, manuale: loadManuale };
+    richieste: loadRichieste, manuale: loadManuale, costi: loadCosti };
   if (loaders[view]) {
     loaders[view]();
     if (['vuoti', 'magazzino', 'turni'].includes(view)) pollTimer = setInterval(loaders[view], 20000);
@@ -223,6 +227,7 @@ async function loadVuoti() {
       row.perDay.map(q => `<td class="${q ? 'has' : ''}">${q || ''}</td>`).join('') + '</tr>';
   });
   $('#vuoti-grid').innerHTML = html;
+  caricaMieiVuoti();
 }
 /* Ricerca prodotto: si scrive un pezzo del nome e si tocca il risultato.
    Accenti e maiuscole non contano. */
@@ -255,8 +260,11 @@ function vuotiKey(e) {
 async function addEmpty() {
   if (!$('#vuoti-prod').value) { alert(t('scegli_prodotto')); $('#vuoti-search').focus(); return; }
   try {
-    await api('/movements', 'POST', { productId: +$('#vuoti-prod').value, type: 'vuoto',
-      qty: +$('#vuoti-qty').value, source: $('#vuoti-src').value });
+    const nomeV = $('#vuoti-search').value;
+    const rv = await api('/movements', 'POST', { productId: +$('#vuoti-prod').value, type: 'vuoto',
+      qty: +$('#vuoti-qty').value, source: $('#vuoti-src').value,
+      ...($('#vuoti-giorno') && $('#vuoti-giorno').value && $('#vuoti-giorno').value !== todayISO() ? { data: $('#vuoti-giorno').value } : {}) });
+    avvisoGiacenza(rv, nomeV);
     // pronto per il prossimo prodotto
     $('#vuoti-prod').value = ''; $('#vuoti-search').value = ''; $('#vuoti-qty').value = 1;
     loadVuoti();
@@ -288,6 +296,7 @@ async function loadMagazzino() {
   $('#mz-month').textContent = '(' + r.month + ')';
   $('#mz-low').textContent = r.sottoSoglia;
   renderMz();
+  caricaStoricoMov();
 }
 function renderMz() {
   const q = (($('#mz-search') && $('#mz-search').value) || '').toLowerCase();
@@ -313,6 +322,10 @@ function editProduct(id) {
           <div><label>${t('scorta_ideale')}</label><input id="ep-par" type="number" value="${p.par_level || 0}"></div>
         </div>
         <p class="muted" style="font-size:11px;margin:-4px 0 8px">${t("soglia_aiuto")}</p>
+        <div class="row c2">
+          <div><label>${t('formato')}</label><input id="ep-format" value="${(p.format || '').replace(/"/g, '&quot;')}"></div>
+          <div><label>${t('unita')}</label><input id="ep-unit" value="${(p.unit || '').replace(/"/g, '&quot;')}"></div>
+        </div>
         <div class="row"><div><label>${t('fornitore')}</label><select id="ep-vendor">
           <option value="">${t('nessuno')}</option>
           ${(window._vendors || []).map(v => `<option value="${v.id}" ${v.id === p.vendor_id ? 'selected' : ''}>${v.name}</option>`).join('')}
@@ -343,7 +356,7 @@ async function saveProduct(id) {
   try {
     /* Chi vede i costi li manda; gli altri non mandano nulla e il
        server lascia quelli che c'erano, invece di azzerarli. */
-    const corpo = { name: $('#ep-name').value,
+    const corpo = { name: $('#ep-name').value, format: $('#ep-format').value, unit: $('#ep-unit').value,
       threshold: $('#ep-thr').value, par_level: $('#ep-par').value, vendor_id: $('#ep-vendor').value };
     if (can('drinkcost.view')) {
       corpo.cost = $('#ep-cost').value;
@@ -357,8 +370,11 @@ async function saveProduct(id) {
 async function addMovement() {
   try {
     const type = $('#mv-type').value;
-    await api('/movements', 'POST', { productId: +$('#mv-prod').value, type, qty: +$('#mv-qty').value,
-      source: type === 'carico' ? 'fornitore' : 'manuale' });
+    const sel = $('#mv-prod');
+    const rm = await api('/movements', 'POST', { productId: +sel.value, type, qty: +$('#mv-qty').value,
+      source: type === 'carico' ? 'fornitore' : 'manuale',
+      ...($('#mv-giorno') && $('#mv-giorno').value && $('#mv-giorno').value !== todayISO() ? { data: $('#mv-giorno').value } : {}) });
+    avvisoGiacenza(rm, sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '');
     loadMagazzino();
   } catch (e) { alert(e.message); }
 }
@@ -548,7 +564,8 @@ async function loadLocations() {
   const locs = await api('/locations');
   const editable = can('magazzino.view');
   $('#loc-list').innerHTML = locs.map(l => `<tr><td>${l.name}</td>
-    <td class="right">${editable ? `<button class="iconbtn" onclick="removeLocation(${l.id}, '${l.name.replace(/'/g, "\\'")}')" title="${t('elimina')}">🗑</button>` : ''}</td></tr>`).join('')
+    <td class="right">${editable ? `<button class="iconbtn" onclick="rinominaPostazione(${l.id}, '${l.name.replace(/'/g, "\\'")}')" title="${t('modifica')}">✏️</button>
+      <button class="iconbtn" onclick="removeLocation(${l.id}, '${l.name.replace(/'/g, "\\'")}')" title="${t('elimina')}">🗑</button>` : ''}</td></tr>`).join('')
     || `<tr><td colspan="2" class="muted">${t('nessuna_postazione')}</td></tr>`;
 }
 async function addLocation() {
@@ -752,14 +769,14 @@ async function loadShifts() {
     html += `<tr><td style="text-align:left"><i class="dot" style="background:${e.color || '#888'}"></i>${e.name}</td>` + days.map(d => {
       const k = isoLocal(d);
       const cell = shifts.filter(s => s.employee_id === e.id && s.date === k).map(s =>
-        `<span class="chip" ${editable ? `onclick="deleteShift(${s.id})" title="Elimina turno" style="cursor:pointer"` : ''}>${s.start}–${s.end}${editable ? ' ✕' : ''}</span>`).join('');
+        `<span class="chip" ${editable ? `onclick="editShift(${s.id})" title="${t('modifica_turno')}" style="cursor:pointer"` : ''}>${s.start}–${s.end}${editable ? ' ✏️' : ''}</span>`).join('');
       return `<td class="${cell ? 'has' : ''}">${cell || ''}</td>`;
     }).join('') + '</tr>';
   });
   $('#shift-grid').innerHTML = html;
 }
 async function deleteShift(id) {
-  if (!confirm('Eliminare questo turno?')) return;
+  if (!confirm(t('conferma_elimina_turno'))) return;
   try { await api('/shifts/' + id, 'DELETE'); refreshTurni(); } catch (e) { alert(e.message); }
 }
 function refreshTurni() { return Promise.all([loadShifts(), loadCal(), loadPicker()]); }
@@ -843,7 +860,11 @@ async function loadTasks() {
       <input type="checkbox" style="width:auto" ${editable ? '' : 'disabled'} onchange="this.checked=false; signTask(${x.id})">
       <span>${x.title}</span>${x.date < oggi ? `<span class="muted">(${new Date(x.date + 'T00:00').toLocaleDateString(locale(), { day: '2-digit', month: '2-digit' })})</span>` : ''}
       <span style="flex:1"></span><span class="muted">${x.assignee || ''}</span>
+      ${x.template_id ? '<span class="muted" title="checklist">🔁</span>' : ''}
+      ${can('task.manage') ? `<button class="iconbtn" onclick="event.preventDefault();modificaTask(${x.id}, '${String(x.title).replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="${t('modifica')}">✏️</button>
+        <button class="iconbtn" onclick="event.preventDefault();eliminaTask(${x.id}, '${String(x.title).replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="${t('elimina')}">🗑</button>` : ''}
     </label>`).join('') : `<p class="muted">${t('nessuna_task')}</p>`;
+  caricaChecklist();
 }
 // i profili sono per ruolo (piu' persone usano lo stesso): la firma e' il nome di chi l'ha fatta
 async function signTask(id) {
@@ -914,9 +935,12 @@ async function loadRichieste() {
   show('#rq-approve-card', puoApprovare);
 
   if (puoChiedere) {
-    const emps = await api('/employees');
-    if ($('#rq-emp').options.length !== emps.length)
-      $('#rq-emp').innerHTML = emps.map(e => `<option value="${e.id}">${e.name} (${e.role})</option>`).join('');
+    const [emps, profili] = await Promise.all([api('/employees'), api('/profiles')]);
+    const mio = (profili.find(p => p.id === PROFILE.id) || {}).employee_id;
+    const scelta = mio ? emps.filter(e => e.id === mio) : emps;
+    if ($('#rq-emp').options.length !== scelta.length || (mio && +$('#rq-emp').value !== mio))
+      $('#rq-emp').innerHTML = scelta.map(e => `<option value="${e.id}">${e.name} (${e.role})</option>`).join('');
+    $('#rq-emp').disabled = !!mio;
     if (!$('#rq-from').value) $('#rq-from').value = todayISO();
     if (!$('#rq-to').value) $('#rq-to').value = todayISO();
   }
@@ -1176,6 +1200,7 @@ async function openSettings() {
             <td>${nomeProfilo(p.name)}</td>
             <td class="muted">${p.permissions.includes('all') ? t('completo') : t('permessi_n', { n: p.permissions.length })}</td>
             <td class="right">
+              <button class="iconbtn" onclick="modificaProfilo(${p.id})" title="${t('modifica')}">✏️</button>
               <button class="iconbtn" onclick="resetPin(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="${t('reimposta_pin')}">🔑</button>
               ${p.id !== PROFILE.id ? `<button class="iconbtn" onclick="deleteProfile(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="${t('elimina')}">🗑</button>` : ''}
             </td></tr>`).join('')}
@@ -1190,6 +1215,11 @@ async function openSettings() {
         </div>
         <div class="row"><div><label>${t('pin_4_cifre')}</label><input id="npf-pin" inputmode="numeric" maxlength="4" placeholder="${t('ph_pin')}"></div></div>
         <button class="act" onclick="addProfile()">${t('crea_profilo')}</button>
+
+        <h3 style="margin-top:20px">${t('link_staff')}</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:6px">${t('link_staff_aiuto')}</p>
+        <p style="font-size:13px;word-break:break-all"><b>${linkStaff()}</b><br><span class="muted">${t('codice_locale')}: <b>${LOCALE}</b></span></p>
+        <button class="ghost" onclick="copiaLinkStaff()">📋 ${t('copia_link')}</button>
 
         <h3 style="margin-top:20px">${t('locale_nome')}</h3>
         <p class="muted" style="font-size:12px;margin-bottom:6px">${t('locale_nome_aiuto')}</p>
@@ -1496,7 +1526,7 @@ function ricaricaVista() {
   buildBottomNav();
   const loaders = { home: loadHome, vuoti: loadVuoti, turni: loadTurni,
     magazzino: loadMagazzino, inventario: loadInventario, ordini: loadOrdini,
-    richieste: loadRichieste, manuale: loadManuale };
+    richieste: loadRichieste, manuale: loadManuale, costi: loadCosti };
   if (TOKEN && PROFILE && loaders[currentView]) loaders[currentView]();
   else if (!TOKEN) initLogin();
 }

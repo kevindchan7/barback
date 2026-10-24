@@ -83,7 +83,8 @@ async function chiama(p, { metodo = 'GET', corpo, token, lang } = {}) {
 
   /* ---------- 3. le chiavi usate nel codice ---------- */
   titolo('3. LE CHIAVI USATE NEL CODICE ESISTONO');
-  const appjs = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const appjs = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8')
+    + fs.readFileSync(path.join(__dirname, '..', 'public', 'funzioni.js'), 'utf8');
   const usate = [...new Set([...appjs.matchAll(/\bt\('([a-z_0-9]+)'/g)].map(m => m[1]))];
   const inesistenti = usate.filter(k => !it.includes(k));
   verifica(`chiavi t() usate in app.js (${usate.length}), tutte esistenti`, inesistenti.length === 0, inesistenti);

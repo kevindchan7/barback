@@ -99,7 +99,12 @@
           <div><label data-i18n="origine">Origine</label><select id="vuoti-src"><option value="manuale" data-i18n="manuale_o">Manuale</option><option value="scontrino" data-i18n="da_scontrino">Da scontrino</option><option value="inventario" data-i18n="da_giacenza">Da giacenza iniziale</option></select></div>
           <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addEmpty()" data-i18n="btn_registra_vuoti">+ Registra vuoti</button></div>
         </div>
+        <!-- chi si e' dimenticato e segna il mattino dopo: fino a 7 giorni indietro -->
+        <details style="margin-top:8px"><summary class="muted" style="font-size:12.5px;cursor:pointer" data-i18n="altro_giorno">📅 Segna per un altro giorno</summary>
+          <div class="row"><div><label data-i18n="serata_del">Serata del</label><input id="vuoti-giorno" type="date"></div></div>
+        </details>
       </div>
+      <div id="miei-vuoti"></div>
       <div class="card">
         <div class="row c3">
           <div><label data-i18n="vista">Vista</label><select id="vuoti-period" onchange="loadVuoti()"><option value="month" data-i18n="mese">Mese</option><option value="day" data-i18n="giorno">Giorno</option></select></div>
@@ -163,7 +168,7 @@
           <button class="ghost" onclick="pickClear()" data-i18n="svuota_sel">Svuota selezione</button>
           <button class="act" id="pick-add" onclick="addShifts()"></button>
         </div>
-        <p class="muted" data-i18n="griglia_aiuto">Nella griglia, tocca un turno per eliminarlo.</p>
+        <p class="muted" data-i18n="griglia_aiuto">Nella griglia, tocca un turno per modificarlo o eliminarlo.</p>
       </div>
       <div class="card">
         <div class="cal-head"><h3 data-i18n="task_oggi">Task di oggi</h3><button class="ghost" onclick="toggleTaskHistory()" data-i18n="storico_task">📜 Storico</button></div>
@@ -174,6 +179,7 @@
           <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addTask()" data-i18n="aggiungi">+ Aggiungi</button></div>
         </div>
       </div>
+      <div id="checklist-box"></div>
     </section>
 
     <!-- RICHIESTE: ferie, permessi, cambi turno -->
@@ -266,6 +272,9 @@
           <div><label data-i18n="tipo">Tipo</label><select id="mv-type"></select></div>
           <div><label data-i18n="quantita">Quantità</label><input id="mv-qty" type="number" value="1" min="1"></div>
         </div>
+        <details style="margin:8px 0"><summary class="muted" style="font-size:12.5px;cursor:pointer" data-i18n="altro_giorno">📅 Segna per un altro giorno</summary>
+          <div class="row"><div><label data-i18n="giorno">Giorno</label><input id="mv-giorno" type="date"></div></div>
+        </details>
         <button class="act" onclick="addMovement()" data-i18n="btn_registra_mov">+ Registra movimento</button>
       </div>
       <div class="card">
@@ -273,6 +282,13 @@
         <div class="search"><input id="mz-search" placeholder="🔍 Cerca prodotto..." data-i18n-ph="cerca_prodotto2" oninput="renderMz()"></div>
         <div class="grid-scroll"><table class="wide"><thead><tr><th data-i18n="prodotto">Prodotto</th><th data-i18n="entrato">Entrato</th><th data-i18n="uscito">Uscito</th><th data-i18n="netto">Netto</th><th class="right" data-i18n="residua">Residua</th><th class="right" data-i18n="da_ordinare">Da ordinare</th><th></th></tr></thead><tbody id="mz-list"></tbody></table></div>
       </div>
+      <div id="storico-mov"></div>
+    </section>
+
+    <!-- DRINK COST E RICETTE: solo per chi vede i costi -->
+    <section class="view" id="costi">
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_costi_drink">Drink cost e ricette</h2></div>
+      <div id="costi-box"></div>
     </section>
 
     <!-- INVENTARIO: sessione guidata, revisione, storico -->
@@ -403,5 +419,6 @@
 <script src="i18n.js"></script>
 <script src="mascot.js"></script>
 <script src="app.js"></script>
+<script src="funzioni.js"></script>
 </body>
 </html>
