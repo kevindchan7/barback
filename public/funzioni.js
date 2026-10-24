@@ -136,7 +136,7 @@ async function caricaMieiVuoti() {
   // il titolare vede tutti: qui pero' mostriamo solo i vuoti della serata
   righe = righe.filter(m => m.type === 'vuoto' || m.type === 'scarico').slice(0, 30);
   box.innerHTML = `<div class="card">
-    <h3>${t('ultimi_vuoti')}</h3>
+    <h3>${can('magazzino.view') ? t('ultimi_vuoti') : t('tuoi_vuoti')}</h3>
     <p class="muted" style="font-size:12px;margin:2px 0 8px">${t('ultimi_vuoti_aiuto')}</p>
     ${righe.length ? `<table>${righe.map(m => `<tr>
       <td>${esc(m.product)}</td><td>${m.qty}</td>

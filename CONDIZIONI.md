@@ -17,7 +17,7 @@ In vigore dal: [DATA]
 L'accesso a **Barback**, un programma web per la gestione delle scorte di bevande e dei turni del personale, raggiungibile da un indirizzo internet riservato al Cliente.
 
 Il servizio comprende:
-- un'installazione dedicata, con database separato da quello di ogni altro cliente
+- uno spazio dedicato al locale, con database separato da quello di ogni altro cliente
 - gli aggiornamenti del programma, installati automaticamente
 - l'assistenza descritta al punto 6
 
@@ -27,7 +27,7 @@ Per chiarezza, perché è qui che nascono i malintesi:
 
 - **collegamento a registratori di cassa o POS**
 - **applicazioni su App Store o Google Play** (il programma si installa dal browser)
-- più locali nella stessa installazione: **un servizio per ogni locale**
+- più locali con un solo abbonamento: **ogni locale ha il suo**
 - funzionamento **senza connessione a internet**
 - inserimento dei dati del Cliente, salvo quanto previsto al punto 6
 
@@ -35,7 +35,8 @@ Per chiarezza, perché è qui che nascono i malintesi:
 
 | | |
 |---|---|
-| Canone | 29 € al mese per locale, IVA esclusa |
+| Canone | Piano Base 29 € · Piano con assistenza 49 € · Lancio (primi 5 locali) 19 € il primo anno, poi 29 € — al mese per locale, IVA esclusa |
+| Prova | 14 giorni gratuiti dalla registrazione, senza impegno |
 | Fatturazione | mensile anticipata |
 | Pagamento | entro 30 giorni dalla fattura |
 
