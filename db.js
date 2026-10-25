@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 const apriLocale = require('./db-locale');
 
-// Su Render: DATA_DIR=/var/data (il disco che resta). In locale: ./dati
+// Su Render: DATA_DIR=/barback/data (il disco che resta). In locale: ./dati
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'dati');
 const DIR_LOCALI = path.join(DATA_DIR, 'locali');
 fs.mkdirSync(DIR_LOCALI, { recursive: true });

@@ -24,14 +24,14 @@ services:
       - key: JWT_SECRET
         generateValue: true
       # Tutti i locali vivono sul disco persistente, non dentro l'app:
-      # /var/data/locali.db (l'elenco) e /var/data/locali/<codice>.db (uno per bar)
+      # /barback/data/locali.db (l'elenco) e /barback/data/locali/<codice>.db (uno per bar)
       - key: DATA_DIR
-        value: /var/data
+        value: /barback/data
       # La chiave per il pannello /admin.html (elenco locali, sospendere chi non paga).
       # La trovi su Render -> barback-app -> Environment.
       - key: ADMIN_KEY
         generateValue: true
     disk:
-      name: barback-dati
-      mountPath: /var/data
+      name: disk
+      mountPath: /barback/data
       sizeGB: 1
