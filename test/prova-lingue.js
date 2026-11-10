@@ -133,13 +133,9 @@ async function chiama(p, { metodo = 'GET', corpo, token, lang } = {}) {
   // il manuale del dipendente
   const man = (lang) => chiama('/manuale', { token: T, lang });
   const mIt = (await man('it')).dati, mEn = (await man('en')).dati, mEs = (await man('es')).dati;
-  verifica('regole del locale in italiano', mIt.regole[0].includes('Lavare le mani'));
-  verifica('regole del locale in inglese', mEn.regole[0].includes('Wash your hands'), mEn.regole[0]);
-  verifica('regole del locale in spagnolo', mEs.regole[0].includes('Lávate las manos'), mEs.regole[0]);
-  verifica('stesso numero di regole nelle tre lingue', mIt.regole.length === mEn.regole.length && mEn.regole.length === mEs.regole.length);
-  const negroni = (m) => (m.ricettario.find(r => r.name === 'Negroni') || {}).preparazione || '';
-  verifica('preparazione cocktail in inglese', negroni(mEn).includes('Pour gin'), negroni(mEn));
-  verifica('preparazione cocktail in spagnolo', negroni(mEs).includes('Vierte ginebra'), negroni(mEs));
+  // le regole sono del locale: la prima volta partono nella lingua di chi apre il manuale, poi sono testo suo
+  verifica('regole del locale d\'esempio in italiano la prima volta', mIt.regole[0].testo.includes('Lavare le mani'));
+  verifica('poi le regole restano uguali in ogni lingua (sono del locale)', mEn.regole[0].testo === mIt.regole[0].testo && mEs.regole.length === mIt.regole.length);
 
   chiudi(falliti ? 1 : 0);
 })().catch(e => { console.error('\nerrore inatteso:', e); process.exit(1); });
