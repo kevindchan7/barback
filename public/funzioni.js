@@ -158,10 +158,11 @@ function avvisoGiacenza(r, nome) {
 async function caricaStoricoMov() {
   const box = $('#storico-mov'); if (!box) return;
   if (!can('magazzino.view')) { box.innerHTML = ''; return; }
-  const da = $('#sm-da') ? $('#sm-da').value : giornata(new Date(Date.now() - 6 * 86400000));
+  const da = $('#sm-da') ? $('#sm-da').value : giornata().slice(0, 8) + '01';   // di default: tutto il mese
   const a = $('#sm-a') ? $('#sm-a').value : giornata();
   let righe = [], neg = [];
-  try { [righe, neg] = await Promise.all([api(`/movements?from=${da}&to=${a}`), api('/products/negativi')]); } catch { }
+  const prod = $('#sm-prod') ? $('#sm-prod').value : '';
+  try { [righe, neg] = await Promise.all([api(`/movements?from=${da}&to=${a}${prod ? '&product=' + prod : ''}`), api('/products/negativi')]); } catch { }
   box.innerHTML = `
     ${neg.length ? `<div class="card rq-warn"><b>⚠ ${t('negativi_titolo')}</b>
       <p style="font-size:12px;margin:4px 0">${t('negativi_aiuto')}</p>
@@ -169,6 +170,11 @@ async function caricaStoricoMov() {
     <div class="card">
       <div class="cal-head"><h3>${t('storico_mov')}</h3>
         ${can('all') ? `<button class="ghost" onclick="mostraAnnullati()">${t('vedi_annullati')}</button>` : ''}</div>
+      <div class="toolbar" style="margin:6px 0">
+        <button class="ghost" onclick="storicoPeriodo(7)">${t('sm_7')}</button>
+        <button class="ghost" onclick="storicoPeriodo(0)">${t('sm_mese')}</button>
+        <button class="ghost" onclick="storicoPeriodo(-1)">${t('sm_tutto')}</button></div>
+      <select id="sm-prod" onchange="caricaStoricoMov()" style="width:100%;margin-bottom:8px"><option value="">${t('sm_tutti_prodotti')}</option>${(window._stockRows || []).map(x => `<option value="${x.id}" ${String(x.id) === String(prod) ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
       <div class="row c2">
         <div><label>${t('dal')}</label><input id="sm-da" type="date" value="${da}" onchange="caricaStoricoMov()"></div>
         <div><label>${t('al')}</label><input id="sm-a" type="date" value="${a}" onchange="caricaStoricoMov()"></div>
@@ -183,7 +189,11 @@ async function caricaStoricoMov() {
       </tbody></table></div>
       <div id="annullati-box"></div>
     </div>`;
-  piega(box.querySelector('.card:not(.rq-warn)'), t('storico_mov'), 'storico');
+}
+function storicoPeriodo(n) {
+  $('#sm-a').value = giornata();
+  $('#sm-da').value = n > 0 ? giornata(new Date(Date.now() - (n - 1) * 86400000)) : n === 0 ? giornata().slice(0, 8) + '01' : '2020-01-01';
+  caricaStoricoMov();
 }
 async function mostraAnnullati() {
   const r = await api('/movements/annullati');

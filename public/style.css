@@ -603,3 +603,11 @@ table.mz td:first-child{max-width:30vw;}
 .mascot .m-star{fill:var(--m-cap);}
 .mascot .m-blush{fill:#ff7a8a; opacity:.45;}
 .mascot .m-body,.mascot .m-cap{stroke:none;}
+
+/* fumetto della mascotte: scritte piu' grandi e morbide, con la codina verso la bottiglia */
+.mascot-row{gap:14px;}
+.bubble{position:relative; font-size:16px; line-height:1.45; font-weight:600; padding:13px 16px; border-radius:18px 18px 18px 6px;
+  background:linear-gradient(135deg,var(--panel2),var(--panel)); border:1px solid var(--line); box-shadow:0 6px 18px rgba(0,0,0,.18);}
+.bubbles .bubble:first-child::before{content:""; position:absolute; left:-7px; top:18px; width:14px; height:14px; transform:rotate(45deg);
+  background:var(--panel2); border-left:1px solid var(--line); border-bottom:1px solid var(--line);}
+@media (max-width:899px){ .bubble{font-size:17px;} }

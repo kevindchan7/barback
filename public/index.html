@@ -182,11 +182,11 @@
         </div>
         <p class="muted" data-i18n="griglia_aiuto">Nella griglia, tocca un turno per modificarlo o eliminarlo.</p>
       </details>
-      <div class="card">
+      <div class="card" id="tasks-card">
         <div class="cal-head"><h3 data-i18n="task_oggi">Task di oggi</h3><button class="ghost" onclick="toggleTaskHistory()" data-i18n="storico_task">📜 Storico</button></div>
+        <button class="act hidden" id="task-new-btn" style="width:100%;margin:6px 0 8px" onclick="nuovaTask()" data-i18n="task_nuova_btn">+ Nuova task</button>
         <div id="tasks-list"></div>
         <div id="task-history" class="hidden"></div>
-        <p class="muted" style="font-size:12px;margin-top:8px" data-i18n="task_aiuto_cal">Per aggiungere una task, tocca un giorno nel calendario.</p>
       </div>
       <div id="checklist-box"></div>
     </section>

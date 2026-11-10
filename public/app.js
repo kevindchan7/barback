@@ -281,6 +281,7 @@ async function loadHome() {
   const btns = [
     ['vuoti', '🍾', t('sez_vuoti'), t('d_vuoti'), can('vuoti.view')],
     ['turni', '📅', t('sez_turni'), t('d_turni'), can('turni.view') || can('task.view')],
+    ['tasks', '✅', t('sez_task'), t('d_task'), can('task.view')],
     ['richieste', '🏖', t('sez_ferie'), t('d_ferie'), can('ferie.view') || can('ferie.request')],
     ['costi', '🍸', t('sez_costi_drink'), t('d_costi_drink'), can('drinkcost.view')],
     ['magazzino', '📦', t('sez_magazzino_t'), t('d_inventario_tutto'), can('magazzino.view') || can('vuoti.view') || can('carico.do')],
@@ -326,6 +327,7 @@ function rendiPieghevoli() {
   piega(document.querySelector('#vuoti-grid-card'), t('griglia_mese_corto'), 'grigliavuoti');
 }
 function go(view, silent, proprioQuesta) {
+  if (view === 'tasks') { go('turni'); setTimeout(() => { const c = $('#tasks-card'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 350); return; }
   // "Inventario" dal menu: chi vede le giacenze parte da li'
   if (['magazzino', 'inventario', 'ordini'].includes(view)) schedeInventario(view);
   currentView = view;
@@ -1064,6 +1066,25 @@ async function addTurnoGiorno() {
   try { await api('/shifts', 'POST', { employee_id: emp, date: calSel, start: $('#gd-start').value, end: $('#gd-end').value, role: e.role || '' }); refreshTurni(); }
   catch (er) { alert(er.message); }
 }
+async function nuovaTask() {
+  const emps = await api('/employees').catch(() => []);
+  $('#modal-root').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">
+      <h3>${t('nuova_task')}</h3>
+      <label>${t('cosa_fare')}</label><input id="nt-title" maxlength="120" placeholder="${t('ph_task')}">
+      <div class="row c2"><div><label>${t('assegnata_a')}</label><select id="nt-who"><option value="">${t('chiunque')}</option>${emps.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('')}</select></div>
+        <div><label>${t('giorno')}</label><input id="nt-date" type="date" value="${todayISO()}"></div></div>
+      <div class="onb-actions" style="margin-top:14px"><button class="ghost" onclick="closeModal()">${t('annulla')}</button><button class="act" onclick="salvaNuovaTask()">${t('salva')}</button></div>
+    </div></div>`;
+  setTimeout(() => $('#nt-title') && $('#nt-title').focus(), 50);
+}
+async function salvaNuovaTask() {
+  const title = $('#nt-title').value.trim(); if (!title) return $('#nt-title').focus();
+  try {
+    await api('/tasks', 'POST', { title, date: $('#nt-date').value || todayISO(), assignee_id: +$('#nt-who').value || null });
+    closeModal(); notify(t('nuova_task'), title); await loadTasks();
+  } catch (er) { alert(er.message); }
+}
 async function addTaskGiorno() {
   const title = $('#gd-task').value.trim(); if (!title) return $('#gd-task').focus();
   try {
@@ -1102,6 +1123,7 @@ async function addShifts() {
 
 /* --- task: spuntata = sparisce dalla lista e va nello storico, firmata --- */
 async function loadTasks() {
+  show('#task-new-btn', can('task.manage') || can('task.request'));
   const tasks = await api('/tasks?date=' + todayISO());
   const editable = can('task.check') || can('task.manage');
   const oggi = todayISO();
