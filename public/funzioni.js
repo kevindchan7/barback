@@ -292,26 +292,34 @@ async function modificaProfilo(id) {
   const [profili, ruoli, emps] = await Promise.all([api('/profiles'), api('/ruoli'), api('/employees')]);
   const p = profili.find(x => x.id === id); if (!p) return;
   const ruoloAttuale = p.permissions.includes('all') ? 'proprietario' : '';
+  if (!can('all')) ruoli.splice(0, ruoli.length, ...ruoli.filter(r => r !== 'proprietario'));
   $('#modal-root').innerHTML = `
     <div class="overlay" onclick="if(event.target===this)openSettings()">
       <div class="modal">
         <h3>${t('modifica')}: ${esc(nomeProfilo(p.name))}</h3>
         <div class="row"><div><label>${t('nome')}</label><input id="mp-name" value="${esc(p.name)}"></div></div>
-        <div class="row"><div><label>${t('ruolo')}</label><select id="mp-role"><option value="">${t('lascia_com_e')}</option>
+        <div class="row"><div><label>${t('ruolo')}</label><select id="mp-role" onchange="spuntaRuolo('mp', this.value)"><option value="">${t('lascia_com_e')}</option>
           ${ruoli.map(r => `<option value="${r}" ${r === ruoloAttuale ? 'selected' : ''}>${nomeRuolo(r)}</option>`).join('')}</select></div></div>
         <div class="row"><div><label>${t('di_chi')}</label><select id="mp-emp"><option value="">${t('profilo_condiviso')}</option>
           ${emps.map(e => `<option value="${e.id}" ${e.id === p.employee_id ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select></div></div>
         <p class="muted" style="font-size:11.5px">${t('di_chi_aiuto')}</p>
+        <label style="margin-top:10px">${t('cosa_puo_fare')}</label>
+        <p class="muted" style="font-size:12px;margin-bottom:6px">${t('cosa_puo_fare_aiuto')}</p>
+        ${caselleCapacita('mp', p.permissions.includes('all') ? [] : p.permissions)}
         <div class="onb-actions">
           <button class="ghost" onclick="openSettings()">${t('annulla')}</button>
-          <button class="act" onclick="salvaProfilo(${id})">${t('salva')}</button>
+          <button class="act" onclick="salvaProfilo(${id}, ${p.permissions.includes('all')})">${t('salva')}</button>
         </div>
       </div>
     </div>`;
+  if (p.permissions.includes('all')) spuntaRuolo('mp', 'proprietario');
 }
-async function salvaProfilo(id) {
+async function salvaProfilo(id, eraTitolare) {
   const corpo = { name: $('#mp-name').value.trim(), employee_id: +$('#mp-emp').value || null };
-  if ($('#mp-role').value) corpo.ruolo = $('#mp-role').value;
+  const ruolo = $('#mp-role').value;
+  // il proprietario resta proprietario finche' non gli si sceglie un altro ruolo
+  if (ruolo === 'proprietario') corpo.ruolo = ruolo;
+  else if (!eraTitolare || ruolo) corpo.permissions = capacitaSpuntate('mp');
   try { await api('/profiles/' + id, 'PUT', corpo); openSettings(); } catch (e) { alert(e.message); }
 }
 async function rinominaPostazione(id, nome) {

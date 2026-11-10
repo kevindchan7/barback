@@ -75,10 +75,18 @@ body{font-family:system-ui,Segoe UI,Roboto,sans-serif; color:var(--txt);
 .mascot{display:block;}
 
 /* Mobile-first: contenuto centrato e stretto come un'app per telefono */
-#app, #login{max-width:520px; margin:0 auto; min-height:100vh;}
+#app, #login{max-width:520px; margin:0 auto; min-height:100vh; min-height:100dvh;}
+/* iPhone (app sulla Home): la pagina non "rimbalza" quando si scorre, cosi'
+   il banner in alto e la barra in basso restano fermi al loro posto. */
+html, body{overscroll-behavior-y:none;}
+html{-webkit-text-size-adjust:100%;}
 
 /* ---- Banner in alto (presente in ogni schermata) ---- */
+/* su iPhone l'app arriva fin sotto l'orologio e la tacca: senza questo spazio
+   il banner (con Impostazioni ed Esci) restava nascosto li' sotto */
 .banner{display:flex; align-items:center; gap:12px; padding:12px 16px;
+  padding-top:calc(12px + env(safe-area-inset-top, 0px));
+  padding-left:calc(16px + env(safe-area-inset-left, 0px)); padding-right:calc(16px + env(safe-area-inset-right, 0px));
   background:var(--banner-grad), var(--banner-bg);
   border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; backdrop-filter:blur(6px);}
 .banner h1{font-size:19px; font-weight:800; letter-spacing:.3px;
@@ -87,7 +95,8 @@ body{font-family:system-ui,Segoe UI,Roboto,sans-serif; color:var(--txt);
 .banner .spacer{flex:1;}
 
 /* ---- Login PIN ---- */
-#login{display:flex; flex-direction:column; padding:24px 18px;}
+#login{display:flex; flex-direction:column; padding:24px 18px;
+  padding-top:calc(24px + env(safe-area-inset-top, 0px)); padding-bottom:calc(24px + env(safe-area-inset-bottom, 0px));}
 .login-head{text-align:center; margin:20px 0;}
 .login-head h1{font-size:24px; color:var(--accent); margin-top:8px;}
 .login-head p{font-size:13px; color:var(--muted);}
@@ -112,7 +121,7 @@ body{font-family:system-ui,Segoe UI,Roboto,sans-serif; color:var(--txt);
 .home-btn:hover{border-color:var(--accent);}
 .home-btn .ico{font-size:34px;} .home-btn .t{font-size:14px; font-weight:700;} .home-btn .d{font-size:11px; color:var(--muted);}
 
-main{padding:16px; padding-bottom:96px;}
+main{padding:16px; padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
 .view{display:none;} .view.active{display:block;}
 .topbar{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
 .back{background:var(--panel2); border:1px solid var(--line); color:var(--txt); border-radius:10px; padding:8px 12px; cursor:pointer; font-size:13px;}
@@ -421,3 +430,13 @@ button.danger:hover{background:var(--red-pill);}
 
 /* i link nelle schermate di accesso: leggibili sul fondo scuro */
 #login a{color:var(--accent);}
+
+/* le caselle "cosa puo' fare" di un utente */
+.capacita{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.cap-gruppo{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:8px 10px;}
+.cap-titolo{font-size:12px; font-weight:700; color:var(--accent); margin-bottom:4px;}
+label.cap{display:flex; align-items:flex-start; gap:8px; font-size:13px; color:var(--txt); margin:0; padding:5px 0; cursor:pointer;}
+label.cap input{width:20px; height:20px; flex:0 0 20px; margin:0; accent-color:var(--accent);}
+@media (max-width:420px){ .capacita{grid-template-columns:1fr;} }
+/* il banner non deve mai spingere fuori schermo i bottoni a destra */
+.banner > div{min-width:0;} .banner h1{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}

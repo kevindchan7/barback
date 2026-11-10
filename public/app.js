@@ -1270,6 +1270,10 @@ async function openSettings() {
   try { [profili, ruoli] = await Promise.all([api('/profiles'), api('/ruoli')]); } catch {}
   if (can('all')) infoBackup = await infoCopia();
   const admin = can('all');
+  const utenti = can('profili.manage');           // aggiunge utenti e decide cosa possono fare
+  if (!admin) ruoli = ruoli.filter(r => r !== 'proprietario');
+  try { window._ruoliPermessi = (await api('/ruoli/permessi')).ruoli; } catch { window._ruoliPermessi = {}; }
+  const intoccabile = (p) => p.permissions.includes('all') && !admin;   // il profilo del proprietario
 
   $('#modal-root').innerHTML = `
     <div class="overlay" data-modale="impostazioni" onclick="if(event.target===this)closeModal()">
@@ -1284,28 +1288,35 @@ async function openSettings() {
         </div>
         <button class="act" onclick="changeOwnPin()">${t('cambia_mio_pin')}</button>
 
-        ${admin ? `
+        ${utenti ? `
         <h3 style="margin-top:20px">${t('profili_accesso')}</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:6px">${t('utenti_aiuto')}</p>
         <table><thead><tr><th>${t('nome')}</th><th>${t('accesso')}</th><th></th></tr></thead><tbody>
           ${profili.map(p => `<tr>
             <td>${nomeProfilo(p.name)}</td>
             <td class="muted">${p.permissions.includes('all') ? t('completo') : t('permessi_n', { n: p.permissions.length })}</td>
-            <td class="right">
+            <td class="right">${intoccabile(p) ? '' : `
               <button class="iconbtn" onclick="modificaProfilo(${p.id})" title="${t('modifica')}">✏️</button>
-              <button class="iconbtn" onclick="resetPin(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="${t('reimposta_pin')}">🔑</button>
-              ${p.id !== PROFILE.id ? `<button class="iconbtn" onclick="deleteProfile(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="${t('elimina')}">🗑</button>` : ''}
+              <button class="iconbtn" onclick="resetPin(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="${t('reimposta_pin')}">🔑</button>`}
+              ${p.id !== PROFILE.id && !intoccabile(p) ? `<button class="iconbtn" onclick="deleteProfile(${p.id}, '${p.name.replace(/'/g, "\\'")}')" title="${t('elimina')}">🗑</button>` : ''}
             </td></tr>`).join('')}
         </tbody></table>
 
         <h3 style="margin-top:16px">${t('nuovo_profilo')}</h3>
         <div class="row c2">
           <div><label>${t('nome')}</label><input id="npf-name" placeholder="${t('ph_profilo')}"></div>
-          <div><label>${t('ruolo')}</label><select id="npf-role">
-            ${ruoli.map(r => `<option value="${r}">${nomeRuolo(r)}</option>`).join('')}
+          <div><label>${t('ruolo')}</label><select id="npf-role" onchange="spuntaRuolo('npf', this.value)">
+            ${ruoli.map(r => `<option value="${r}" ${r === 'barman' ? 'selected' : ''}>${nomeRuolo(r)}</option>`).join('')}
           </select></div>
         </div>
         <div class="row"><div><label>${t('pin_4_cifre')}</label><input id="npf-pin" inputmode="numeric" maxlength="4" placeholder="${t('ph_pin')}"></div></div>
-        <button class="act" onclick="addProfile()">${t('crea_profilo')}</button>
+        <label style="margin-top:10px">${t('cosa_puo_fare')}</label>
+        <p class="muted" style="font-size:12px;margin-bottom:6px">${t('cosa_puo_fare_aiuto')}</p>
+        ${caselleCapacita('npf', (window._ruoliPermessi.barman || []))}
+        <button class="act" style="margin-top:10px" onclick="addProfile()">${t('crea_profilo')}</button>
+        ` : ''}
+
+        ${admin ? `
 
         <h3 style="margin-top:20px">${t('pw_locale')}</h3>
         <p class="muted" style="font-size:12px;margin-bottom:6px">${t('pw_locale_aiuto')}</p>
@@ -1531,10 +1542,41 @@ async function addProfile() {
   if (!name) return alert('Serve il nome del profilo.');
   if (!/^[0-9]{4}$/.test(pin)) return alert('Il PIN deve essere di 4 cifre.');
   try {
-    await api('/profiles', 'POST', { name, ruolo: $('#npf-role').value, pin });
+    const permissions = capacitaSpuntate('npf');
+    await api('/profiles', 'POST', { name, ruolo: $('#npf-role').value, pin, ...(permissions.includes('all') ? {} : { permissions }) });
     alert(`Profilo "${name}" creato.`);
     openSettings();
   } catch (e) { alert(e.message); }
+}
+/* ---- COSA PUO' FARE UN UTENTE: le caselle da spuntare ----
+   Stesse voci per "nuovo profilo" e "modifica profilo". Il ruolo e' solo un
+   punto di partenza: spunta le sue voci, poi si aggiunge o si toglie.     */
+const GRUPPI_CAPACITA = [
+  ['cg_turni', ['turni.view', 'turni.manage']],
+  ['cg_task', ['task.view', 'task.check', 'task.manage']],
+  ['cg_ferie', ['ferie.view', 'ferie.request', 'ferie.approve']],
+  ['cg_vuoti', ['vuoti.view', 'vuoti.do']],
+  ['cg_magazzino', ['magazzino.view', 'carico.do', 'drinkcost.view']],
+  ['cg_inventario', ['inventario.view', 'inventario.do', 'inventario.close']],
+  ['cg_altro', ['manuale.view', 'profili.manage']],
+];
+const chiaveCapacita = (c) => 'cap_' + c.replace('.', '_');
+function caselleCapacita(pre, attive) {
+  if (attive.includes('all')) return `<p class="muted" style="font-size:12px">${t('completo')}</p><input type="hidden" id="${pre}-tutto" value="1">`;
+  return `<div class="capacita">` + GRUPPI_CAPACITA.map(([g, voci]) => `
+    <div class="cap-gruppo"><div class="cap-titolo">${t(g)}</div>
+      ${voci.map(c => `<label class="cap"><input type="checkbox" data-cap="${pre}" value="${c}" ${attive.includes(c) ? 'checked' : ''}> <span>${t(chiaveCapacita(c))}</span></label>`).join('')}
+    </div>`).join('') + `</div>`;
+}
+function capacitaSpuntate(pre) {
+  if ($('#' + pre + '-tutto')) return ['all'];
+  return [...document.querySelectorAll(`input[data-cap="${pre}"]:checked`)].map(i => i.value);
+}
+// scelto un ruolo, si spuntano le sue voci (poi si puo' cambiare a mano)
+function spuntaRuolo(pre, ruolo) {
+  const voci = (window._ruoliPermessi || {})[ruolo]; if (!voci) return;
+  const tutto = voci.includes('all');
+  document.querySelectorAll(`input[data-cap="${pre}"]`).forEach(i => { i.checked = tutto || voci.includes(i.value); i.disabled = tutto; });
 }
 async function deleteProfile(id, nome) {
   if (!confirm(`Eliminare il profilo "${nome}"?\nChi lo usava non potrà più entrare.`)) return;
