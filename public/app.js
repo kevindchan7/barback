@@ -1310,6 +1310,17 @@ function downloadXLSX(filename, aoa, sheet = 'Dati') {
   const ws = XLSX.utils.aoa_to_sheet(aoa); const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheet); XLSX.writeFile(wb, filename);
 }
+// il calendario del mese che stai guardando, come tabella lunedi-domenica coi nomi
+async function scaricaCalendario(tipo) {
+  const url = `/shifts/calendar.${tipo}?month=${calYM}`;
+  try {
+    if (tipo === 'pdf') return await prendiPdf(url, null, `turni-${calYM}.pdf`);
+    const r = await fetch('/api' + url, { headers: { Authorization: 'Bearer ' + TOKEN, 'X-Lang': LANG, 'X-Locale': LOCALE, 'X-Locale-Token': CHIAVE } });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Errore ' + r.status);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(await r.blob()); a.download = `turni-${calYM}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { alert(e.message); }
+}
 async function exportShifts(fmt) {
   const { from, to } = rangeDates();
   const shifts = window._shiftRows || await api(`/shifts?from=${from}&to=${to}`);
