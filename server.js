@@ -1263,6 +1263,99 @@ api.get('/shifts', need('turni.view'), (req, res) => {
   ok(res, db.prepare(`SELECT s.*, e.name employee, e.color FROM shifts s JOIN employees e ON e.id=s.employee_id
     WHERE s.date BETWEEN ? AND ? ORDER BY s.date,s.start`).all(from || '0000', to || '9999'));
 });
+
+/* ===== CALENDARIO DEI TURNI (PDF e Excel): una griglia lunedi'-domenica col nome di chi lavora ===== */
+const NOMI_MESI = { it: ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'],
+  en: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+  es: ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'] };
+const NOMI_GIORNI = { it: ['LUNEDÌ','MARTEDÌ','MERCOLEDÌ','GIOVEDÌ','VENERDÌ','SABATO','DOMENICA'],
+  en: ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY'],
+  es: ['LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO','DOMINGO'] };
+const oraCorta = (h) => { const [a, b] = String(h).split(':'); return b === '00' ? String(+a) : `${+a}:${b}`; };
+function calendarioMese(m, lang) {
+  lang = NOMI_MESI[lang] ? lang : 'it';
+  const [y, mo] = m.split('-').map(Number);
+  const primo = new Date(Date.UTC(y, mo - 1, 1)), ultimo = new Date(Date.UTC(y, mo, 0));
+  const inizio = new Date(primo); inizio.setUTCDate(1 - ((primo.getUTCDay() + 6) % 7));
+  const fine = new Date(ultimo); fine.setUTCDate(ultimo.getUTCDate() + (6 - ((ultimo.getUTCDay() + 6) % 7)));
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const shifts = db.prepare(`SELECT s.date, s.start, s.end, s.role, e.name employee, e.color FROM shifts s JOIN employees e ON e.id=s.employee_id
+    WHERE s.date BETWEEN ? AND ? ORDER BY s.date, s.start, e.name`).all(iso(inizio), iso(fine));
+  const settimane = [];
+  for (let d = new Date(inizio); d <= fine; ) {
+    const sett = [];
+    for (let i = 0; i < 7; i++, d.setUTCDate(d.getUTCDate() + 1)) {
+      const g = iso(d);
+      sett.push({ giorno: d.getUTCDate(), delMese: g.slice(0, 7) === m,
+        righe: shifts.filter(x => x.date === g).map(x => ({ testo: x.employee + (x.role ? ` (${x.role})` : '') + `  ${oraCorta(x.start)}-${oraCorta(x.end)}`, colore: x.color || '#888888' })) });
+    }
+    settimane.push(sett);
+  }
+  return { titolo: NOMI_MESI[lang][mo - 1], anno: String(y), giorni: NOMI_GIORNI[lang], settimane };
+}
+api.get('/shifts/calendar.pdf', need('turni.view'), (req, res) => {
+  const m = monthOf(req.query.month), cal = calendarioMese(m, res.locals.lang);
+  const nomeLocale = res.locals.info.nome;
+  const PDFDocument = require('pdfkit');
+  const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 28, info: { Title: `Turni ${cal.titolo} ${cal.anno} - ${nomeLocale}` } });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="turni-${res.locals.locale}-${m}.pdf"`);
+  doc.pipe(res);
+  const ARANCIO = '#f4511e', X0 = 28, W = doc.page.width - 56, colW = W / 7;
+  doc.font('Helvetica-Bold').fontSize(26).fillColor(ARANCIO).text(cal.titolo, X0, 24);
+  doc.font('Helvetica').fontSize(11).fillColor('#444').text(cal.anno + '  ·  ' + nomeLocale, X0, 54);
+  const yHead = 76, hHead = 16, yGrid = yHead + hHead, hTot = doc.page.height - 28 - yGrid, nRighe = cal.settimane.length;
+  const hRiga = hTot / nRighe;
+  doc.rect(X0, yHead, W, hHead).fill(ARANCIO);
+  doc.font('Helvetica-Bold').fontSize(8).fillColor('#fff');
+  cal.giorni.forEach((g, i) => doc.text(g, X0 + i * colW, yHead + 4.5, { width: colW, align: 'center', lineBreak: false }));
+  const maxRighe = Math.max(1, ...cal.settimane.flat().map(c => c.righe.length));
+  const fs = Math.max(5.5, Math.min(9.5, (hRiga - 16) / (maxRighe * 1.2)));
+  cal.settimane.forEach((sett, r) => sett.forEach((c, i) => {
+    const x = X0 + i * colW, y = yGrid + r * hRiga;
+    doc.rect(x, y, colW, hRiga).lineWidth(0.4).strokeColor('#d6d6d6').fillAndStroke(c.delMese ? '#ffffff' : '#f6f6f6', '#d6d6d6');
+    doc.font('Helvetica').fontSize(7.5).fillColor(c.delMese ? '#555' : '#b5b5b5').text(String(c.giorno), x, y + 3, { width: colW - 5, align: 'right', lineBreak: false });
+    let yy = y + 13;
+    c.righe.forEach(rg => {
+      doc.rect(x + 4, yy + fs * 0.18, 2.6, fs * 0.7).fill(rg.colore);
+      doc.font('Helvetica').fontSize(fs).fillColor(c.delMese ? '#111' : '#999').text(rg.testo, x + 9, yy, { width: colW - 12, height: fs * 1.25, ellipsis: true, lineBreak: false });
+      yy += fs * 1.2;
+    });
+  }));
+  doc.end();
+});
+api.get('/shifts/calendar.xlsx', need('turni.view'), async (req, res) => {
+  const m = monthOf(req.query.month), cal = calendarioMese(m, res.locals.lang);
+  const ExcelJS = require('exceljs');
+  const wb = new ExcelJS.Workbook(); wb.creator = 'Barback';
+  const ws = wb.addWorksheet(`${cal.titolo} ${cal.anno}`, { pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 1, paperSize: 9 }, views: [{ showGridLines: false }] });
+  ws.columns = Array.from({ length: 7 }, () => ({ width: 26 }));
+  ws.mergeCells('A1:G1'); const t1 = ws.getCell('A1'); t1.value = cal.titolo; t1.font = { name: 'Calibri', size: 28, bold: true, color: { argb: 'FFF4511E' } }; ws.getRow(1).height = 40;
+  ws.mergeCells('A2:G2'); const t2 = ws.getCell('A2'); t2.value = `${cal.anno}  ·  ${res.locals.info.nome}`; t2.font = { size: 12, color: { argb: 'FF444444' } }; ws.getRow(2).height = 20;
+  const bordo = { top: { style: 'thin', color: { argb: 'FFD6D6D6' } }, left: { style: 'thin', color: { argb: 'FFD6D6D6' } }, bottom: { style: 'thin', color: { argb: 'FFD6D6D6' } }, right: { style: 'thin', color: { argb: 'FFD6D6D6' } } };
+  const head = ws.getRow(4); head.height = 22;
+  cal.giorni.forEach((g, i) => { const c = head.getCell(i + 1); c.value = g; c.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4511E' } }; c.alignment = { horizontal: 'center', vertical: 'middle' }; });
+  let r = 5;
+  cal.settimane.forEach(sett => {
+    const rn = ws.getRow(r), rt = ws.getRow(r + 1);
+    const maxL = Math.max(1, ...sett.map(c => c.righe.length));
+    rn.height = 16; rt.height = Math.max(40, maxL * 15 + 8);
+    sett.forEach((c, i) => {
+      const a = rn.getCell(i + 1), b = rt.getCell(i + 1);
+      a.value = c.giorno; a.font = { size: 10, bold: true, color: { argb: c.delMese ? 'FF555555' : 'FFB5B5B5' } }; a.alignment = { horizontal: 'right', vertical: 'middle' };
+      b.value = c.righe.map(x => x.testo).join('\n'); b.font = { size: 10, color: { argb: c.delMese ? 'FF111111' : 'FF999999' } };
+      b.alignment = { wrapText: true, vertical: 'top', horizontal: 'left' };
+      const fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.delMese ? 'FFFFFFFF' : 'FFF6F6F6' } };
+      a.fill = fill; b.fill = fill;
+      a.border = { top: bordo.top, left: bordo.left, right: bordo.right }; b.border = { bottom: bordo.bottom, left: bordo.left, right: bordo.right };
+    });
+    r += 2;
+  });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="turni-${res.locals.locale}-${m}.xlsx"`);
+  await wb.xlsx.write(res); res.end();
+});
 const oraValida = (o) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(o || ''));
 function controllaTurno(b) {
   if (!b.employee_id || !db.prepare('SELECT 1 FROM employees WHERE id=?').get(b.employee_id)) return 'Dipendente non trovato';
