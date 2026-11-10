@@ -225,20 +225,19 @@ function logout() { localStorage.removeItem('bb_token'); localStorage.removeItem
 /* ===================== HOMEPAGE (dinamica per permessi) ===================== */
 async function loadHome() {
   go('home', true);
-  const saluto = t("bentornato", { nome: nomeProfilo(PROFILE.name) });
-  $('#home-hello').innerHTML = mascotSays(saluto);
+  // saluto grande, una riga: niente testi che occupano spazio senza servire
+  $('#home-hello').innerHTML = `<div class="home-ciao">${mascot(54)}<h2>${t('home_ciao', { nome: nomeProfilo(PROFILE.name) })}</h2></div>`;
 
   // layout iniziale: giacenze / entrate / uscite
   let ov = null; try { ov = await api('/overview'); } catch {}
   if (ov && (can('magazzino.view') || can('vuoti.view'))) {
     $('#home-overview').innerHTML = `
-      <div class="kpis">
+      <div class="kpis home-kpis">
         <div class="kpi"><div class="v">${ov.giacenzaPezzi}</div><div class="l">${t('giacenza_pezzi')}</div></div>
         <div class="kpi"><div class="v">${ov.entrate}</div><div class="l">${t('entrate_mese')}</div></div>
         <div class="kpi"><div class="v">${ov.uscite}</div><div class="l">${t('uscite_mese')}</div></div>
       </div>`;
-    // una sola bottiglia in home: se c'e' un secondo messaggio lo dice lei, sotto il saluto
-    if (ov.primoAvvio) $('#home-hello').innerHTML = mascotSays([saluto, t('primo_avvio')]);
+    if (ov.primoAvvio) $('#home-hello').insertAdjacentHTML('beforeend', `<p class="home-nota">${t('primo_avvio')}</p>`);
   } else $('#home-overview').innerHTML = '';
 
   // pulsanti visibili solo se permessi
@@ -251,8 +250,10 @@ async function loadHome() {
     ['ordini', '🛒', t('sez_ordini'), t('d_ordini'), can('magazzino.view')],
     ['manuale', '📖', t('sez_manuale'), t('d_manuale'), can('manuale.view')],
   ];
+  // ogni riga e' un bottone grande: icona, nome, e il numero che conta (se c'e')
+  const numeri = { inventario: ov && can('magazzino.view') ? ov.giacenzaPezzi + ' ' + t('home_bott') : '' };
   $('#home-grid').innerHTML = btns.filter(b => b[4]).map(b =>
-    `<div class="home-btn" onclick="go('${b[0]}')"><div class="ico">${b[1]}</div><div class="t">${b[2]}</div><div class="d">${b[3]}</div></div>`).join('');
+    `<button class="home-btn hb-${b[0]}" onclick="go('${b[0]}')"><span class="ico">${b[1]}</span><span class="t">${b[2]}</span>${numeri[b[0]] ? `<span class="n">${numeri[b[0]]}</span>` : ''}<span class="vai">›</span></button>`).join('');
 }
 
 /* ===================== NAVIGAZIONE ===================== */

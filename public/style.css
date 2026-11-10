@@ -455,3 +455,26 @@ label.cap input{width:20px; height:20px; flex:0 0 20px; margin:0; accent-color:v
 
 /* la casella di testo lunga, come gli altri campi */
 textarea{background:var(--panel2); color:var(--txt); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; line-height:1.4;}
+
+/* ===== HOME NUOVA (telefono): scritte grandi, colori forti, tutto si tocca ===== */
+.home-ciao{display:flex; align-items:center; gap:12px; margin:6px 0 14px;}
+.home-ciao h2{font-size:30px; line-height:1.1; font-weight:900; letter-spacing:-.5px;}
+.home-nota{font-size:14px; color:var(--muted); margin:-4px 0 12px;}
+@media (max-width:899px){
+  .home-kpis{display:none;}                       /* numeri non cliccabili: via dal telefono */
+  .home-grid{grid-template-columns:1fr; gap:12px; padding:0;}
+  .home-btn{display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:14px; width:100%; text-align:left; padding:16px; border-radius:20px;
+    border:0; color:#fff; cursor:pointer; min-height:76px; background:var(--hb, #2e7d5b); box-shadow:0 6px 18px rgba(0,0,0,.28);}
+  .home-btn:hover{border:0;}
+  .home-btn .ico{font-size:30px; width:52px; height:52px; flex:0 0 52px; display:grid; place-items:center; background:rgba(255,255,255,.2); border-radius:14px; filter:none;}
+  .home-btn .t{font-size:21px; font-weight:800; line-height:1.15; flex:1; color:#fff;}
+  .home-btn .n{font-size:14px; font-weight:800; background:rgba(0,0,0,.28); color:#fff; padding:5px 10px; border-radius:999px; white-space:nowrap;}
+  .home-btn .vai{font-size:30px; font-weight:700; opacity:.85; line-height:1;}
+  .hb-vuoti{--hb:linear-gradient(135deg,#12a36b,#0b7d55);}
+  .hb-turni{--hb:linear-gradient(135deg,#3b7bf6,#2456c9);}
+  .hb-richieste{--hb:linear-gradient(135deg,#f08a24,#d4620c);}
+  .hb-costi{--hb:linear-gradient(135deg,#e2457b,#b92a5d);}
+  .hb-inventario{--hb:linear-gradient(135deg,#8a56e8,#6535c4);}
+  .hb-ordini{--hb:linear-gradient(135deg,#0fa3b8,#0b7c8e);}
+  .hb-manuale{--hb:linear-gradient(135deg,#5b6577,#3e4656);}
+}
