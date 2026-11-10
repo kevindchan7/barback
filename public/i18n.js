@@ -213,6 +213,7 @@ const I18N = {
     /* --- ordine in PDF, inventario unico --- */
     pdf_fornitore: '📄 PDF per il fornitore', om_titolo: 'Scrivi un ordine a mano', om_aiuto: 'Una riga per prodotto, con la quantità in fondo. Esempio: Aperol 6', om_altro: '— altro (scrivo il nome) —', om_nome_fornitore: 'Nome del fornitore', om_prodotti: 'Prodotti', om_note: 'Note (consegna, orari…)', om_vuoto: 'Scrivi almeno un prodotto.', scheda_giacenze: '📦 Giacenze', scheda_conta: '📋 Conteggio', d_inventario_tutto: 'Giacenze, carichi e conteggio',
     home_ciao: 'Ciao, {nome}!', home_bott: 'bott.',
+    pw_obbl_tit: 'Scegli la password del locale', pw_obbl_txt: 'Da oggi per entrare servono il nome del locale ({nome}) e una password. La scegli tu e la dai al tuo staff.', pw_obbl_fatto: 'Fatto! Per entrare: nome del locale "{nome}" e password "{pw}". Dalla al tuo staff.',
   },
 
   en: {
@@ -399,6 +400,7 @@ const I18N = {
     /* --- ordine in PDF, inventario unico --- */
     pdf_fornitore: '📄 PDF for the supplier', om_titolo: 'Write an order by hand', om_aiuto: 'One line per product, with the quantity at the end. Example: Aperol 6', om_altro: '— other (I type the name) —', om_nome_fornitore: 'Supplier name', om_prodotti: 'Products', om_note: 'Notes (delivery, times…)', om_vuoto: 'Write at least one product.', scheda_giacenze: '📦 Stock', scheda_conta: '📋 Count', d_inventario_tutto: 'Stock, deliveries and count',
     home_ciao: 'Hi, {nome}!', home_bott: 'btl',
+    pw_obbl_tit: 'Choose the venue password', pw_obbl_txt: 'From now on, signing in needs the venue name ({nome}) and a password. You choose it and share it with your staff.', pw_obbl_fatto: 'Done! To sign in: venue name "{nome}" and password "{pw}". Share it with your staff.',
   },
 
   es: {
@@ -585,6 +587,7 @@ const I18N = {
     /* --- ordine in PDF, inventario unico --- */
     pdf_fornitore: '📄 PDF para el proveedor', om_titolo: 'Escribe un pedido a mano', om_aiuto: 'Una línea por producto, con la cantidad al final. Ejemplo: Aperol 6', om_altro: '— otro (escribo el nombre) —', om_nome_fornitore: 'Nombre del proveedor', om_prodotti: 'Productos', om_note: 'Notas (entrega, horarios…)', om_vuoto: 'Escribe al menos un producto.', scheda_giacenze: '📦 Existencias', scheda_conta: '📋 Recuento', d_inventario_tutto: 'Existencias, entradas y recuento',
     home_ciao: '¡Hola, {nome}!', home_bott: 'bot.',
+    pw_obbl_tit: 'Elige la contraseña del local', pw_obbl_txt: 'Desde hoy, para entrar hacen falta el nombre del local ({nome}) y una contraseña. La eliges tú y se la das a tu personal.', pw_obbl_fatto: '¡Hecho! Para entrar: nombre del local "{nome}" y contraseña "{pw}". Dásela a tu personal.',
   },
 };
 

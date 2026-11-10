@@ -170,7 +170,7 @@ function enterApp() {
   $('#banner-sub').textContent = nomeProfilo(PROFILE.name);
   applicaLingua();
   caricaImpostazioni();
-  setTimeout(controllaPinFabbrica, 900);   // dopo che la home si e' disegnata
+  setTimeout(controllaAccesso, 900);   // dopo che la home si e' disegnata
   requestNotify(); buildBottomNav(); loadHome(); maybeOnboard();
 }
 
@@ -1329,8 +1329,8 @@ async function openSettings() {
         <h3 style="margin-top:14px">${t('tuo_pin')}</h3>
         <p class="muted" style="font-size:12px;margin-bottom:8px">${t("sei_entrato", { nome: "<b>" + nomeProfilo(PROFILE.name) + "</b>" })}</p>
         <div class="row c2">
-          <div><label>${t('pin_attuale')}</label><input id="pin-old" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
-          <div><label>${t('pin_nuovo')}</label><input id="pin-new" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
+          <div><label>${t('pin_attuale')}</label><input id="pin-old" class="campo-pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" data-lpignore="true" data-1p-ignore placeholder="••••"></div>
+          <div><label>${t('pin_nuovo')}</label><input id="pin-new" class="campo-pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" data-lpignore="true" data-1p-ignore placeholder="••••"></div>
         </div>
         <button class="act" onclick="changeOwnPin()">${t('cambia_mio_pin')}</button>
 
@@ -1355,7 +1355,7 @@ async function openSettings() {
             ${ruoli.map(r => `<option value="${r}" ${r === 'barman' ? 'selected' : ''}>${nomeRuolo(r)}</option>`).join('')}
           </select></div>
         </div>
-        <div class="row"><div><label>${t('pin_4_cifre')}</label><input id="npf-pin" inputmode="numeric" maxlength="4" placeholder="${t('ph_pin')}"></div></div>
+        <div class="row"><div><label>${t('pin_4_cifre')}</label><input id="npf-pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" data-lpignore="true" placeholder="${t('ph_pin')}"></div></div>
         <label style="margin-top:10px">${t('cosa_puo_fare')}</label>
         <p class="muted" style="font-size:12px;margin-bottom:6px">${t('cosa_puo_fare_aiuto')}</p>
         ${caselleCapacita('npf', (window._ruoliPermessi.barman || []))}
@@ -1568,7 +1568,7 @@ async function svuotaTutto() {
   } catch (e) { alert(e.message); }
 }
 async function changeOwnPin() {
-  const attuale = $('#pin-old').value, nuovo = $('#pin-new').value;
+  const attuale = $('#pin-old').value.replace(/\D/g, ''), nuovo = $('#pin-new').value.replace(/\D/g, '');
   if (!/^[0-9]{4}$/.test(nuovo)) return alert('Il nuovo PIN deve essere di 4 cifre.');
   try {
     await api(`/profiles/${PROFILE.id}/pin`, 'PUT', { attuale, nuovo });
@@ -1685,6 +1685,34 @@ async function infoCopia() {
 }
 
 /* --- i PIN di fabbrica: si insiste, perche' e' il buco piu' grosso --- */
+/* Il locale non ha ancora la password (creato prima): il proprietario la
+   sceglie adesso. Senza, chiunque conosca il nome del locale vede i profili. */
+async function controllaAccesso() {
+  if (can('all') && LOCALE !== 'demo' && !CHIAVE) {
+    let info = null; try { info = await api('/locale/' + encodeURIComponent(LOCALE)); } catch {}
+    if (info && !info.protetto) return chiediPasswordLocale();
+  }
+  controllaPinFabbrica();
+}
+function chiediPasswordLocale() {
+  $('#modal-root').innerHTML = `
+    <div class="overlay"><div class="modal">
+      <h3>🔒 ${t('pw_obbl_tit')}</h3>
+      <p class="muted" style="font-size:14px;line-height:1.6;margin:8px 0 12px">${t('pw_obbl_txt', { nome: LOCALE })}</p>
+      <input id="pw-obbl" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="72" placeholder="${t('locale_pw_nuova_ph')}" style="font-size:18px;width:100%">
+      <button class="act" style="width:100%;margin-top:12px;padding:14px;font-size:17px" onclick="salvaPasswordObbl()">${t('pw_locale_salva')}</button>
+    </div></div>`;
+  setTimeout(() => $('#pw-obbl').focus(), 50);
+}
+async function salvaPasswordObbl() {
+  try {
+    const pw = $('#pw-obbl').value;
+    const r = await api('/locale/password', 'POST', { password: pw });
+    salvaChiave(r.chiave); closeModal();
+    alert(t('pw_obbl_fatto', { nome: LOCALE, pw }));
+    controllaPinFabbrica();
+  } catch (e) { alert(e.message); }
+}
 async function controllaPinFabbrica() {
   let profili = [];
   try { profili = await api('/profiles'); } catch { return; }

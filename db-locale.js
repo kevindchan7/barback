@@ -302,6 +302,14 @@ function seedInventario() {
      rimetterebbe quello che lui ha tolto.
      Bar manager e responsabile diventano come il proprietario (tranne
      scaricare i resoconti): turni, task, ferie, magazzino, utenti.        */
+  /* Locali creati prima: i profili d'esempio (Responsabile, Barman, Bar Manager)
+     ancora col PIN di fabbrica non li usa nessuno, e il loro PIN e' scritto nelle
+     istruzioni. Si tolgono UNA volta: resta il Proprietario, che aggiunge chi vuole. */
+  if (!DEMO && !db.prepare("SELECT 1 FROM impostazioni WHERE chiave='pulizia_profili_v1'").get()) {
+    db.prepare(`DELETE FROM profiles WHERE pin_default=1 AND permissions NOT LIKE '%"all"%'
+      AND name IN ('Admin 1 · Responsabile','Admin 2 · Barman','Admin 3 · Bar Manager')`).run();
+    db.prepare("INSERT INTO impostazioni (chiave,valore) VALUES ('pulizia_profili_v1','1')").run();
+  }
   if (!db.prepare("SELECT 1 FROM impostazioni WHERE chiave='permessi_v3'").get()) {
     const extra = { 'Admin 2 · Barman': ['inventario.view', 'inventario.do'] };
     const upd = db.prepare('UPDATE profiles SET permissions=? WHERE id=?');

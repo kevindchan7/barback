@@ -171,6 +171,20 @@ app.post('/api/admin/locali/:codice/attivo', admin, (req, res) => {
   ok(res, { ok: true });
 });
 
+// sblocca un titolare rimasto fuori: nuovo PIN del proprietario e, se serve, via la password del locale
+app.post('/api/admin/locali/:codice/sblocca', admin, (req, res) => {
+  const l = M.infoLocale(req.params.codice);
+  if (!l) return bad(res, 404, 'Locale non trovato');
+  const b = req.body || {};
+  if (!pinNuovoOk(b.pin)) return bad(res, 400, 'Il PIN deve essere di 4 cifre');
+  const d = M.dbDel(l.codice);
+  d.prepare(`UPDATE profiles SET pin_hash=?, pin_default=0
+    WHERE id=(SELECT id FROM profiles WHERE permissions LIKE '%"all"%' ORDER BY id LIMIT 1)`).run(bcrypt.hashSync(String(b.pin), 10));
+  if (b.togliPassword) M.registro.prepare("UPDATE locali SET pass_hash='' WHERE codice=?").run(l.codice);
+  console.log('Sbloccato il titolare di ' + l.codice);
+  ok(res, { ok: true });
+});
+
 // da qui in poi ogni chiamata gira dentro il database del suo locale
 app.use('/api', (req, res, next) => {
   let codice = req.headers['x-locale'] || '';

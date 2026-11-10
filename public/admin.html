@@ -41,6 +41,12 @@ async function chiama(url, opt = {}) {
   if (!r.ok) throw new Error(d.error || 'Errore ' + r.status);
   return d;
 }
+async function sblocca(codice) {
+  const pin = prompt('Nuovo PIN del PROPRIETARIO di ' + codice + ' (4 cifre):'); if (pin === null) return;
+  const via = confirm('Togliere anche la password del locale?\n(OK = sì, poi il titolare ne sceglie una nuova)');
+  try { await chiama('/api/admin/locali/' + encodeURIComponent(codice) + '/sblocca', { method: 'POST', body: JSON.stringify({ pin, togliPassword: via }) });
+    alert('Fatto. Il proprietario entra col PIN ' + pin + (via ? ' e senza password.' : '.')); } catch (e) { alert(e.message); }
+}
 async function carica() {
   $('#err').textContent = '';
   try {
@@ -57,7 +63,7 @@ async function carica() {
         ${x.demo ? '' : `<div class="m">${x.referente ? 'Referente: <b>' + esc(x.referente) + '</b> · ' : ''}${x.piva ? 'P.IVA ' + esc(x.piva) + ' · ' : ''}Piano: <b>${esc(x.piano || 'base')}</b>${x.promo ? ' · Codice ' + esc(x.promo) : ''}</div>
         <div class="m">${(() => { const fine = new Date(new Date(x.creato_il).getTime() + 14 * 86400000); const g = Math.ceil((fine - Date.now()) / 86400000);
           return g > 0 ? `Prova gratuita: <b style="color:var(--accent)">ancora ${g} giorni</b> (fino al ${fine.toLocaleDateString('it-IT')})` : `<b style="color:var(--red)">Prova finita il ${fine.toLocaleDateString('it-IT')}</b>: da attivare il pagamento`; })()}</div>`}
-        ${x.demo ? '' : `<div style="margin-top:8px"><button class="${x.attivo ? 'no' : ''}" onclick="attiva('${esc(x.codice)}', ${x.attivo ? 0 : 1})">${x.attivo ? 'Sospendi' : 'Riattiva'}</button></div>`}
+        ${x.demo ? '' : `<div style="margin-top:8px"><button class="${x.attivo ? 'no' : ''}" onclick="attiva('${esc(x.codice)}', ${x.attivo ? 0 : 1})">${x.attivo ? 'Sospendi' : 'Riattiva'}</button> <button onclick="sblocca('${esc(x.codice)}')">Sblocca titolare</button></div>`}
       </div>`).join('');
   } catch (e) { $('#err').textContent = '⚠ ' + e.message; $('#lista').innerHTML = ''; }
 }
