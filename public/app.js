@@ -39,6 +39,7 @@ function can(cap) { const p = (PROFILE && PROFILE.permissions) || []; return p.i
 function canProprio(cap) { return ((PROFILE && PROFILE.permissions) || []).includes(cap); }
 
 async function api(path, method = 'GET', body) {
+  const conToken = !!TOKEN;
   const res = await fetch('/api' + path, {
     method,
     headers: { 'Content-Type': 'application/json', 'X-Lang': (typeof LANG !== 'undefined' ? LANG : 'it'), 'X-Locale': LOCALE, ...(CHIAVE ? { 'X-Locale-Token': CHIAVE } : {}),
@@ -46,8 +47,19 @@ async function api(path, method = 'GET', body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
+  // la sessione non vale piu' (server riavviato, profilo tolto): si torna alla scelta del profilo, senza messaggi di errore
+  if (res.status === 401 && conToken && path !== '/auth/pin') { sessioneScaduta(); return new Promise(() => {}); }
   if (!res.ok) throw new Error(data.error || ('Errore ' + res.status));
   return data;
+}
+let _scaduta = false;
+function sessioneScaduta() {
+  if (_scaduta) return; _scaduta = true;
+  TOKEN = null; PROFILE = null;
+  try { localStorage.removeItem('bb_token'); localStorage.removeItem('bb_profile'); } catch {}
+  closeModal && closeModal();
+  $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
+  initLogin().then(() => { $('#login-msg').textContent = '⚠ ' + t('sessione_scaduta'); _scaduta = false; });
 }
 const show = (sel, on) => { const e = $(sel); if (e) e.classList.toggle('hidden', !on); };
 
@@ -66,7 +78,7 @@ async function initLogin() {
   let profiles;
   try { profiles = await api('/profiles'); }
   catch (e) { salvaChiave(''); return mostraCodiceLocale(info.protetto ? t('pw_cambiata') : e.message, info.protetto); }
-  $('#locale-wrap').classList.add('hidden'); $('#reset-wrap').classList.add('hidden'); $('#profiles-wrap').classList.remove('hidden');
+  $('#locale-wrap').classList.add('hidden'); $('#reset-wrap').classList.add('hidden'); $('#pin-wrap').classList.add('hidden'); pinBuf = ''; $('#profiles-wrap').classList.remove('hidden');
   $('#locale-nome').innerHTML = '📍 <b>' + info.nome.replace(/</g, '&lt;') + '</b>' + (info.demo ? ' · PIN 1111' : '')
     + ' · <a href="#" onclick="cambiaLocale();return false">' + t('locale_cambia') + '</a>';
   $('#profiles').innerHTML = profiles.map(p => `
@@ -121,9 +133,27 @@ async function chiediReset(cosa) {
     msg.textContent = '✉️ ' + t('reset_inviato', { email: r.a });
   } catch (e) { msg.textContent = '⚠ ' + e.message; }
 }
+/* col codice di recupero del titolare: niente email */
+let recMode = null;
+function mostraRecupero(cosa) {
+  if (cosa === 'password') {
+    const c = String($('#locale-codice').value || '').trim().toLowerCase();
+    if (!c) { $('#login-msg').textContent = '⚠ ' + t('pw_serve_nome'); return $('#locale-codice').focus(); }
+    api('/locale/' + encodeURIComponent(c)).then(i => { LOCALE = i.codice; }).catch(e => { $('#login-msg').textContent = '⚠ ' + e.message; });
+  }
+  recMode = cosa; resetToken = null;
+  ['#locale-wrap', '#profiles-wrap', '#pin-wrap'].forEach(x => $(x).classList.add('hidden'));
+  $('#reset-wrap').classList.remove('hidden');
+  $('#reset-titolo').textContent = t(cosa === 'pin' ? 'rec_titolo_pin' : 'rec_titolo_pw');
+  show('#reset-codice', true);
+  const i = $('#reset-nuovo');
+  i.type = cosa === 'pin' ? 'tel' : 'password'; i.maxLength = cosa === 'pin' ? 4 : 72; i.inputMode = cosa === 'pin' ? 'numeric' : 'text';
+  i.placeholder = cosa === 'pin' ? t('ph_pin') : t('locale_pw_nuova_ph'); i.value = ''; $('#reset-codice').value = '';
+  setTimeout(() => $('#reset-codice').focus(), 50);
+}
 let resetToken = null, resetDati = {};
 function mostraReset(token) {
-  resetToken = token;
+  resetToken = token; recMode = null; show('#reset-codice', false);
   try { resetDati = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { resetDati = {}; }
   const pin = resetDati.cosa === 'pin';
   ['#locale-wrap', '#profiles-wrap', '#pin-wrap'].forEach(s => $(s).classList.add('hidden'));
@@ -135,9 +165,12 @@ function mostraReset(token) {
 }
 async function faiReset() {
   try {
-    const r = await api('/reset/fai', 'POST', { token: resetToken, nuovo: $('#reset-nuovo').value });
+    const r = recMode
+      ? await api('/reset/recupero', 'POST', { cosa: recMode, recupero: $('#reset-codice').value, nuovo: $('#reset-nuovo').value })
+      : await api('/reset/fai', 'POST', { token: resetToken, nuovo: $('#reset-nuovo').value });
     if (r.chiave) salvaChiave(r.chiave);
     history.replaceState(null, '', location.pathname + '?l=' + encodeURIComponent(LOCALE));
+    recMode = null;
     await initLogin();
     $('#login-msg').textContent = '✓ ' + t(r.cosa === 'pin' ? 'reset_pin_fatto' : 'reset_pw_fatto');
   } catch (e) { $('#login-msg').textContent = '⚠ ' + e.message; }
@@ -177,13 +210,11 @@ function enterApp() {
 /* Barra di navigazione in basso: solo le sezioni consentite dal profilo */
 function buildBottomNav() {
   const items = [
-    ['home', '🏠', t('nav_home'), true],
     ['vuoti', '🍾', t('nav_vuoti'), can('vuoti.view')],
     ['turni', '📅', t('nav_turni'), can('turni.view') || can('task.view')],
     ['richieste', '🏖', t('nav_ferie'), can('ferie.view') || can('ferie.request')],
     ['costi', '🍸', t('nav_costi'), can('drinkcost.view')],
-    ['inventario', '📋', t('nav_inventario'), can('inventario.view') || can('magazzino.view')],
-    ['ordini', '🛒', t('nav_ordini'), can('magazzino.view')],
+    ['magazzino', '📦', t('nav_magazzino'), can('inventario.view') || can('magazzino.view')],
     ['manuale', '📖', t('nav_manuale'), can('manuale.view')],
   ].filter(i => i[3]);
   $('#bottomnav').innerHTML = items.map(i =>
@@ -191,7 +222,6 @@ function buildBottomNav() {
   setActiveNav(currentView);
 }
 function setActiveNav(view) {
-  if (view === 'magazzino') view = 'inventario';   // le giacenze stanno dentro Inventario
   document.querySelectorAll('#bottomnav button').forEach(b => b.classList.toggle('active', b.dataset.nav === view));
 }
 
@@ -240,18 +270,23 @@ async function loadHome() {
     if (ov.primoAvvio) $('#home-hello').insertAdjacentHTML('beforeend', `<p class="home-nota">${t('primo_avvio')}</p>`);
   } else $('#home-overview').innerHTML = '';
 
+  // inizio mese: va fatta la giacenza del magazzino a mano (finche' non e' fatta, resta qui)
+  if (ov && can('inventario.do') && LOCALE !== 'demo' && ov.giacenzaMeseFatta === false) {
+    $('#home-overview').insertAdjacentHTML('afterbegin', `<button class="avviso-mese" onclick="go('inventario', false, true)"><b>${t('mz_mese_tit')}</b><span>${t('mz_mese_txt')}</span><u>${t('mz_mese_vai')} ›</u></button>`);
+    try { const k = 'bb_giacenza_' + ov.month; if (!localStorage.getItem(k)) { localStorage.setItem(k, '1'); notify(t('mz_mese_tit'), t('mz_mese_txt')); } } catch {}
+  }
+
   // pulsanti visibili solo se permessi
   const btns = [
     ['vuoti', '🍾', t('sez_vuoti'), t('d_vuoti'), can('vuoti.view')],
     ['turni', '📅', t('sez_turni'), t('d_turni'), can('turni.view') || can('task.view')],
     ['richieste', '🏖', t('sez_ferie'), t('d_ferie'), can('ferie.view') || can('ferie.request')],
     ['costi', '🍸', t('sez_costi_drink'), t('d_costi_drink'), can('drinkcost.view')],
-    ['inventario', '📋', t('sez_inventario'), t('d_inventario_tutto'), can('inventario.view') || can('magazzino.view')],
-    ['ordini', '🛒', t('sez_ordini'), t('d_ordini'), can('magazzino.view')],
+    ['magazzino', '📦', t('sez_magazzino_t'), t('d_inventario_tutto'), can('inventario.view') || can('magazzino.view')],
     ['manuale', '📖', t('sez_manuale'), t('d_manuale'), can('manuale.view')],
   ];
   // ogni riga e' un bottone grande: icona, nome, e il numero che conta (se c'e')
-  const numeri = { inventario: ov && can('magazzino.view') ? ov.giacenzaPezzi + ' ' + t('home_bott') : '' };
+  const numeri = { magazzino: ov && can('magazzino.view') ? ov.giacenzaPezzi + ' ' + t('home_bott') : '' };
   $('#home-grid').innerHTML = btns.filter(b => b[4]).map(b =>
     `<button class="home-btn hb-${b[0]}" onclick="go('${b[0]}')"><span class="ico">${b[1]}</span><span class="t">${b[2]}</span>${numeri[b[0]] ? `<span class="n">${numeri[b[0]]}</span>` : ''}<span class="vai">›</span></button>`).join('');
 }
@@ -260,7 +295,7 @@ async function loadHome() {
 /* INVENTARIO = giacenze (quello che prima era "Magazzino") + conteggio.
    Una voce sola nel menu, due schede in alto per chi le puo' vedere entrambe. */
 function schedeInventario(attiva) {
-  const due = can('magazzino.view') && can('inventario.view');
+  const due = (can('magazzino.view') || can('vuoti.view') || can('carico.do')) && can('inventario.view');
   const html = due ? `<div class="schede">
       <button class="${attiva === 'magazzino' ? 'on' : ''}" onclick="go('magazzino')">${t('scheda_giacenze')}</button>
       <button class="${attiva === 'inventario' ? 'on' : ''}" onclick="go('inventario', false, true)">${t('scheda_conta')}</button></div>` : '';
@@ -268,7 +303,7 @@ function schedeInventario(attiva) {
 }
 function go(view, silent, proprioQuesta) {
   // "Inventario" dal menu: chi vede le giacenze parte da li'
-  if (view === 'inventario' && !proprioQuesta && !silent && can('magazzino.view')) view = 'magazzino';
+  if (view === 'inventario' && !proprioQuesta && !silent) view = 'magazzino';
   if (view === 'magazzino' || view === 'inventario') schedeInventario(view);
   currentView = view;
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === view));
@@ -353,6 +388,7 @@ async function addEmpty() {
 /* ===================== SEZ.4 — MAGAZZINO ===================== */
 async function loadMagazzino() {
   const [prods, vendors] = await Promise.all([api('/products'), api('/vendors')]);
+  window._ordine = window._ordine || {};
   window._vendors = vendors;
   window._products = prods;
   // i campi di costo e prezzo esistono solo per chi li puo' vedere
@@ -366,7 +402,8 @@ async function loadMagazzino() {
   $('#mv-type').innerHTML = types.map(t => `<option value="${t[0]}">${t[1]}</option>`).join('');
   show('#mz-mvform', types.length > 0);
   // form per aggiungere un prodotto nuovo
-  show('#mz-newprod', can('magazzino.view'));
+  show('#mz-newprod', can('magazzino.view') || can('etichette.new'));
+  show('#mz-ordine-box', can('magazzino.view')); show('#mz-th-ord', can('magazzino.view'));
   show('#mz-exports', can('all'));
   $("#np-vendor").innerHTML = `<option value="">${t("nessuno")}</option>`
     + vendors.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
@@ -381,14 +418,22 @@ async function loadMagazzino() {
 function renderMz() {
   const q = (($('#mz-search') && $('#mz-search').value) || '').toLowerCase();
   const rows = (window._stockRows || []).filter(x => x.name.toLowerCase().includes(q));
-  const editable = can('magazzino.view');
-  $('#mz-list').innerHTML = rows.map(x => `<tr><td>${x.name}</td><td>${x.entrato}</td><td>${x.uscito}</td>
-    <td style="color:${x.netto < 0 ? 'var(--red)' : 'var(--green)'}">${x.netto > 0 ? '+' : ''}${x.netto}</td>
-    <td class="right">${x.residua} ${x.unit}</td>
-    <td class="right">${x.daOrdinare ? `<b style="color:var(--gold)">${x.daOrdinare}</b>` : '<span class="muted">—</span>'}</td>
-    <td class="right">${editable ? `<button class="iconbtn" onclick="editProduct(${x.id})" title="${t('modifica')}">✏️</button>
-      <button class="iconbtn" onclick="removeProduct(${x.id})" title="${t('elimina')}">🗑</button>` : ""}</td></tr>`).join("")
-    || `<tr><td colspan="7" class="muted">${t('nessun_prodotto')}</td></tr>`;
+  const gestisce = can('magazzino.view'), ord = window._ordine || {};
+  const sotto = (x) => x.residua <= x.threshold;
+  $('#mz-list').innerHTML = rows.map(x => `<tr><td>${gestisce ? `<a href="#" class="prod-nome" onclick="editProduct(${x.id});return false">${esc(x.name)}</a>` : esc(x.name)}${x.format ? `<br><span class="muted" style="font-size:11px">${esc(x.format)}</span>` : ''}</td>
+    <td class="right">${x.inizio}</td><td class="right">${x.entrato ? '+' + x.entrato : '<span class="muted">0</span>'}</td>
+    <td class="right">${x.vuoti ? '−' + x.vuoti : '<span class="muted">0</span>'}</td>
+    <td class="right"><b${x.residua < 0 || sotto(x) ? ' class="basso"' : ''}>${x.residua}</b></td>
+    ${gestisce ? `<td class="right"><input class="ord-q" type="number" inputmode="numeric" min="0" value="${ord[x.id] || ''}" placeholder="0" oninput="window._ordine[${x.id}]=this.value"></td>
+` : ''}</tr>`).join("")
+    || `<tr><td colspan="6" class="muted">${t('nessun_prodotto')}</td></tr>`;
+}
+// il PDF del solo ordine: i prodotti con un numero scritto accanto
+async function pdfOrdineMagazzino() {
+  const ord = window._ordine || {};
+  const righe = (window._stockRows || []).filter(x => +ord[x.id] > 0).map(x => ({ nome: x.name + (x.format ? ' ' + x.format : ''), qta: String(+ord[x.id]) }));
+  if (!righe.length) return alert(t('mz_nessun_ordine'));
+  try { await prendiPdf('/orders/pdf', { fornitore: $('#mz-forn').value, righe }, 'ordine.pdf'); } catch (e) { alert(e.message); }
 }
 function editProduct(id) {
   const p = (window._products || []).find(x => x.id === id); if (!p) return;
@@ -420,6 +465,7 @@ function editProduct(id) {
         </div>
         <p class="muted" style="font-size:11.5px;margin:-4px 0 8px">${t('volume_aiuto')}</p>` : ''}
         <div class="onb-actions">
+          <button class="danger" onclick="closeModal();removeProduct(${id})">🗑 ${t('elimina')}</button><span style="flex:1"></span>
           <button class="ghost" onclick="closeModal()">${t('annulla')}</button>
           <button class="act" onclick="saveProduct(${id})">${t('salva')}</button>
         </div>
@@ -807,60 +853,36 @@ async function removeVendor(id) {
   try { await api('/vendors/' + id, 'DELETE'); loadOrdini(); } catch (e) { alert(e.message); }
 }
 
-/* ===================== SEZ.2 — TURNI & TASK ===================== */
-function rangeDates() {
-  const ref = $('#shift-date').value || todayISO();
-  const d = new Date(ref + 'T00:00'); const range = $('#shift-range').value;
-  let from, to;
-  if (range === 'day') { from = to = new Date(d); }
-  else if (range === 'week') { const wd = (d.getDay() + 6) % 7; from = new Date(d); from.setDate(d.getDate() - wd); to = new Date(from); to.setDate(from.getDate() + 6); }
-  else { from = new Date(d.getFullYear(), d.getMonth(), 1); to = new Date(d.getFullYear(), d.getMonth() + 1, 0); }
-  const days = []; for (let x = new Date(from); x <= to; x.setDate(x.getDate() + 1)) days.push(new Date(x));
-  // data locale, non toISOString: in Italia la mezzanotte locale e' ancora "ieri" in UTC
-  return { from: isoLocal(from), to: isoLocal(to), days };
-}
+/* ===================== SEZ.2 — TURNI & TASK =====================
+   Un calendario del mese: in ogni giorno si vedono i nomi di chi lavora.
+   Toccando un giorno si apre il giorno: turni e task di quel giorno,
+   e da li' si aggiungono.                                              */
 const pad2 = (n) => String(n).padStart(2, '0');
 const isoLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+// il periodo del calendario (per l'Excel dei turni): il mese che si sta guardando
+function rangeDates() { const [y, m] = calYM.split('-').map(Number); return { from: calYM + '-01', to: isoLocal(new Date(y, m, 0)) }; }
 async function loadTurni() {
-  if (!$('#shift-date').value) $('#shift-date').value = todayISO();
-  await Promise.all([loadShifts(), loadCal()]);
-  // gestione turni: form solo per chi ha turni.manage
+  if (!calSel && calYM === isoLocal(new Date()).slice(0, 7)) calSel = todayISO();
+  await loadCal();
+  // turni su piu' giorni: form solo per chi ha turni.manage
   show('#sh-form', can('turni.manage'));
   if (can('turni.manage')) {
     const emps = await api('/employees');
     const cur = $('#sh-emp').value;   // l'aggiornamento automatico non deve cambiare il dipendente scelto
-    $('#sh-emp').innerHTML = emps.map(e => `<option value="${e.id}">${e.name} (${e.role})</option>`).join('');
+    $('#sh-emp').innerHTML = emps.map(e => `<option value="${e.id}">${esc(e.name)} (${esc(e.role)})</option>`).join('');
     if (cur && emps.some(e => String(e.id) === cur)) $('#sh-emp').value = cur;
     await loadPicker();
   }
   if (can('task.view')) await loadTasks();
-  show('#task-add', can('task.manage'));          // aggiungere task: solo chi gestisce
   // anagrafica del personale: la gestisce chi fa i turni
   show('#personale-card', can('turni.manage'));
   if (can('turni.manage')) await loadEmployees();
-}
-async function loadShifts() {
-  const { from, to, days } = rangeDates();
-  const [shifts, emps] = await Promise.all([api(`/shifts?from=${from}&to=${to}`), api('/employees')]);
-  window._shiftRows = shifts;
-  const fmtDay = (s) => new Date(s + 'T00:00').toLocaleDateString(locale(), { weekday: 'short', day: '2-digit' });
-  const editable = can('turni.manage');
-  let html = `<tr><th>${t('dipendente')}</th>` + days.map(d => `<th>${fmtDay(isoLocal(d))}</th>`).join('') + '</tr>';
-  emps.forEach(e => {
-    html += `<tr><td style="text-align:left"><i class="dot" style="background:${e.color || '#888'}"></i>${e.name}</td>` + days.map(d => {
-      const k = isoLocal(d);
-      const cell = shifts.filter(s => s.employee_id === e.id && s.date === k).map(s =>
-        `<span class="chip" ${editable ? `onclick="editShift(${s.id})" title="${t('modifica_turno')}" style="cursor:pointer"` : ''}>${s.start}–${s.end}${editable ? ' ✏️' : ''}</span>`).join('');
-      return `<td class="${cell ? 'has' : ''}">${cell || ''}</td>`;
-    }).join('') + '</tr>';
-  });
-  $('#shift-grid').innerHTML = html;
 }
 async function deleteShift(id) {
   if (!confirm(t('conferma_elimina_turno'))) return;
   try { await api('/shifts/' + id, 'DELETE'); refreshTurni(); } catch (e) { alert(e.message); }
 }
-function refreshTurni() { return Promise.all([loadShifts(), loadCal(), loadPicker()]); }
+function refreshTurni() { return Promise.all([loadCal(), loadPicker()]); }
 
 /* --- calendario del mese: lunedi' in prima colonna --- */
 function monthDays(ym) {
@@ -881,26 +903,69 @@ const shiftDots = (list) => list.map(s => `<i style="background:${s.color || '#8
 let calYM = isoLocal(new Date()).slice(0, 7), calSel = null;
 function calMove(d) { calYM = shiftYM(calYM, d); calSel = null; loadCal(); }
 async function loadCal() {
-  const [shifts, emps] = await Promise.all([api(`/shifts?from=${calYM}-01&to=${calYM}-31`), api('/employees')]);
-  window._calShifts = shifts;
+  const [shifts, emps, tasks] = await Promise.all([
+    api(`/shifts?from=${calYM}-01&to=${calYM}-31`), api('/employees'),
+    can('task.view') ? api(`/tasks/range?from=${calYM}-01&to=${calYM}-31`) : [] ]);
+  window._calShifts = shifts; window._shiftRows = shifts; window._calEmps = emps; window._calTasks = tasks;
   const today = isoLocal(new Date());
   $('#cal-title').textContent = monthTitle(calYM);
-  $('#cal-grid').innerHTML = calHtml(calYM, d => `<button class="cal-d${d === today ? ' today' : ''}${d === calSel ? ' sel' : ''}" onclick="calPick('${d}')">
-      <span>${+d.slice(8)}</span><div class="dots">${shiftDots(shifts.filter(s => s.date === d))}</div></button>`);
-  $('#cal-legend').innerHTML = emps.map(e => `<span><i class="dot" style="background:${e.color || '#888'}"></i>${e.name}</span>`).join('');
+  $('#cal-grid').innerHTML = calHtml(calYM, d => {
+    const dei = shifts.filter(s => s.date === d), nt = tasks.filter(x => x.date === d && !x.template_id).length;
+    const nomi = dei.slice(0, 3).map(s => `<i style="--c:${s.color || '#888'}">${esc(String(s.employee).split(' ')[0].slice(0, 5))}</i>`).join('')
+      + (dei.length > 3 ? `<i class="piu">+${dei.length - 3}</i>` : '');
+    return `<button class="cal-d${d === today ? ' today' : ''}${d === calSel ? ' sel' : ''}" onclick="calPick('${d}')">
+      <span class="n">${+d.slice(8)}</span><div class="nomi">${nomi}</div>${nt ? `<b class="tk">${nt}✓</b>` : ''}</button>`;
+  });
+  $('#cal-legend').innerHTML = '';
   calDay();
 }
-function calPick(d) { calSel = calSel === d ? null : d; loadCal(); }
+function calPick(d) { calSel = d; loadCal().then(() => { const e = $('#cal-day'); if (e && e.scrollIntoView) e.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }); }
 function calDay() {
-  if (!calSel) { $('#cal-day').innerHTML = ''; return; }
-  const editable = can('turni.manage');
+  if (!calSel) { $('#cal-day').innerHTML = `<p class="muted" style="margin-top:10px">${t('cal_tocca')}</p>`; return; }
+  const editable = can('turni.manage'), emps = window._calEmps || [];
   const list = (window._calShifts || []).filter(s => s.date === calSel);
+  const tasks = (window._calTasks || []).filter(x => x.date === calSel && !x.template_id);
   const titolo = new Date(calSel + 'T00:00').toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
-  $('#cal-day').innerHTML = `<h3 style="margin-top:12px">${titolo}</h3>` + (list.length ? list.map(s => `
-    <div class="cal-row"><i class="dot" style="background:${s.color || '#888'}"></i><b>${s.employee}</b>
-      <span class="muted">${s.start}–${s.end}${s.role ? ' · ' + s.role : ''}</span><span style="flex:1"></span>
-      ${editable ? `<button class="iconbtn" onclick="deleteShift(${s.id})" title="${t('elimina')}">✕</button>` : ''}</div>`).join('')
-    : `<p class="muted">${t('nessun_turno')}</p>`);
+  const opz = (v) => emps.map(e => `<option value="${e.id}" ${String(e.id) === String(v) ? 'selected' : ''}>${esc(e.name)}</option>`).join('');
+  const ultimo = window._ultimoEmp || (emps[0] && emps[0].id);
+  let h = `<h3 style="margin-top:14px;text-transform:capitalize">${titolo}</h3><h4 class="cal-sub">${t('turni_del_giorno')}</h4>`;
+  h += list.length ? list.map(s => `
+    <div class="cal-row"><i class="dot" style="background:${s.color || '#888'}"></i><b>${esc(s.employee)}</b>
+      <span class="muted">${s.start}–${s.end}${s.role ? ' · ' + esc(s.role) : ''}</span><span style="flex:1"></span>
+      ${editable ? `<button class="iconbtn" onclick="editShift(${s.id})" title="${t('modifica')}">✏️</button><button class="iconbtn" onclick="deleteShift(${s.id})" title="${t('elimina')}">✕</button>` : ''}</div>`).join('')
+    : `<p class="muted">${t('nessun_turno')}</p>`;
+  if (editable && emps.length) h += `
+    <div class="cal-add"><select id="gd-emp">${opz(ultimo)}</select>
+      <input id="gd-start" type="time" value="${window._ultimoInizio || '16:00'}"><input id="gd-end" type="time" value="${window._ultimoFine || '23:00'}">
+      <button class="act" onclick="addTurnoGiorno()">+ ${t('turno')}</button></div>`;
+  if (can('task.view')) {
+    const oggi = todayISO();
+    h += `<h4 class="cal-sub">${t('task_del_giorno')}</h4>`;
+    h += tasks.length ? tasks.map(x => `
+      <div class="cal-row"><span>${x.done ? '☑' : '☐'}</span><span style="${x.done ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(x.title)}</span>
+        <span style="flex:1"></span><span class="muted">${esc(x.assignee || '')}</span>
+        ${can('task.manage') ? `<button class="iconbtn" onclick="eliminaTask(${x.id}, '${String(x.title).replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="${t('elimina')}">🗑</button>` : ''}</div>`).join('')
+      : `<p class="muted">${t('nessuna_task')}</p>`;
+    if (can('task.manage') || can('task.request')) h += `
+      <div class="cal-add"><input id="gd-task" maxlength="120" placeholder="${t('ph_task')}">
+        <select id="gd-who"><option value="">${t('chiunque')}</option>${opz('')}</select>
+        <button class="act" onclick="addTaskGiorno()">+ ${t('task')}</button></div>`;
+  }
+  $('#cal-day').innerHTML = h;
+}
+async function addTurnoGiorno() {
+  const emp = +$('#gd-emp').value; if (!emp) return;
+  window._ultimoEmp = emp; window._ultimoInizio = $('#gd-start').value; window._ultimoFine = $('#gd-end').value;
+  const e = (window._calEmps || []).find(x => x.id === emp) || {};
+  try { await api('/shifts', 'POST', { employee_id: emp, date: calSel, start: $('#gd-start').value, end: $('#gd-end').value, role: e.role || '' }); refreshTurni(); }
+  catch (er) { alert(er.message); }
+}
+async function addTaskGiorno() {
+  const title = $('#gd-task').value.trim(); if (!title) return $('#gd-task').focus();
+  try {
+    await api('/tasks', 'POST', { title, date: calSel, assignee_id: +$('#gd-who').value || null });
+    notify('Nuova task', title); await loadCal(); loadTasks();
+  } catch (er) { alert(er.message); }
 }
 
 /* --- inserimento: un dipendente, tanti giorni scelti toccandoli --- */
@@ -946,6 +1011,7 @@ async function loadTasks() {
         <button class="iconbtn" onclick="event.preventDefault();eliminaTask(${x.id}, '${String(x.title).replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" title="${t('elimina')}">🗑</button>` : ''}
     </label>`).join('') : `<p class="muted">${t('nessuna_task')}</p>`;
   caricaChecklist();
+  if (currentView === 'turni') loadCal();
 }
 // i profili sono per ruolo (piu' persone usano lo stesso): la firma e' il nome di chi l'ha fatta
 async function signTask(id) {
@@ -991,11 +1057,6 @@ async function loadTaskHistory() {
 }
 async function undoTask(id) {
   try { await api('/tasks/' + id, 'PUT', { done: false }); loadTasks(); loadTaskHistory(); } catch (e) { alert(e.message); }
-}
-async function addTask() {
-  const title = $('#task-title').value.trim(); if (!title) return;
-  await api('/tasks', 'POST', { title, date: todayISO() });
-  $('#task-title').value = ''; notify('Nuova task', title); loadTasks();
 }
 
 
@@ -1352,13 +1413,13 @@ async function openSettings() {
         <div class="row c2">
           <div><label>${t('nome')}</label><input id="npf-name" placeholder="${t('ph_profilo')}"></div>
           <div><label>${t('ruolo')}</label><select id="npf-role" onchange="spuntaRuolo('npf', this.value)">
-            ${ruoli.map(r => `<option value="${r}" ${r === 'barman' ? 'selected' : ''}>${nomeRuolo(r)}</option>`).join('')}
+            ${ruoli.map(r => `<option value="${r}" ${r === 'bartender' ? 'selected' : ''}>${nomeRuolo(r)}</option>`).join('')}
           </select></div>
         </div>
         <div class="row"><div><label>${t('pin_4_cifre')}</label><input id="npf-pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" data-lpignore="true" placeholder="${t('ph_pin')}"></div></div>
         <label style="margin-top:10px">${t('cosa_puo_fare')}</label>
         <p class="muted" style="font-size:12px;margin-bottom:6px">${t('cosa_puo_fare_aiuto')}</p>
-        ${caselleCapacita('npf', (window._ruoliPermessi.barman || []))}
+        ${caselleCapacita('npf', (window._ruoliPermessi.bartender || []))}
         <button class="act" style="margin-top:10px" onclick="addProfile()">${t('crea_profilo')}</button>
         ` : ''}
 
@@ -1599,10 +1660,10 @@ async function addProfile() {
    punto di partenza: spunta le sue voci, poi si aggiunge o si toglie.     */
 const GRUPPI_CAPACITA = [
   ['cg_turni', ['turni.view', 'turni.manage']],
-  ['cg_task', ['task.view', 'task.check', 'task.manage']],
+  ['cg_task', ['task.view', 'task.check', 'task.request', 'task.manage']],
   ['cg_ferie', ['ferie.view', 'ferie.request', 'ferie.approve']],
   ['cg_vuoti', ['vuoti.view', 'vuoti.do']],
-  ['cg_magazzino', ['magazzino.view', 'carico.do', 'drinkcost.view']],
+  ['cg_magazzino', ['magazzino.view', 'carico.do', 'etichette.new', 'drinkcost.view']],
   ['cg_inventario', ['inventario.view', 'inventario.do', 'inventario.close']],
   ['cg_altro', ['manuale.view', 'profili.manage']],
 ];
@@ -1692,7 +1753,29 @@ async function controllaAccesso() {
     let info = null; try { info = await api('/locale/' + encodeURIComponent(LOCALE)); } catch {}
     if (info && !info.protetto) return chiediPasswordLocale();
   }
+  if (can('all') && LOCALE !== 'demo') {
+    let r = null; try { r = await api('/titolare/recupero'); } catch {}
+    if (r && !r.ha) return chiediRecupero();
+  }
   controllaPinFabbrica();
+}
+/* Il codice di recupero: lo vede una volta sola, deve scriverlo. Serve se scorda il PIN e l'email non arriva. */
+function chiediRecupero(nuovo) {
+  $('#modal-root').innerHTML = `
+    <div class="overlay"><div class="modal">
+      <h3>🔑 ${t('rec_tit')}</h3>
+      <p class="muted" style="font-size:14px;line-height:1.6;margin:8px 0 12px">${t('rec_txt')}</p>
+      <div id="rec-box"></div>
+      <button class="act" id="rec-btn" style="width:100%;padding:14px;font-size:17px" onclick="creaRecupero()">${t('rec_crea')}</button>
+    </div></div>`;
+}
+async function creaRecupero() {
+  try {
+    const r = await api('/titolare/recupero', 'POST');
+    $('#rec-box').innerHTML = `<div style="font-size:30px;font-weight:800;letter-spacing:3px;text-align:center;padding:14px;border:2px dashed var(--line);border-radius:12px;margin-bottom:12px">${r.codice}</div>
+      <p class="muted" style="font-size:13px;margin-bottom:12px">${t('rec_scrivi')}</p>`;
+    const b = $('#rec-btn'); b.textContent = t('rec_salvato'); b.onclick = () => { closeModal(); controllaPinFabbrica(); };
+  } catch (e) { alert(e.message); }
 }
 function chiediPasswordLocale() {
   $('#modal-root').innerHTML = `

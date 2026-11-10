@@ -166,5 +166,21 @@ async function chiama(p, { metodo = 'GET', corpo, token } = {}) {
   verifica('gli inventari sono spariti', (await chiama('/inventory/history', { token: T })).dati.length === 0);
   verifica('si entra ancora col proprio PIN', !!(await chiama('/auth/pin', { metodo: 'POST', corpo: { profileId: 1, pin: '5823' } })).dati.token);
 
+  titolo('7. CODICE DI RECUPERO E TASK PER GIORNO');
+  verifica('il titolare non ha ancora il codice', (await chiama('/titolare/recupero', { token: T })).dati.ha === false);
+  const recCod = await chiama('/titolare/recupero', { metodo: 'POST', token: T });
+  verifica('il codice e\' fatto di 8 lettere/numeri', /^[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(recCod.dati.codice), recCod.dati);
+  verifica('il titolare ora ha il codice', (await chiama('/titolare/recupero', { token: T })).dati.ha === true);
+  verifica('codice sbagliato: niente', (await chiama('/reset/recupero', { metodo: 'POST', corpo: { cosa: 'pin', recupero: 'AAAA-AAAA', nuovo: '6734' } })).stato === 401);
+  verifica('PIN troppo facile: no', (await chiama('/reset/recupero', { metodo: 'POST', corpo: { cosa: 'pin', recupero: recCod.dati.codice, nuovo: '1234' } })).stato === 400);
+  const rrRec = await chiama('/reset/recupero', { metodo: 'POST', corpo: { cosa: 'pin', recupero: recCod.dati.codice.toLowerCase(), nuovo: '6734' } });
+  verifica('col codice si rimette il PIN', rrRec.stato === 200 && rrRec.dati.cosa === 'pin', rrRec.dati);
+  verifica('si entra col PIN nuovo', !!(await chiama('/auth/pin', { metodo: 'POST', corpo: { profileId: rrRec.dati.profileId, pin: '6734' } })).dati.token);
+  verifica('il vecchio PIN non vale piu\'', (await chiama('/auth/pin', { metodo: 'POST', corpo: { profileId: rrRec.dati.profileId, pin: '5823' } })).stato === 401);
+  const tkTask = await chiama('/tasks', { metodo: 'POST', token: T, corpo: { title: 'Pulire il banco', date: '2030-05-10' } });
+  verifica('si crea una task per un giorno', tkTask.stato === 200, tkTask.dati);
+  const rgTask = await chiama('/tasks/range?from=2030-05-01&to=2030-05-31', { token: T });
+  verifica('le task del mese per il calendario', rgTask.dati.length === 1 && rgTask.dati[0].date === '2030-05-10', rgTask.dati);
+
   chiudi(falliti ? 1 : 0);
 })().catch(e => { console.error('\nerrore inatteso:', e); process.exit(1); });

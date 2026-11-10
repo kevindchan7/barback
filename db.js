@@ -34,7 +34,9 @@ CREATE TABLE IF NOT EXISTS locali (
 // dati di chi si iscrive dal sito (pagina "Prova 14 giorni"): servono a te per fatturare
 for (const [col, decl] of [['referente', "TEXT DEFAULT ''"], ['piva', "TEXT DEFAULT ''"], ['piano', "TEXT DEFAULT ''"], ['promo', "TEXT DEFAULT ''"], ['note', "TEXT DEFAULT ''"],
   // la password del locale: la sceglie il titolare e la da' allo staff (vuota = locale di prima, entra col solo codice)
-  ['pass_hash', "TEXT DEFAULT ''"]]) {
+  ['pass_hash', "TEXT DEFAULT ''"],
+  // il codice di recupero del titolare (solo l'impronta): rimette un PIN senza email
+  ['recupero_hash', "TEXT DEFAULT ''"]]) {
   if (!registro.prepare('PRAGMA table_info(locali)').all().some(c => c.name === col)) registro.exec(`ALTER TABLE locali ADD COLUMN ${col} ${decl}`);
 }
 

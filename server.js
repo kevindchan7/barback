@@ -20,7 +20,16 @@ const app = express();
 const PORT = process.env.PORT || 3100;
 // Senza JWT_SECRET impostato, ne genera uno nuovo a ogni avvio: i token
 // precedenti smettono di valere e l'app richiede di nuovo il PIN.
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+const JWT_SECRET = process.env.JWT_SECRET || segretoSalvato();
+// Senza JWT_SECRET il segreto viene salvato sul disco dei dati: cosi' un riavvio
+// del server (o un nuovo aggiornamento) non butta fuori nessuno.
+function segretoSalvato() {
+  const f = path.join(M.DATA_DIR, 'jwt.secret');
+  try { const v = fs.readFileSync(f, 'utf8').trim(); if (v.length >= 32) return v; } catch {}
+  const v = crypto.randomBytes(32).toString('hex');
+  try { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, v, { mode: 0o600 }); } catch {}
+  return v;
+}
 
 app.use(express.json({ limit: '5mb' }));
 /* L'app installata sul telefono deve aprirsi gia' nel bar giusto: su iPhone
@@ -293,6 +302,31 @@ app.post('/api/reset/fai', (req, res) => {
   ok(res, { ok: true, cosa: 'password', chiave: chiaveLocale(M.infoLocale(l.codice)) });
 });
 
+/* ---------------- CODICE DI RECUPERO ----------------
+   Per chi non ha l'email o non gli arriva: il titolare ha un codice (8 lettere
+   e numeri) scritto da lui. Con quello rimette un PIN o una password nuovi. */
+const ALF_REC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const pulisciRec = (c) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+app.post('/api/reset/recupero', (req, res) => {
+  const l = res.locals.info, b = req.body || {};
+  if (l.demo) return bad(res, 400, 'Nel bar demo il PIN è 1111');
+  if (troppi('rec:' + l.codice, 8, 15) || troppi('rec-ip:' + ipDi(req), 20, 15)) return bad(res, 429, 'Troppi tentativi: riprova fra 15 minuti');
+  const cod = pulisciRec(b.recupero);
+  const reg = M.registro.prepare('SELECT recupero_hash FROM locali WHERE codice=?').get(l.codice) || {};
+  if (!reg.recupero_hash || cod.length !== 8 || !bcrypt.compareSync(cod, reg.recupero_hash)) return bad(res, 401, 'Codice di recupero errato');
+  if (b.cosa === 'password') {
+    if (!passwordOk(b.nuovo)) return bad(res, 400, 'La password del locale deve avere almeno 6 caratteri');
+    M.impostaPassword(l.codice, b.nuovo);
+    return ok(res, { ok: true, cosa: 'password', chiave: chiaveLocale(M.infoLocale(l.codice)) });
+  }
+  if (!pinNuovoOk(b.nuovo)) return bad(res, 400, 'Il PIN deve essere di 4 cifre');
+  if (PIN_FACILI.includes(String(b.nuovo))) return bad(res, 400, 'Scegli un PIN meno facile da indovinare');
+  const p = db.prepare(`SELECT id FROM profiles WHERE permissions LIKE '%"all"%' ORDER BY id LIMIT 1`).get();
+  if (!p) return bad(res, 404, 'Profilo non trovato');
+  db.prepare('UPDATE profiles SET pin_hash=?, pin_default=0 WHERE id=?').run(bcrypt.hashSync(String(b.nuovo), 10), p.id);
+  ok(res, { ok: true, cosa: 'pin', profileId: p.id, chiave: chiaveLocale(M.infoLocale(l.codice)) });
+});
+
 const api = express.Router();
 api.use(auth);
 // il titolare sceglie o cambia la password del locale (le chiavi vecchie smettono di valere)
@@ -302,6 +336,17 @@ api.post('/locale/password', need('all'), (req, res) => {
   if (!passwordOk((req.body || {}).password)) return bad(res, 400, 'La password del locale deve avere almeno 6 caratteri');
   M.impostaPassword(l.codice, req.body.password);
   ok(res, { ok: true, chiave: chiaveLocale(M.infoLocale(l.codice)) });
+});
+// il titolare vede se ha il codice di recupero e ne genera uno nuovo (lo vede una volta sola)
+api.get('/titolare/recupero', need('all'), (req, res) => {
+  const reg = M.registro.prepare('SELECT recupero_hash FROM locali WHERE codice=?').get(res.locals.locale) || {};
+  ok(res, { ha: !!reg.recupero_hash });
+});
+api.post('/titolare/recupero', need('all'), (req, res) => {
+  if (res.locals.info.demo) return bad(res, 400, 'Il bar demo non ne ha bisogno');
+  const cod = Array.from(crypto.randomBytes(8), b => ALF_REC[b % ALF_REC.length]).join('');
+  M.registro.prepare('UPDATE locali SET recupero_hash=? WHERE codice=?').run(bcrypt.hashSync(cod, 10), res.locals.locale);
+  ok(res, { codice: cod.slice(0, 4) + '-' + cod.slice(4) });
 });
 app.use('/api', api);
 
@@ -329,6 +374,8 @@ api.get('/overview', (req, res) => {
     uscite: sum('scarico') + sum('vuoto'),
     sottoSoglia: db.prepare("SELECT COUNT(*) c FROM products WHERE category='Bottiglia' AND stock<=threshold").get().c,
     primoAvvio: db.prepare('SELECT COUNT(*) c FROM movements').get().c === 0,
+    // a inizio mese si conta il magazzino a mano: finche' non e' chiuso un inventario completo di questo mese, l'app lo ricorda
+    giacenzaMeseFatta: !!db.prepare("SELECT 1 FROM inv_sessions WHERE status='chiusa' AND parziale=0 AND substr(ended_at,1,7)=?").get(workDate().slice(0, 7)),
   });
 });
 
@@ -355,7 +402,8 @@ function ricettaPulita(lista) {
 api.post('/products', (req, res, next) => {
   // un cocktail lo crea chi vede i costi (titolare, bar manager); una bottiglia chi gestisce il magazzino
   const cap = req.body.category === 'Cocktail' ? 'drinkcost.view' : 'magazzino.view';
-  return can(req, cap) ? next() : bad(res, 403, 'Permesso negato (' + cap + ')');
+  // una nuova etichetta (bottiglia) la puo' creare anche chi ha 'etichette.new'
+  return can(req, cap) || (cap === 'magazzino.view' && can(req, 'etichette.new')) ? next() : bad(res, 403, 'Permesso negato (' + cap + ')');
 }, (req, res) => {
   const { category, format, volume_ml, stock, threshold, par_level, unit, vendor_id, barcode } = req.body;
   if (category && !['Bottiglia', 'Cocktail'].includes(category)) return bad(res, 400, 'Categoria non valida');
@@ -476,19 +524,24 @@ api.delete('/employees/:id', need('turni.manage'), (req, res) => {
    proprietario puo' reimpostarli, crearne e rinominarli.            */
 /* Tutto cio' che un profilo puo' vedere o fare. Chi gestisce gli utenti
    (proprietario, bar manager, responsabile) sceglie queste voci una per una. */
-const CAPACITA = ['turni.view','turni.manage','task.view','task.check','task.manage','ferie.view','ferie.request','ferie.approve',
+const CAPACITA = ['turni.view','turni.manage','task.view','task.check','task.manage','task.request','ferie.view','ferie.request','ferie.approve',
   'vuoti.view','vuoti.do','magazzino.view','carico.do','drinkcost.view','inventario.view','inventario.do','inventario.close',
-  'manuale.view','profili.manage'];
-// bar manager e responsabile: come il proprietario nel lavoro di ogni giorno e nella
-// gestione degli utenti. NON scaricano i resoconti (PDF/CSV/Excel) e la copia dei dati.
-const DIRIGE = CAPACITA.filter(c => c !== 'ferie.request');
+  'manuale.view','profili.manage','task.request','etichette.new'];
+/* I ruoli di partenza (poi il titolare spunta a mano quello che vuole).
+   - Bar manager: come il titolare, ma NON scarica i resoconti in PDF e non dà l'accesso completo.
+   - Bartender: segna vuoti e carichi, crea etichette, vede turni e task e ne propone, chiede ferie, fa la giacenza.
+   - Barback: come il bartender, ma non propone task.                                              */
+const DIRIGE = CAPACITA.slice();
+const BASE_STAFF = ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','carico.do','etichette.new',
+  'inventario.view','inventario.do','inventario.close','manuale.view'];
 const RUOLI = {
   'proprietario': ['all'],
-  'responsabile': DIRIGE,
   'bar manager':  DIRIGE,
-  'barman':       ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
-  'barback':      ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
+  'bartender':    [...BASE_STAFF, 'task.request'],
+  'barback':      BASE_STAFF,
 };
+// nomi vecchi: continuano a funzionare
+const ALIAS_RUOLI = { 'responsabile': 'bar manager', 'barman': 'bartender', 'barmanager': 'bar manager' };
 // chi puo' aggiungere utenti e decidere cosa fanno
 const gestisceUtenti = (req, res, next) => (can(req, 'profili.manage') ? next() : bad(res, 403, 'Permesso negato (profili.manage)'));
 const eTitolare = (p) => JSON.parse(p.permissions || '[]').includes('all');
@@ -498,7 +551,7 @@ function permessiChiesti(req) {
   const b = req.body || {};
   let lista = null;
   if (Array.isArray(b.permissions)) lista = b.permissions.includes('all') ? ['all'] : CAPACITA.filter(c => b.permissions.includes(c));
-  else if (b.ruolo) { lista = RUOLI[String(b.ruolo).toLowerCase()]; if (!lista) return { errore: [400, 'Ruolo non valido'] }; }
+  else if (b.ruolo) { const r = String(b.ruolo).toLowerCase(); lista = RUOLI[ALIAS_RUOLI[r] || r]; if (!lista) return { errore: [400, 'Ruolo non valido'] }; }
   if (lista && lista.includes('all') && !can(req, 'all')) return { errore: [403, 'Solo il proprietario dà l\'accesso completo'] };
   return { lista };
 }
@@ -785,17 +838,30 @@ api.get('/empties/grid', need('vuoti.view'), (req, res) => {
 });
 
 /* ---------------- SEZ.4 — REPORT MENSILE / GIACENZE (entrato/uscito preciso) ---------------- */
-api.get('/reports/monthly', need('magazzino.view'), (req, res) => {
+// la pagina Magazzino: inizio mese, carichi, vuoti e giacenza di adesso. La vede chi segna vuoti/carichi o fa la giacenza.
+api.get('/reports/monthly', (req, res) => {
+  if (!['magazzino.view', 'inventario.view', 'vuoti.view', 'carico.do'].some(c => can(req, c))) return bad(res, 403, 'Permesso negato (magazzino.view)');
   const m = monthOf(req.query.month);
-  const rows = db.prepare(`SELECT p.id, p.name, p.unit, p.price, p.initial_stock, p.stock AS residua,
+  const rows = db.prepare(`SELECT p.id, p.name, p.unit, p.format, p.price, p.initial_stock, p.stock AS residua,
       p.threshold, p.par_level, COALESCE(v.name,'') vendor,
       COALESCE(SUM(CASE WHEN mv.type='carico' THEN mv.qty END),0) entrato,
+      COALESCE(SUM(CASE WHEN mv.type='vuoto' THEN mv.qty END),0) vuoti,
+      COALESCE(SUM(CASE WHEN mv.type='scarico' THEN mv.qty END),0) scaricati,
       COALESCE(SUM(CASE WHEN mv.type IN ('scarico','vuoto') THEN mv.qty END),0) uscito
     FROM products p LEFT JOIN vendors v ON v.id=p.vendor_id
     LEFT JOIN movements mv ON mv.product_id=p.id AND substr(mv.work_date,1,7)=?
     WHERE p.category='Bottiglia'
     GROUP BY p.id ORDER BY p.name`).all(m);
+  // le rettifiche dell'inventario hanno la quantita' senza segno: la differenza e' nella nota ("atteso X, contato Y")
+  const rett = {};
+  db.prepare(`SELECT product_id, note FROM movements WHERE type='rettifica' AND substr(work_date,1,7)=?`).all(m).forEach(r => {
+    const x = /atteso (-?[\d.]+), contato (-?[\d.]+)/.exec(r.note || '');
+    if (x) rett[r.product_id] = (rett[r.product_id] || 0) + (+x[2] - +x[1]);
+  });
   rows.forEach(r => { r.consumato = r.uscito * r.price; r.netto = r.entrato - r.uscito;
+    r.rettifiche = +(rett[r.id] || 0).toFixed(2);
+    // la giacenza a inizio mese: quella di adesso, tolti i movimenti del mese
+    r.inizio = +(r.residua - r.entrato + r.uscito - r.rettifiche).toFixed(2);
     // quanto ordinare per tornare alla scorta ideale (0 se non serve)
     r.daOrdinare = (r.residua <= r.threshold && r.par_level > r.residua) ? Math.ceil(r.par_level - r.residua) : 0; });
   ok(res, { month: m, rows: senzaCosti(req, rows),
@@ -1310,7 +1376,13 @@ api.get('/tasks/history', need('task.view'), (req, res) => {
     WHERE t.done=1 AND substr(t.done_at,1,10) BETWEEN ? AND ? ORDER BY t.done_at DESC LIMIT 500`)
     .all(from || '0000', to || '9999'));
 });
-api.post('/tasks', need('task.manage'), (req, res) => {
+// le task di un periodo (per il calendario): fatte e da fare, con chi le deve fare
+api.get('/tasks/range', need('task.view'), (req, res) => {
+  const { from, to } = req.query;
+  ok(res, db.prepare(`SELECT t.id,t.date,t.title,t.done,t.assignee_id,t.template_id,e.name assignee,e.color FROM tasks t
+    LEFT JOIN employees e ON e.id=t.assignee_id WHERE t.date BETWEEN ? AND ? ORDER BY t.date,t.id`).all(from || '0000', to || '9999'));
+});
+api.post('/tasks', (req, res, next) => (can(req, 'task.manage') || can(req, 'task.request') ? next() : bad(res, 403, 'Permesso negato (task.manage)')), (req, res) => {
   const { date, title, assignee_id } = req.body;
   if (!String(title || '').trim()) return bad(res, 400, 'Scrivi cosa c\'e\' da fare');
   const r = db.prepare('INSERT INTO tasks (date,title,assignee_id) VALUES (?,?,?)')
