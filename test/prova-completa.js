@@ -308,7 +308,7 @@ async function aspettaServer() {
   const man = (await chiama('/manuale', { token: B })).dati;
   verifica('il manuale ha le regole del locale', man.regole.length >= 6, man.regole.length);
   verifica('il manuale ha il ricettario', man.ricettario.length === 4, man.ricettario.length);
-  verifica('il responsabile non vede il manuale', (await chiama('/manuale', { token: R })).stato === 403);
+  verifica('il responsabile ora vede il manuale (fa come il titolare)', (await chiama('/manuale', { token: R })).stato === 200);
   verifica('la panoramica risponde', (await chiama('/overview', { token: P })).stato === 200);
 
 

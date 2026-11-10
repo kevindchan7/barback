@@ -460,49 +460,72 @@ api.delete('/employees/:id', need('turni.manage'), (req, res) => {
    Prima i PIN erano scritti nel codice e nessuno poteva cambiarli.
    Ora: ognuno cambia il proprio (dicendo quello attuale) e il
    proprietario puo' reimpostarli, crearne e rinominarli.            */
+/* Tutto cio' che un profilo puo' vedere o fare. Chi gestisce gli utenti
+   (proprietario, bar manager, responsabile) sceglie queste voci una per una. */
+const CAPACITA = ['turni.view','turni.manage','task.view','task.check','task.manage','ferie.view','ferie.request','ferie.approve',
+  'vuoti.view','vuoti.do','magazzino.view','carico.do','drinkcost.view','inventario.view','inventario.do','inventario.close',
+  'manuale.view','profili.manage'];
+// bar manager e responsabile: come il proprietario nel lavoro di ogni giorno e nella
+// gestione degli utenti. NON scaricano i resoconti (PDF/CSV/Excel) e la copia dei dati.
+const DIRIGE = CAPACITA.filter(c => c !== 'ferie.request');
 const RUOLI = {
   'proprietario': ['all'],
-  'responsabile': ['turni.manage','turni.view','task.manage','task.view','ferie.view','ferie.approve','inventario.view'],
+  'responsabile': DIRIGE,
+  'bar manager':  DIRIGE,
   'barman':       ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
-  // come il proprietario nel lavoro di ogni giorno (turni, task, ferie, magazzino, costi);
-  // NON gestisce profili/PIN/password e NON scarica i resoconti (solo il proprietario)
-  'bar manager':  ['turni.manage','task.manage','ferie.approve','turni.view','task.view','task.check','vuoti.view','vuoti.do','carico.do','magazzino.view','drinkcost.view','manuale.view','ferie.view','inventario.view','inventario.do','inventario.close'],
   'barback':      ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
 };
+// chi puo' aggiungere utenti e decidere cosa fanno
+const gestisceUtenti = (req, res, next) => (can(req, 'profili.manage') ? next() : bad(res, 403, 'Permesso negato (profili.manage)'));
+const eTitolare = (p) => JSON.parse(p.permissions || '[]').includes('all');
+/* I permessi chiesti per un profilo: la lista spuntata a mano, oppure quelli
+   del ruolo. Solo il proprietario puo' dare (o togliere) l'accesso completo. */
+function permessiChiesti(req) {
+  const b = req.body || {};
+  let lista = null;
+  if (Array.isArray(b.permissions)) lista = b.permissions.includes('all') ? ['all'] : CAPACITA.filter(c => b.permissions.includes(c));
+  else if (b.ruolo) { lista = RUOLI[String(b.ruolo).toLowerCase()]; if (!lista) return { errore: [400, 'Ruolo non valido'] }; }
+  if (lista && lista.includes('all') && !can(req, 'all')) return { errore: [403, 'Solo il proprietario dà l\'accesso completo'] };
+  return { lista };
+}
 const pinValido = (p) => /^[0-9]{4}$/.test(String(p || ''));
 
 api.get('/ruoli', (req, res) => ok(res, Object.keys(RUOLI)));
+// i permessi di partenza di ogni ruolo: la schermata li spunta, poi si aggiunge o si toglie
+api.get('/ruoli/permessi', (req, res) => ok(res, { ruoli: RUOLI, capacita: CAPACITA }));
 
-api.post('/profiles', need('all'), (req, res) => {
+api.post('/profiles', gestisceUtenti, (req, res) => {
   const name = String(req.body.name || '').trim();
-  const ruolo = String(req.body.ruolo || '').toLowerCase();
   if (!name) return bad(res, 400, 'Serve il nome del profilo');
-  if (!RUOLI[ruolo]) return bad(res, 400, 'Ruolo non valido');
+  const chiesti = permessiChiesti(req);
+  if (chiesti.errore) return bad(res, ...chiesti.errore);
+  if (!chiesti.lista) return bad(res, 400, 'Ruolo non valido');
   if (!pinValido(req.body.pin)) return bad(res, 400, 'Il PIN deve essere di 4 cifre');
   if (db.prepare('SELECT 1 FROM profiles WHERE lower(name)=lower(?)').get(name))
     return bad(res, 409, 'C\'e\' gia\' un profilo con questo nome');
   const emp = req.body.employee_id ? +req.body.employee_id : null;
   if (emp && !db.prepare('SELECT 1 FROM employees WHERE id=?').get(emp)) return bad(res, 404, 'Dipendente non trovato');
   const r = db.prepare('INSERT INTO profiles (name,pin_hash,permissions,employee_id) VALUES (?,?,?,?)')
-    .run(name, bcrypt.hashSync(String(req.body.pin), 10), JSON.stringify(RUOLI[ruolo]), emp);
+    .run(name, bcrypt.hashSync(String(req.body.pin), 10), JSON.stringify(chiesti.lista), emp);
   ok(res, { id: r.lastInsertRowid });
 });
 
-api.put('/profiles/:id', need('all'), (req, res) => {
+api.put('/profiles/:id', gestisceUtenti, (req, res) => {
   const name = String(req.body.name || '').trim();
   if (!name) return bad(res, 400, 'Serve il nome');
   const p = db.prepare('SELECT * FROM profiles WHERE id=?').get(req.params.id);
   if (!p) return bad(res, 404, 'Profilo non trovato');
-  if (req.body.ruolo) {
-    const ruolo = String(req.body.ruolo).toLowerCase();
-    if (!RUOLI[ruolo]) return bad(res, 400, 'Ruolo non valido');
+  if (eTitolare(p) && !can(req, 'all')) return bad(res, 403, 'Il profilo del proprietario lo cambia solo il proprietario');
+  const chiesti = permessiChiesti(req);
+  if (chiesti.errore) return bad(res, ...chiesti.errore);
+  if (chiesti.lista) {
     // non si toglie l'ultimo accesso completo, o nessuno potrebbe piu' amministrare
     const perms = JSON.parse(p.permissions || '[]');
-    if (perms.includes('all') && !RUOLI[ruolo].includes('all')) {
+    if (perms.includes('all') && !chiesti.lista.includes('all')) {
       const altri = db.prepare("SELECT COUNT(*) c FROM profiles WHERE id<>? AND permissions LIKE '%\"all\"%'").get(p.id).c;
       if (!altri) return bad(res, 409, 'E\' l\'unico profilo con accesso completo: non puoi declassarlo');
     }
-    db.prepare('UPDATE profiles SET name=?, permissions=? WHERE id=?').run(name, JSON.stringify(RUOLI[ruolo]), p.id);
+    db.prepare('UPDATE profiles SET name=?, permissions=? WHERE id=?').run(name, JSON.stringify(chiesti.lista), p.id);
   } else {
     db.prepare('UPDATE profiles SET name=? WHERE id=?').run(name, p.id);
   }
@@ -521,7 +544,8 @@ api.put('/profiles/:id/pin', (req, res) => {
   const p = db.prepare('SELECT * FROM profiles WHERE id=?').get(id);
   if (!p) return bad(res, 404, 'Profilo non trovato');
   const proprio = req.user.id === id;
-  if (!proprio && !can(req, 'all')) return bad(res, 403, 'Puoi cambiare solo il tuo PIN');
+  if (!proprio && !can(req, 'profili.manage')) return bad(res, 403, 'Puoi cambiare solo il tuo PIN');
+  if (!proprio && eTitolare(p) && !can(req, 'all')) return bad(res, 403, 'Il profilo del proprietario lo cambia solo il proprietario');
   if (!pinValido(req.body.nuovo)) return bad(res, 400, 'Il nuovo PIN deve essere di 4 cifre');
   if (proprio && !bcrypt.compareSync(String(req.body.attuale || ''), p.pin_hash))
     return bad(res, 401, 'Il PIN attuale non e\' giusto');
@@ -530,9 +554,11 @@ api.put('/profiles/:id/pin', (req, res) => {
   ok(res, { ok: true });
 });
 
-api.delete('/profiles/:id', need('all'), (req, res) => {
+api.delete('/profiles/:id', gestisceUtenti, (req, res) => {
   const id = +req.params.id;
   if (req.user.id === id) return bad(res, 409, 'Non puoi eliminare il profilo con cui sei entrato');
+  const bersaglio = db.prepare('SELECT permissions FROM profiles WHERE id=?').get(id);
+  if (bersaglio && eTitolare(bersaglio) && !can(req, 'all')) return bad(res, 403, 'Il profilo del proprietario lo cambia solo il proprietario');
   const p = db.prepare('SELECT * FROM profiles WHERE id=?').get(id);
   if (!p) return bad(res, 404, 'Profilo non trovato');
   if (db.prepare('SELECT COUNT(*) c FROM profiles').get().c <= 1) return bad(res, 409, 'Deve restare almeno un profilo');

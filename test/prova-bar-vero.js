@@ -223,7 +223,8 @@ const giornoSett = (g) => ((new Date(g + 'T12:00:00Z').getUTCDay() + 6) % 7) + 1
   verifica('il barman non vede il valore del magazzino', (await chiama('/overview', { token: tok.Marco })).dati.giacenzaValore === undefined);
   verifica('il bar manager vede il drink cost (come promette il sito)', (await chiama('/foodcost', { token: tok.Giulia })).stato === 200);
   verifica('il bar manager vede i costi dei prodotti', (await chiama('/products', { token: tok.Giulia })).dati[0].cost !== undefined);
-  verifica('il responsabile non vede il magazzino', (await chiama('/reports/monthly', { token: tok.Paolo })).stato === 403);
+  verifica('il responsabile ora vede il magazzino (fa come il titolare)', (await chiama('/reports/monthly', { token: tok.Paolo })).stato === 200);
+  verifica('il barman non vede il magazzino', (await chiama('/reports/monthly', { token: tok.Marco })).stato === 403);
   verifica('il barman non crea cocktail', (await chiama('/products', { metodo: 'POST', token: tok.Marco, corpo: { name: 'X', category: 'Cocktail', recipe: [] } })).stato === 403);
   verifica('il barman non fa carichi', (await chiama('/movements', { metodo: 'POST', token: tok.Marco, corpo: { productId: prodotti['Aperol'], type: 'carico', qty: 1 } })).stato === 403);
   verifica('il token di un altro bar non apre questo', (await chiama('/products', { token: await entra(1, '7391', LOCALE + '-2') })).dati.length === 0);
@@ -278,9 +279,23 @@ const giornoSett = (g) => ((new Date(g + 'T12:00:00Z').getUTCDay() + 6) % 7) + 1
   verifica('Marco non ritira la richiesta di Sara', (await chiama('/shift-changes/' + fs1, { metodo: 'DELETE', token: tok.Marco })).stato === 403);
   // il bar manager fa tutto come il titolare (turni, task, ferie) TRANNE account e scaricare i resoconti
   verifica('il bar manager NON scarica il resoconto PDF', (await chiama('/reports/monthly.pdf', { token: tok.Giulia })).stato === 403);
-  verifica('il bar manager NON tocca profili e password del locale',
-    (await chiama('/profiles', { metodo: 'POST', token: tok.Giulia, corpo: { name: 'X', role: 'barman', pin: '5912' } })).stato === 403
-    && (await chiama('/locale/password', { metodo: 'POST', token: tok.Giulia, corpo: { password: 'nuova-pass' } })).stato === 403);
+  verifica('il bar manager NON cambia la password del locale', (await chiama('/locale/password', { metodo: 'POST', token: tok.Giulia, corpo: { password: 'nuova-pass' } })).stato === 403);
+  verifica('il responsabile NON scarica il resoconto PDF', (await chiama('/reports/monthly.pdf', { token: tok.Paolo })).stato === 403);
+  // bar manager e responsabile aggiungono utenti e decidono cosa possono fare
+  const nuovoUt = await chiama('/profiles', { metodo: 'POST', token: tok.Giulia, corpo: { name: 'Stagista', pin: '5912', permissions: ['vuoti.view', 'vuoti.do', 'inventata'] } });
+  const stagista = (await chiama('/profiles')).dati.find(x => x.id === nuovoUt.dati.id);
+  verifica('il bar manager aggiunge un utente con i permessi scelti a mano', nuovoUt.stato === 200 && JSON.stringify(stagista.permissions) === '["vuoti.view","vuoti.do"]', stagista);
+  const tokSt = await entra(nuovoUt.dati.id, '5912');
+  verifica('quell\'utente fa solo cio\' che gli e\' stato dato', (await chiama('/shifts', { token: tokSt })).stato === 403 || (await chiama('/reports/monthly', { token: tokSt })).stato === 403);
+  verifica('il responsabile gli aggiunge i turni', (await chiama('/profiles/' + nuovoUt.dati.id, { metodo: 'PUT', token: tok.Paolo, corpo: { name: 'Stagista', permissions: ['vuoti.view', 'vuoti.do', 'turni.view'] } })).stato === 200
+    && (await chiama('/profiles')).dati.find(x => x.id === nuovoUt.dati.id).permissions.includes('turni.view'));
+  verifica('il bar manager NON da\' l\'accesso completo', (await chiama('/profiles', { metodo: 'POST', token: tok.Giulia, corpo: { name: 'Finto titolare', pin: '5913', permissions: ['all'] } })).stato === 403
+    && (await chiama('/profiles', { metodo: 'POST', token: tok.Giulia, corpo: { name: 'Finto titolare', pin: '5913', ruolo: 'proprietario' } })).stato === 403);
+  verifica('il bar manager NON tocca il profilo del proprietario', (await chiama('/profiles/' + idTit, { metodo: 'PUT', token: tok.Giulia, corpo: { name: 'Mio' } })).stato === 403
+    && (await chiama('/profiles/' + idTit + '/pin', { metodo: 'PUT', token: tok.Giulia, corpo: { nuovo: '5914' } })).stato === 403
+    && (await chiama('/profiles/' + idTit, { metodo: 'DELETE', token: tok.Giulia })).stato === 403);
+  verifica('un barman NON aggiunge utenti', (await chiama('/profiles', { metodo: 'POST', token: tok.Marco, corpo: { name: 'Amico', pin: '5915', ruolo: 'barman' } })).stato === 403);
+  verifica('il bar manager toglie l\'utente', (await chiama('/profiles/' + nuovoUt.dati.id, { metodo: 'DELETE', token: tok.Giulia })).stato === 200);
   const pdf = await fetch(BASE + '/api/reports/monthly.pdf', { headers: { Authorization: 'Bearer ' + T, 'X-Locale': LOCALE } });
   verifica('il titolare scarica il resoconto PDF', pdf.status === 200 && Buffer.from(await pdf.arrayBuffer()).subarray(0, 4).toString() === '%PDF');
   const lista = (await chiama('/shift-changes', { token: tok.Paolo })).dati;

@@ -7,6 +7,8 @@
 const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 const path = require('path');
+// bar manager e responsabile: tutto tranne chiedere ferie per se' (e scaricare i resoconti, che resta al proprietario)
+const DIRIGE = ['turni.view','turni.manage','task.view','task.check','task.manage','ferie.view','ferie.approve','vuoti.view','vuoti.do','magazzino.view','carico.do','drinkcost.view','inventario.view','inventario.do','inventario.close','manuale.view','profili.manage'];
 
 /* Una sola funzione che apre (o crea) il database di UN locale.
    Ogni bar ha il suo file: i dati di uno non toccano mai quelli di un altro.
@@ -198,9 +200,9 @@ function seedIfEmpty() {
     // permissions = lista di "capacità". 'all' = il proprietario può tutto.
     [
       ['Proprietario',           '1111', ['all']],
-      ['Admin 1 · Responsabile', '2222', ['turni.manage','turni.view','task.manage','task.view','ferie.view']],
+      ['Admin 1 · Responsabile', '2222', DIRIGE],
       ['Admin 2 · Barman',       '3333', ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view']],
-      ['Admin 3 · Bar Manager',  '4444', ['turni.manage','task.manage','ferie.approve','turni.view','task.view','vuoti.view','vuoti.do','carico.do','magazzino.view','drinkcost.view','manuale.view','ferie.view']],
+      ['Admin 3 · Bar Manager',  '4444', DIRIGE],
     ].forEach(([n, pin, perms]) => p.run(n, bcrypt.hashSync(pin, 10), JSON.stringify(perms)));
   }
 
@@ -292,24 +294,26 @@ function seedInventario() {
     ['Banco', 'Frigo birre e bibite', 'Magazzino', 'Cantina'].forEach((n, i) => l.run(n, i));
   }
 
-  // aggiunge le capacita' nuove ai profili, senza toccare quelle che hanno gia'
-  const nuovi = {
-    'Proprietario':            [],   // ha 'all', non serve aggiungere niente
-    'Admin 1 · Responsabile':  ['inventario.view', 'ferie.approve'],
-    'Admin 2 · Barman':        ['inventario.view', 'inventario.do'],
-    'Admin 3 · Bar Manager':   ['inventario.view', 'inventario.do', 'inventario.close', 'task.check', 'drinkcost.view', 'turni.manage', 'task.manage', 'ferie.approve'],
-  };
-  const upd = db.prepare('UPDATE profiles SET permissions=? WHERE id=?');
-  db.prepare('SELECT id,name,permissions FROM profiles').all().forEach(p => {
-    const ora = JSON.parse(p.permissions || '[]');
-    // i bar manager creati a mano (nome diverso) si riconoscono da cio' che solo loro hanno
-    const barManager = ora.includes('drinkcost.view') && ora.includes('inventario.close');
-    const da = nuovi[p.name] || (barManager ? nuovi['Admin 3 · Bar Manager'] : null); if (!da || !da.length) return;
-    if (ora.includes('all')) return;
-    const dopo = ora.slice();
-    da.forEach(c => { if (!dopo.includes(c)) dopo.push(c); });
-    if (dopo.length !== ora.length) upd.run(JSON.stringify(dopo), p.id);
-  });
+  /* Aggiorna i profili dei locali gia' esistenti, UNA volta sola: da quando
+     chi gestisce gli utenti spunta i permessi a mano, rifarlo a ogni avvio
+     rimetterebbe quello che lui ha tolto.
+     Bar manager e responsabile diventano come il proprietario (tranne
+     scaricare i resoconti): turni, task, ferie, magazzino, utenti.        */
+  if (!db.prepare("SELECT 1 FROM impostazioni WHERE chiave='permessi_v3'").get()) {
+    const extra = { 'Admin 2 · Barman': ['inventario.view', 'inventario.do'] };
+    const upd = db.prepare('UPDATE profiles SET permissions=? WHERE id=?');
+    db.prepare('SELECT id,name,permissions FROM profiles').all().forEach(p => {
+      const ora = JSON.parse(p.permissions || '[]');
+      if (ora.includes('all')) return;
+      // chi dirige si riconosce da cio' che solo lui aveva: gestire i turni, o chiudere l'inventario coi costi
+      const dirige = /Responsabile|Bar Manager/i.test(p.name) || ora.includes('turni.manage') || (ora.includes('drinkcost.view') && ora.includes('inventario.close'));
+      const da = dirige ? DIRIGE : (extra[p.name] || []);
+      const dopo = ora.slice();
+      da.forEach(c => { if (!dopo.includes(c)) dopo.push(c); });
+      if (dopo.length !== ora.length) upd.run(JSON.stringify(dopo), p.id);
+    });
+    db.prepare("INSERT INTO impostazioni (chiave,valore) VALUES ('permessi_v3','1')").run();
+  }
 }
 
 function seedVendorsAndPar() {
