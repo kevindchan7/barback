@@ -34,7 +34,7 @@
 
   /* la mascotte-bottiglia */
   --m-body:#3ecf8e; --m-limb:#2e7d5b; --m-line:#1f3d2f;
-  --m-cap:#c9a24b; --m-label:#fdf6e3;
+  --m-cap:#c9a24b; --m-label:#fdf6e3; --m-hi:#7ff0bf; --m-lo:#1fa56c; --m-cap2:#f0d27a;
 }
 
 /* ---------------- TEMA CHIARO ---------------- */
@@ -62,7 +62,7 @@
   --ico-shadow:rgba(24,20,16,.18);
 
   --m-body:#f5871f; --m-limb:#c25d08; --m-line:#7a3a04;
-  --m-cap:#a8760a; --m-label:#fffaf2;
+  --m-cap:#a8760a; --m-label:#fffaf2; --m-hi:#ffb066; --m-lo:#e0620a; --m-cap2:#f3c25f;
 }
 *{box-sizing:border-box; margin:0; padding:0;}
 body{font-family:system-ui,Segoe UI,Roboto,sans-serif; color:var(--txt);
@@ -586,3 +586,20 @@ table.mz td:first-child{max-width:30vw;}
 .schede button{position:relative;}
 .tab-n{font-style:normal;font-size:11px;font-weight:800;background:var(--red,#e5484d);color:#fff;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
 .schede{position:sticky;top:0;z-index:5;}
+
+/* i campi non escono mai dalla loro colonna (prezzo di vendita sopra le scritte) */
+.row > div{min-width:0;}
+.row input:not([type=checkbox]):not([type=radio]),.row select,.row textarea{min-width:0; max-width:100%; width:100%; box-sizing:border-box;}
+.ord-q{width:64px;}
+
+/* mascotte moderna: gradienti morbidi, niente contorni duri */
+.mascot .m-s1{stop-color:var(--m-hi);} .mascot .m-s2{stop-color:var(--m-lo);}
+.mascot .m-c1{stop-color:var(--m-cap2);} .mascot .m-c2{stop-color:var(--m-cap);}
+.mascot .m-shadow{fill:#000; opacity:.18;}
+.mascot .m-limb{stroke:var(--m-lo);}
+.mascot .m-hand{fill:var(--m-hi);} .mascot .m-foot{fill:var(--m-line);}
+.mascot .m-shine-l{stroke:#fff; opacity:.45; fill:none;}
+.mascot .m-label{fill:var(--m-label); stroke:none;}
+.mascot .m-star{fill:var(--m-cap);}
+.mascot .m-blush{fill:#ff7a8a; opacity:.45;}
+.mascot .m-body,.mascot .m-cap{stroke:none;}
