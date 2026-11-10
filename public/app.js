@@ -306,21 +306,25 @@ function schedeInventario(attiva) {
   document.querySelectorAll('.schede-inv').forEach(e => { e.innerHTML = html; });
 }
 /* Semplice: le schede meno usate stanno chiuse. Si tocca il titolo e si apre. */
-function piega(card, titolo) {
+window._aperte = window._aperte || {};
+function piega(card, titolo, chiave) {
   if (!card || card.dataset.piega) return;
   card.dataset.piega = '1'; card.classList.add('piega');
+  const k = chiave || titolo;
+  if (window._aperte[k]) card.classList.add('aperta');
   const b = document.createElement('button');
-  b.className = 'piega-testa'; b.innerHTML = `<span>${titolo}</span><b>+</b>`;
-  b.onclick = () => { const a = card.classList.toggle('aperta'); b.lastChild.textContent = a ? '−' : '+'; };
+  b.className = 'piega-testa'; b.innerHTML = `<span>${titolo}</span><b>${card.classList.contains('aperta') ? '−' : '+'}</b>`;
+  b.onclick = () => { const a = card.classList.toggle('aperta'); window._aperte[k] = a; b.lastChild.textContent = a ? '−' : '+'; };
   card.prepend(b);
 }
 function rendiPieghevoli() {
   const card = (sel) => { const e = document.querySelector(sel); return e && e.closest('.card'); };
-  piega(card('#personale-card'), t('personale'));
-  piega(card('#shift-range'), t('vista'));
-  piega(card('#mz-newprod'), t('agg_prodotto'));
-  piega(card('#mz-mvform'), t('carico_scarico'));
-  piega(card('#mz-list-old'), t('consumi_mese'));
+  piega(card('#personale-card'), t('personale'), 'personale');
+  piega(card('#shift-range'), t('vista'), 'vista');
+  piega(card('#mz-newprod'), t('agg_prodotto'), 'newprod');
+  piega(card('#mz-mvform'), t('carico_scarico'), 'mvform');
+  piega(card('#mz-list-old'), t('consumi_mese'), 'consumi');
+  piega(document.querySelector('#vuoti-grid-card'), t('griglia_mese_corto'), 'grigliavuoti');
 }
 function go(view, silent, proprioQuesta) {
   // "Inventario" dal menu: chi vede le giacenze parte da li'
@@ -431,7 +435,7 @@ async function loadMagazzino() {
 
   const r = await api('/reports/monthly');
   window._stockRows = r.rows;
-  $('#mz-month').textContent = '(' + r.month + ')';
+  $('#mz-month').textContent = '(' + r.month + (r.sottoSoglia ? ' · ' + r.sottoSoglia + ' ' + t('sotto_soglia').toLowerCase() : '') + ')';
   $('#mz-low').textContent = r.sottoSoglia;
   renderMz();
   caricaStoricoMov();

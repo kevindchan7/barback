@@ -183,6 +183,7 @@ async function caricaStoricoMov() {
       </tbody></table></div>
       <div id="annullati-box"></div>
     </div>`;
+  piega(box.querySelector('.card:not(.rq-warn)'), t('storico_mov'), 'storico');
 }
 async function mostraAnnullati() {
   const r = await api('/movements/annullati');
@@ -251,6 +252,7 @@ async function caricaChecklist() {
     <button class="act" style="margin-top:8px" onclick="aggiungiChecklist()">+ ${t('aggiungi_checklist')}</button>
   </div>`;
   disegnaGiorni();
+  piega(box.querySelector('.card'), t('checklist_titolo'), 'checklist');
 }
 function disegnaGiorni() {
   const nomi = GIORNI_BREVI();
