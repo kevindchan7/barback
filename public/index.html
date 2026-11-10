@@ -247,14 +247,11 @@
         <div class="search"><input id="mz-search" placeholder="🔍 Cerca prodotto..." data-i18n-ph="cerca_prodotto2" oninput="renderMz()"></div>
         <div class="grid-scroll"><table class="wide mz"><thead><tr><th data-i18n="prodotto">Prodotto</th><th class="right" data-i18n="mz_inizio">Inizio mese</th><th class="right" data-i18n="mz_carichi">Carichi</th><th class="right" data-i18n="mz_vuoti">Vuoti</th><th class="right" data-i18n="mz_ora">Adesso</th><th class="right" id="mz-th-ord" data-i18n="mz_ordina">Ordina</th></tr></thead><tbody id="mz-list"></tbody></table></div>
         <div id="mz-ordine-box" class="hidden" style="margin-top:12px">
+          <button class="ghost" style="width:100%;margin-bottom:8px" onclick="compilaSuggeriti()" data-i18n="mz_compila">✨ Compila con le quantità suggerite</button>
           <input id="mz-forn" maxlength="80" placeholder="Per quale fornitore (facoltativo)" data-i18n-ph="mz_forn_ph" style="width:100%;margin-bottom:8px">
           <button class="act" style="width:100%;padding:14px" onclick="pdfOrdineMagazzino()" data-i18n="mz_pdf">📄 PDF dell'ordine</button>
           <button class="ghost" style="width:100%;margin-top:8px" onclick="go('ordini')" data-i18n="mz_vedi_sugg">Vedi cosa ordinare per fornitore ›</button>
         </div>
-      </div>
-      <div class="kpis">
-        
-        <div class="kpi"><div class="v" id="mz-low">0</div><div class="l" data-i18n="sotto_soglia">Sotto soglia</div></div>
       </div>
       <div class="card hidden" id="mz-newprod">
         <h3 data-i18n="agg_prodotto">Aggiungi un prodotto</h3>
@@ -297,10 +294,6 @@
           <div class="row"><div><label data-i18n="giorno">Giorno</label><input id="mv-giorno" type="date"></div></div>
         </details>
         <button class="act" onclick="addMovement()" data-i18n="btn_registra_mov">+ Registra movimento</button>
-      </div>
-      <div class="card">
-        <h3 data-i18n="consumi_mese">Giacenze e consumi</h3>
-        <div class="grid-scroll"><table class="wide"><thead><tr><th data-i18n="prodotto">Prodotto</th><th data-i18n="entrato">Entrato</th><th data-i18n="uscito">Uscito</th><th data-i18n="netto">Netto</th><th class="right" data-i18n="residua">Residua</th><th class="right" data-i18n="da_ordinare">Da ordinare</th><th></th></tr></thead><tbody id="mz-list-old"></tbody></table></div>
       </div>
       <div id="storico-mov"></div>
     </section>

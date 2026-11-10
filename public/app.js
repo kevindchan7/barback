@@ -323,7 +323,6 @@ function rendiPieghevoli() {
   piega(card('#shift-range'), t('vista'), 'vista');
   piega(card('#mz-newprod'), t('agg_prodotto'), 'newprod');
   piega(card('#mz-mvform'), t('carico_scarico'), 'mvform');
-  piega(card('#mz-list-old'), t('consumi_mese'), 'consumi');
   piega(document.querySelector('#vuoti-grid-card'), t('griglia_mese_corto'), 'grigliavuoti');
 }
 function go(view, silent, proprioQuesta) {
@@ -436,13 +435,11 @@ async function loadMagazzino() {
   const r = await api('/reports/monthly');
   window._stockRows = r.rows;
   $('#mz-month').textContent = '(' + r.month + (r.sottoSoglia ? ' · ' + r.sottoSoglia + ' ' + t('sotto_soglia').toLowerCase() : '') + ')';
-  $('#mz-low').textContent = r.sottoSoglia;
   if (window._sottoSoglia !== r.sottoSoglia) { window._sottoSoglia = r.sottoSoglia; schedeInventario('magazzino'); }
   renderMz();
   caricaStoricoMov();
 }
 function renderMz() {
-  renderMzOld();
   const q = (($('#mz-search') && $('#mz-search').value) || '').toLowerCase();
   const rows = (window._stockRows || []).filter(x => x.name.toLowerCase().includes(q));
   const gestisce = can('magazzino.view'), ord = window._ordine || {};
@@ -451,22 +448,15 @@ function renderMz() {
     <td class="right">${x.inizio}</td><td class="right">${x.entrato ? '+' + x.entrato : '<span class="muted">0</span>'}</td>
     <td class="right">${x.vuoti ? '−' + x.vuoti : '<span class="muted">0</span>'}</td>
     <td class="right"><b${x.residua < 0 || sotto(x) ? ' class="basso"' : ''}>${x.residua}</b></td>
-    ${gestisce ? `<td class="right"><input class="ord-q" type="number" inputmode="numeric" min="0" value="${ord[x.id] || ''}" placeholder="0" oninput="window._ordine[${x.id}]=this.value"></td>
+    ${gestisce ? `<td class="right"><input class="ord-q" type="number" inputmode="numeric" min="0" value="${ord[x.id] || ''}" placeholder="${x.daOrdinare || 0}" oninput="window._ordine[${x.id}]=this.value"></td>
 ` : ''}</tr>`).join("")
     || `<tr><td colspan="6" class="muted">${t('nessun_prodotto')}</td></tr>`;
 }
-// la tabella di prima: entrato / uscito / netto / residua / da ordinare, con modifica ed elimina
-function renderMzOld() {
-  const q = (($('#mz-search') && $('#mz-search').value) || '').toLowerCase();
-  const rows = (window._stockRows || []).filter(x => x.name.toLowerCase().includes(q));
-  const editable = can('magazzino.view');
-  $('#mz-list-old').innerHTML = rows.map(x => `<tr><td>${esc(x.name)}</td><td>${x.entrato}</td><td>${x.uscito}</td>
-    <td style="color:${x.netto < 0 ? 'var(--red)' : 'var(--green)'}">${x.netto > 0 ? '+' : ''}${x.netto}</td>
-    <td class="right">${x.residua} ${esc(x.unit)}</td>
-    <td class="right">${x.daOrdinare ? `<b style="color:var(--gold)">${x.daOrdinare}</b>` : '<span class="muted">—</span>'}</td>
-    <td class="right">${editable ? `<button class="iconbtn" onclick="editProduct(${x.id})" title="${t('modifica')}">✏️</button>
-      <button class="iconbtn" onclick="removeProduct(${x.id})" title="${t('elimina')}">🗑</button>` : ''}</td></tr>`).join('')
-    || `<tr><td colspan="7" class="muted">${t('nessun_prodotto')}</td></tr>`;
+// quantita' suggerite (da soglia e scorta ideale) scritte nelle caselle "Ordina"
+function compilaSuggeriti() {
+  window._ordine = window._ordine || {};
+  (window._stockRows || []).forEach(x => { if (x.daOrdinare) window._ordine[x.id] = x.daOrdinare; });
+  renderMz();
 }
 // il PDF del solo ordine: i prodotti con un numero scritto accanto
 async function pdfOrdineMagazzino() {
@@ -577,8 +567,12 @@ async function invStart() {
 
 async function invEnterCount() {
   $('#inv-num').textContent = '#' + invSess.id;
-  const locs = await api('/locations');
-  if (!locs.length) { alert('Aggiungi almeno una postazione prima di contare.'); return invShow('start'); }
+  let locs = await api('/locations');
+  if (!locs.length) {   // primo conteggio: crea da solo la postazione "Banco"
+    try { await api('/locations', 'POST', { name: t('postazione_banco') }); } catch {}
+    locs = await api('/locations');
+    if (!locs.length) { alert(t('postazione_serve')); return invShow('start'); }
+  }
   const sel = $('#inv-loc');
   if (sel.options.length !== locs.length) sel.innerHTML = locs.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
   invShow('run');
@@ -1312,6 +1306,7 @@ function downloadCSV(filename, aoa) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })); a.download = filename; a.click();
 }
 function downloadXLSX(filename, aoa, sheet = 'Dati') {
+  if (typeof XLSX === 'undefined') return downloadCSV(filename.replace(/\.xlsx$/, '.csv'), aoa);   // libreria Excel non caricata: scarica un CSV
   const ws = XLSX.utils.aoa_to_sheet(aoa); const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheet); XLSX.writeFile(wb, filename);
 }
