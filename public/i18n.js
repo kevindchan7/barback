@@ -229,6 +229,7 @@ const I18N = {
     cal_tocca: 'Tocca un giorno per vedere turni e task.', turni_del_giorno: 'Turni', task_del_giorno: 'Task', turno: 'Turno', task: 'Task', chiunque: 'Chiunque',
     task_aiuto_cal: 'Per aggiungere una task, tocca un giorno nel calendario.',
     consumi_mese: 'Giacenze e consumi',
+    griglia_mese_corto: 'Calendario del mese',
   },
 
   en: {
@@ -431,6 +432,7 @@ const I18N = {
     cal_tocca: 'Tap a day to see shifts and tasks.', turni_del_giorno: 'Shifts', task_del_giorno: 'Tasks', turno: 'Shift', task: 'Task', chiunque: 'Anyone',
     task_aiuto_cal: 'To add a task, tap a day in the calendar.',
     consumi_mese: 'Stock and usage',
+    griglia_mese_corto: 'Month calendar',
   },
 
   es: {
@@ -633,6 +635,7 @@ const I18N = {
     cal_tocca: 'Toca un día para ver turnos y tareas.', turni_del_giorno: 'Turnos', task_del_giorno: 'Tareas', turno: 'Turno', task: 'Tarea', chiunque: 'Cualquiera',
     task_aiuto_cal: 'Para añadir una tarea, toca un día del calendario.',
     consumi_mese: 'Existencias y consumo',
+    griglia_mese_corto: 'Calendario del mes',
   },
 };
 
