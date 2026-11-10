@@ -526,7 +526,7 @@ api.delete('/employees/:id', need('turni.manage'), (req, res) => {
    (proprietario, bar manager, responsabile) sceglie queste voci una per una. */
 const CAPACITA = ['turni.view','turni.manage','task.view','task.check','task.manage','task.request','ferie.view','ferie.request','ferie.approve',
   'vuoti.view','vuoti.do','magazzino.view','carico.do','drinkcost.view','inventario.view','inventario.do','inventario.close',
-  'manuale.view','profili.manage','task.request','etichette.new'];
+  'manuale.view','profili.manage','task.request','etichette.new','manuale.edit'];
 /* I ruoli di partenza (poi il titolare spunta a mano quello che vuole).
    - Bar manager: come il titolare, ma NON scarica i resoconti in PDF e non dà l'accesso completo.
    - Bartender: segna vuoti e carichi, crea etichette, vede turni e task e ne propone, chiede ferie, fa la giacenza.
@@ -1247,12 +1247,42 @@ api.get('/foodcost', need('drinkcost.view'), (req, res) => {
 
 /* ---------------- MANUALE DIPENDENTE (regole + ricettario) ---------------- */
 api.get('/manuale', need('manuale.view'), (req, res) => {
-  const recipes = db.prepare("SELECT * FROM products WHERE category='Cocktail' ORDER BY name").all().map(d => ({
-    name: d.name, price: d.price,
-    ingredienti: JSON.parse(d.recipe || '[]').map(r => ({ name: (product(r.ing) || {}).name, q: r.q })),
-    preparazione: (PREPARAZIONI[res.locals.lang] || PREPARAZIONI.it)[d.name] || '',
-  }));
-  ok(res, { regole: REGOLE[res.locals.lang] || REGOLE.it, ricettario: recipes });
+  // la prima volta le regole d'esempio diventano righe modificabili (poi sono del locale)
+  if (!leggiImp('manuale_regole_init', '')) {
+    const ins = db.prepare('INSERT INTO manual_rules (testo,pos,created_at) VALUES (?,?,?)');
+    if (!db.prepare('SELECT 1 FROM manual_rules').get()) (REGOLE[res.locals.lang] || REGOLE.it).forEach((r, i) => ins.run(r, i, now()));
+    db.prepare("INSERT OR REPLACE INTO impostazioni (chiave,valore) VALUES ('manuale_regole_init','1')").run();
+  }
+  ok(res, {
+    regole: db.prepare('SELECT id, testo FROM manual_rules ORDER BY pos, id').all(),
+    ricettario: db.prepare('SELECT id, nome, ingredienti, preparazione FROM manual_recipes ORDER BY nome COLLATE NOCASE').all(),
+    puoModificare: can(req, 'manuale.edit'),
+  });
+});
+const testoPulito = (v, max) => String(v || '').trim().slice(0, max);
+api.post('/manuale/regole', need('manuale.edit'), (req, res) => {
+  const testo = testoPulito(req.body.testo, 300); if (!testo) return bad(res, 400, 'Scrivi la regola');
+  const pos = (db.prepare('SELECT COALESCE(MAX(pos),0)+1 n FROM manual_rules').get() || {}).n || 0;
+  ok(res, { id: db.prepare('INSERT INTO manual_rules (testo,pos,created_at) VALUES (?,?,?)').run(testo, pos, now()).lastInsertRowid });
+});
+api.put('/manuale/regole/:id', need('manuale.edit'), (req, res) => {
+  const testo = testoPulito(req.body.testo, 300); if (!testo) return bad(res, 400, 'Scrivi la regola');
+  db.prepare('UPDATE manual_rules SET testo=? WHERE id=?').run(testo, +req.params.id); ok(res, { ok: true });
+});
+api.delete('/manuale/regole/:id', need('manuale.edit'), (req, res) => {
+  db.prepare('DELETE FROM manual_rules WHERE id=?').run(+req.params.id); ok(res, { ok: true });
+});
+const ricettaCampi = (b) => ({ nome: testoPulito(b.nome, 80), ingredienti: testoPulito(b.ingredienti, 800), preparazione: testoPulito(b.preparazione, 1200) });
+api.post('/manuale/ricette', need('manuale.edit'), (req, res) => {
+  const r = ricettaCampi(req.body); if (!r.nome) return bad(res, 400, 'Serve il nome');
+  ok(res, { id: db.prepare('INSERT INTO manual_recipes (nome,ingredienti,preparazione,created_at) VALUES (?,?,?,?)').run(r.nome, r.ingredienti, r.preparazione, now()).lastInsertRowid });
+});
+api.put('/manuale/ricette/:id', need('manuale.edit'), (req, res) => {
+  const r = ricettaCampi(req.body); if (!r.nome) return bad(res, 400, 'Serve il nome');
+  db.prepare('UPDATE manual_recipes SET nome=?, ingredienti=?, preparazione=? WHERE id=?').run(r.nome, r.ingredienti, r.preparazione, +req.params.id); ok(res, { ok: true });
+});
+api.delete('/manuale/ricette/:id', need('manuale.edit'), (req, res) => {
+  db.prepare('DELETE FROM manual_recipes WHERE id=?').run(+req.params.id); ok(res, { ok: true });
 });
 
 /* ---------------- SEZ.2 — TURNI / TASK (permessi) ---------------- */

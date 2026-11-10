@@ -8,7 +8,7 @@ const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 // bar manager e responsabile: tutto tranne chiedere ferie per se' (e scaricare i resoconti, che resta al proprietario)
-const DIRIGE = ['turni.view','turni.manage','task.view','task.check','task.manage','ferie.view','ferie.approve','vuoti.view','vuoti.do','magazzino.view','carico.do','drinkcost.view','inventario.view','inventario.do','inventario.close','manuale.view','profili.manage','ferie.request','task.request','etichette.new'];
+const DIRIGE = ['turni.view','turni.manage','task.view','task.check','task.manage','ferie.view','ferie.approve','vuoti.view','vuoti.do','magazzino.view','carico.do','drinkcost.view','inventario.view','inventario.do','inventario.close','manuale.view','profili.manage','ferie.request','task.request','etichette.new','manuale.edit'];
 
 /* Una sola funzione che apre (o crea) il database di UN locale.
    Ogni bar ha il suo file: i dati di uno non toccano mai quelli di un altro.
@@ -147,6 +147,11 @@ addColumn('movements', 'work_date', 'TEXT');
 db.exec("UPDATE movements SET work_date = substr(created_at,1,10) WHERE work_date IS NULL");
 // task che si ripetono (checklist di apertura/chiusura): da quale modello nasce la task
 addColumn('tasks', 'template_id', 'INTEGER');
+// manuale del dipendente: regole e ricettario scritti dal locale (non dal drink cost)
+db.exec(`CREATE TABLE IF NOT EXISTS manual_rules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, testo TEXT NOT NULL, pos INTEGER DEFAULT 0, created_at TEXT)`);
+db.exec(`CREATE TABLE IF NOT EXISTS manual_recipes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL, ingredienti TEXT DEFAULT '', preparazione TEXT DEFAULT '', created_at TEXT)`);
 db.exec(`CREATE TABLE IF NOT EXISTS task_templates (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   title TEXT NOT NULL,
@@ -324,6 +329,15 @@ function seedInventario() {
       if (dopo.length !== ora.length) upd.run(JSON.stringify(dopo), p.id);
     });
     db.prepare("INSERT INTO impostazioni (chiave,valore) VALUES ('permessi_v3','1')").run();
+  }
+  // modificare regole e ricettario del manuale: chi dirige (bar manager) lo ottiene UNA volta; il proprietario ha gia' tutto
+  if (!db.prepare("SELECT 1 FROM impostazioni WHERE chiave='permessi_manuale_edit'").get()) {
+    const upd = db.prepare('UPDATE profiles SET permissions=? WHERE id=?');
+    db.prepare('SELECT id,permissions FROM profiles').all().forEach(p => {
+      const ora = JSON.parse(p.permissions || '[]');
+      if (!ora.includes('all') && ora.includes('turni.manage') && !ora.includes('manuale.edit')) upd.run(JSON.stringify(ora.concat('manuale.edit')), p.id);
+    });
+    db.prepare("INSERT INTO impostazioni (chiave,valore) VALUES ('permessi_manuale_edit','1')").run();
   }
 }
 

@@ -490,9 +490,8 @@ function editProduct(id) {
         ${can('drinkcost.view') ? `
         <h3 style="margin-top:14px;font-size:14px">${t('sez_costi')}</h3>
         <p class="muted" style="font-size:11.5px;margin:2px 0 8px">${t('sez_costi_aiuto')}</p>
-        <div class="row c3">
+        <div class="row c2">
           <div><label>${t('costo_acquisto')}</label><input id="ep-cost" type="number" min="0" step="0.01" value="${p.cost || 0}"></div>
-          <div><label>${t('prezzo_vendita')}</label><input id="ep-price" type="number" min="0" step="0.01" value="${p.price || 0}"></div>
           <div><label>${t('volume_bottiglia')}</label><input id="ep-vol" type="number" min="0" step="1" value="${p.volume_ml || 0}"></div>
         </div>
         <p class="muted" style="font-size:11.5px;margin:-4px 0 8px">${t('volume_aiuto')}</p>` : ''}
@@ -518,7 +517,6 @@ async function saveProduct(id) {
       threshold: $('#ep-thr').value, par_level: $('#ep-par').value, vendor_id: $('#ep-vendor').value };
     if (can('drinkcost.view')) {
       corpo.cost = $('#ep-cost').value;
-      corpo.price = $('#ep-price').value;
       corpo.volume_ml = $('#ep-vol').value;
     }
     await api('/products/' + id, 'PUT', corpo);
@@ -1311,14 +1309,43 @@ async function rqRitira(id, chi) {
 async function loadManuale() {
   $('#manuale-hello').innerHTML = mascotSays(t('man_hello'), 48);
   const m = await api('/manuale');
-  $('#man-rules').innerHTML = m.regole.map(r => `<li>${r}</li>`).join('');
-  $('#man-recipes').innerHTML = m.ricettario.map(c => `
+  window._manuale = m;
+  const ed = !!m.puoModificare;
+  $('#man-rules').innerHTML = m.regole.length ? m.regole.map(r => `<li style="display:flex;gap:8px;align-items:center;justify-content:space-between"><span style="flex:1">${esc(r.testo)}</span>${ed ? `<span style="white-space:nowrap"><button class="iconbtn" onclick="modificaRegola(${r.id})" title="${t('modifica')}">✏️</button><button class="iconbtn" onclick="eliminaRegola(${r.id})" title="${t('elimina')}">🗑</button></span>` : ''}</li>`).join('')
+    : `<li class="muted" style="list-style:none">${t('man_nessuna_regola')}</li>`;
+  show('#man-rules-add', ed); show('#man-recipes-add', ed);
+  $('#man-recipes').innerHTML = m.ricettario.length ? m.ricettario.map(c => `
     <div style="border-bottom:1px solid var(--line);padding:8px 0">
-      <b>${c.name}</b>
-      <div class="muted" style="margin:4px 0">${c.ingredienti.map(i => i.name + ' ' + i.q + 'ml').join(' · ')}</div>
-      <div style="font-size:12px">${c.preparazione}</div>
-    </div>`).join('');
+      <div class="cal-head"><b>${esc(c.nome)}</b>${ed ? `<span><button class="iconbtn" onclick="modificaRicetta(${c.id})" title="${t('modifica')}">✏️</button><button class="iconbtn" onclick="eliminaRicetta(${c.id})" title="${t('elimina')}">🗑</button></span>` : ''}</div>
+      ${c.ingredienti ? `<div class="muted" style="margin:4px 0;white-space:pre-line">${esc(c.ingredienti)}</div>` : ''}
+      ${c.preparazione ? `<div style="font-size:13px;white-space:pre-line">${esc(c.preparazione)}</div>` : ''}
+    </div>`).join('') : `<p class="muted">${t('man_nessuna_ricetta')}</p>`;
 }
+function modaleManuale(titolo, campi, salva) {
+  window._salvaManuale = salva;
+  $('#modal-root').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${titolo}</h3>${campi}
+    <div class="onb-actions" style="margin-top:14px"><button class="ghost" onclick="closeModal()">${t('annulla')}</button><button class="act" onclick="_salvaManuale()">${t('salva')}</button></div></div></div>`;
+  setTimeout(() => { const e = $('#mm-1'); e && e.focus(); }, 50);
+}
+const regolaPerId = (id) => (window._manuale.regole || []).find(r => r.id === id) || {};
+const ricettaPerId = (id) => (window._manuale.ricettario || []).find(r => r.id === id) || {};
+function campiRegola(v = '') { return `<label>${t('man_regola')}</label><textarea id="mm-1" rows="3" maxlength="300" style="width:100%">${esc(v)}</textarea>`; }
+function nuovaRegola() { modaleManuale(t('man_nuova_regola'), campiRegola(), async () => { const v = $('#mm-1').value.trim(); if (!v) return $('#mm-1').focus();
+  try { await api('/manuale/regole', 'POST', { testo: v }); closeModal(); loadManuale(); } catch (e) { alert(e.message); } }); }
+function modificaRegola(id) { modaleManuale(t('modifica'), campiRegola(regolaPerId(id).testo), async () => { const v = $('#mm-1').value.trim(); if (!v) return $('#mm-1').focus();
+  try { await api('/manuale/regole/' + id, 'PUT', { testo: v }); closeModal(); loadManuale(); } catch (e) { alert(e.message); } }); }
+async function eliminaRegola(id) { if (!confirm(t('conferma_elimina', { n: regolaPerId(id).testo }))) return;
+  try { await api('/manuale/regole/' + id, 'DELETE'); loadManuale(); } catch (e) { alert(e.message); } }
+function campiRicetta(r = {}) { return `<label>${t('nome')}</label><input id="mm-1" maxlength="80" value="${esc(r.nome || '')}" placeholder="es. Negroni">
+  <label style="margin-top:8px">${t('ingredienti_man')}</label><textarea id="mm-2" rows="4" maxlength="800" style="width:100%" placeholder="Gin 30ml&#10;Campari 30ml&#10;Vermouth rosso 30ml">${esc(r.ingredienti || '')}</textarea>
+  <label style="margin-top:8px">${t('preparazione')}</label><textarea id="mm-3" rows="3" maxlength="1200" style="width:100%" placeholder="${t('ph_preparazione')}">${esc(r.preparazione || '')}</textarea>`; }
+const leggiRicetta = () => ({ nome: $('#mm-1').value.trim(), ingredienti: $('#mm-2').value, preparazione: $('#mm-3').value });
+function nuovaRicetta() { modaleManuale(t('man_nuova_ricetta'), campiRicetta(), async () => { const b = leggiRicetta(); if (!b.nome) return $('#mm-1').focus();
+  try { await api('/manuale/ricette', 'POST', b); closeModal(); loadManuale(); } catch (e) { alert(e.message); } }); }
+function modificaRicetta(id) { modaleManuale(t('modifica'), campiRicetta(ricettaPerId(id)), async () => { const b = leggiRicetta(); if (!b.nome) return $('#mm-1').focus();
+  try { await api('/manuale/ricette/' + id, 'PUT', b); closeModal(); loadManuale(); } catch (e) { alert(e.message); } }); }
+async function eliminaRicetta(id) { if (!confirm(t('conferma_elimina', { n: ricettaPerId(id).nome }))) return;
+  try { await api('/manuale/ricette/' + id, 'DELETE'); loadManuale(); } catch (e) { alert(e.message); } }
 
 /* ===================== NOTIFICHE / EXPORT ===================== */
 function requestNotify() { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); }
@@ -1442,10 +1469,10 @@ async function addProduct() {
       // chi non ha il permesso non vede i campi e non manda niente:
       // il prodotto nasce a zero e li mette il proprietario dopo
       cost: can('drinkcost.view') ? $('#np-cost').value : 0,
-      price: can('drinkcost.view') ? $('#np-price').value : 0,
+      price: 0,
       volume_ml: can('drinkcost.view') ? $('#np-vol').value : 0,
     });
-    ['#np-name', '#np-format', '#np-par', '#np-cost', '#np-price', '#np-vol'].forEach(s => { const e = $(s); if (e) e.value = ''; });
+    ['#np-name', '#np-format', '#np-par', '#np-cost', '#np-vol'].forEach(s => { const e = $(s); if (e) e.value = ''; });
     $('#np-stock').value = '0'; $('#np-thr').value = '0';
     loadMagazzino();
   } catch (e) { alert(e.message); }
@@ -1803,7 +1830,7 @@ const GRUPPI_CAPACITA = [
   ['cg_vuoti', ['vuoti.view', 'vuoti.do']],
   ['cg_magazzino', ['magazzino.view', 'carico.do', 'etichette.new', 'drinkcost.view']],
   ['cg_inventario', ['inventario.view', 'inventario.do', 'inventario.close']],
-  ['cg_altro', ['manuale.view', 'profili.manage']],
+  ['cg_altro', ['manuale.view', 'manuale.edit', 'profili.manage']],
 ];
 const chiaveCapacita = (c) => 'cap_' + c.replace('.', '_');
 function caselleCapacita(pre, attive) {

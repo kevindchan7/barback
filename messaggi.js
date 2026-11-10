@@ -47,6 +47,7 @@ const ERRORI = {
   'Ruolo non valido':      { en: 'Invalid role', es: 'Puesto no válido' },
   'Decisione non valida':  { en: 'Invalid decision', es: 'Decisión no válida' },
   'Codice vuoto':          { en: 'Empty barcode', es: 'Código vacío' },
+  'Scrivi la regola':      { en: 'Write the rule', es: 'Escribe la regla' },
   'Serve il nome':         { en: 'A name is required', es: 'Hace falta el nombre' },
   'Serve la postazione':   { en: 'An area is required', es: 'Hace falta la zona' },
   'Scegli il dipendente':  { en: 'Choose the staff member', es: 'Elige el empleado' },

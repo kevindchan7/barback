@@ -307,7 +307,17 @@ async function aspettaServer() {
   titolo('MANUALE E PANORAMICA');
   const man = (await chiama('/manuale', { token: B })).dati;
   verifica('il manuale ha le regole del locale', man.regole.length >= 6, man.regole.length);
-  verifica('il manuale ha il ricettario', man.ricettario.length === 4, man.ricettario.length);
+  verifica('il ricettario del manuale parte vuoto: non copia i cocktail del drink cost', man.ricettario.length === 0, man.ricettario.length);
+  verifica('il barman NON puo\' modificare le regole', (await chiama('/manuale/regole', { metodo: 'POST', token: B, corpo: { testo: 'x' } })).stato === 403);
+  const nr = await chiama('/manuale/regole', { metodo: 'POST', token: P, corpo: { testo: 'Niente telefono al banco' } });
+  verifica('il proprietario aggiunge una regola', nr.stato === 200 && nr.dati.id > 0, nr.dati);
+  verifica('il bar manager modifica la regola', (await chiama('/manuale/regole/' + nr.dati.id, { metodo: 'PUT', token: M, corpo: { testo: 'Telefono in tasca' } })).stato === 200);
+  const rc = await chiama('/manuale/ricette', { metodo: 'POST', token: M, corpo: { nome: 'Negroni', ingredienti: 'Gin 30ml\nCampari 30ml', preparazione: 'Mescola' } });
+  verifica('il bar manager aggiunge una ricetta', rc.stato === 200 && rc.dati.id > 0, rc.dati);
+  const man2 = (await chiama('/manuale', { token: B })).dati;
+  verifica('il barman vede regola e ricetta nuove, ma non puo\' modificarle', man2.regole.some(r => r.testo === 'Telefono in tasca') && man2.ricettario.length === 1 && man2.puoModificare === false);
+  verifica('il proprietario elimina la ricetta', (await chiama('/manuale/ricette/' + rc.dati.id, { metodo: 'DELETE', token: P })).stato === 200
+    && (await chiama('/manuale', { token: P })).dati.ricettario.length === 0);
   verifica('il responsabile ora vede il manuale (fa come il titolare)', (await chiama('/manuale', { token: R })).stato === 200);
   verifica('la panoramica risponde', (await chiama('/overview', { token: P })).stato === 200);
 
