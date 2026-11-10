@@ -194,7 +194,7 @@ async function mostraAnnullati() {
 
 /* ===================== TURNI MODIFICABILI ===================== */
 async function editShift(id) {
-  const s = (window._shiftRows || []).find(x => x.id === id); if (!s) return;
+  const s = (window._shiftRows || []).concat(window._calShifts || []).find(x => x.id === id); if (!s) return;
   const emps = await api('/employees');
   $('#modal-root').innerHTML = `
     <div class="overlay" onclick="if(event.target===this)closeModal()">
