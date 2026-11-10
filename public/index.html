@@ -38,11 +38,13 @@
     <button class="themebtn" onclick="toggleTheme()" title="Cambia tema" data-i18n-title="cambia_tema">🌙</button></div>
   <div class="login-head" id="login-head"></div>
   <div id="locale-wrap" class="hidden" style="max-width:340px;margin:0 auto;text-align:center">
-    <p class="muted" data-i18n="locale_scrivi">Scrivi il codice del tuo locale</p>
-    <form onsubmit="entraLocale();return false" style="display:flex;gap:8px">
-      <input id="locale-codice" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="es. bar-sport-roma" data-i18n-ph="locale_ph" style="flex:1;font-size:16px">
-      <button type="submit" data-i18n="locale_entra">Entra</button>
+    <p class="muted" data-i18n="locale_scrivi">Scrivi nome e password del tuo locale</p>
+    <form onsubmit="entraLocale();return false" style="display:flex;flex-direction:column;gap:8px">
+      <input id="locale-codice" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="es. bar-sport-roma" data-i18n-ph="locale_ph" style="font-size:16px">
+      <input id="locale-password" type="password" autocomplete="current-password" placeholder="Password del locale" data-i18n-ph="locale_pw_ph" style="font-size:16px">
+      <button type="submit" class="act" data-i18n="locale_entra">Entra</button>
     </form>
+    <p style="margin-top:10px;font-size:14px"><a href="#" onclick="chiediReset('password');return false" data-i18n="pw_dimenticata">Password dimenticata? Ricevi il link per email</a></p>
     <p class="muted" style="margin-top:18px;font-size:14px"><span data-i18n="locale_prova">Vuoi solo provarla?</span> <a href="#" onclick="entraLocale('demo');return false" data-i18n="locale_demo">Apri il bar demo</a> (PIN 1111)<br>
       <span data-i18n="locale_nuovo">Locale nuovo?</span> <a href="registra.html" data-i18n="locale_registra">Registralo qui</a></p>
   </div>
@@ -55,7 +57,16 @@
     <p class="muted" style="text-align:center" id="pin-for"></p>
     <div class="pin-dots" id="pin-dots"></div>
     <div class="pinpad" id="pinpad"></div>
+    <p id="pin-reset" class="hidden" style="text-align:center;margin-top:14px;font-size:14px"><a href="#" onclick="chiediReset('pin');return false" data-i18n="pin_dimenticato">PIN dimenticato? Ricevi il link per email</a></p>
     <button class="ghost" style="margin:14px auto 0; display:block;" onclick="backToProfiles()" data-i18n="cambia_profilo">← Cambia profilo</button>
+  </div>
+  <!-- arrivando dal link dell'email: si sceglie il nuovo PIN o la nuova password -->
+  <div id="reset-wrap" class="hidden" style="max-width:340px;margin:0 auto;text-align:center">
+    <p class="muted" id="reset-titolo"></p>
+    <form onsubmit="faiReset();return false" style="display:flex;flex-direction:column;gap:8px">
+      <input id="reset-nuovo" autocomplete="new-password" style="font-size:16px">
+      <button type="submit" class="act" data-i18n="salva">Salva</button>
+    </form>
   </div>
   <div class="msg" id="login-msg"></div>
 </div>
@@ -63,7 +74,6 @@
 <!-- ============ APP ============ -->
 <div id="app" class="hidden">
   <div class="banner" id="banner">
-    <span id="banner-mascot"></span>
     <div><h1 data-i18n="app_nome">Barback</h1><div class="sub" id="banner-sub" data-i18n="app_sotto">Magazzino & Turni</div></div>
     <span class="spacer"></span>
     <!-- themebtn e' solo lo STILE del bottone tondo: non usarla per
@@ -227,7 +237,9 @@
     <!-- SEZ.4 — MAGAZZINO -->
     <section class="view" id="magazzino">
       <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_magazzino">Magazzino & Giacenze</h2></div>
-      <div class="exports">
+      <!-- scaricare i resoconti: solo il proprietario (non il bar manager) -->
+      <div class="exports hidden" id="mz-exports">
+        <button class="act" onclick="scaricaResoconto()" data-i18n="pdf_resoconto">⬇ Resoconto PDF</button>
         <button class="ghost" onclick="exportStock('csv')" data-i18n="csv_magazzino">⬇ CSV magazzino</button>
         <button class="ghost" onclick="exportStock('xlsx')" data-i18n="excel_magazzino">⬇ Excel magazzino</button>
       </div>

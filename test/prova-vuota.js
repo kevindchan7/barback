@@ -27,10 +27,11 @@ function verifica(nome, cond, dettaglio) {
 }
 const titolo = (t) => console.log(`\n${t}`);
 
+let CHIAVE = '';
 async function chiama(p, { metodo = 'GET', corpo, token } = {}) {
   const r = await fetch(BASE + '/api' + p, {
     method: metodo,
-    headers: { 'Content-Type': 'application/json', 'X-Locale': LOCALE_PROVA, ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    headers: { 'Content-Type': 'application/json', 'X-Locale': LOCALE_PROVA, ...(CHIAVE ? { 'X-Locale-Token': CHIAVE } : {}), ...(token ? { Authorization: 'Bearer ' + token } : {}) },
     body: corpo ? JSON.stringify(corpo) : undefined,
   });
   let dati = null; try { dati = await r.json(); } catch {}
@@ -64,7 +65,8 @@ async function chiama(p, { metodo = 'GET', corpo, token } = {}) {
   if (!su) { console.log('Il server non risponde.'); return chiudi(1); }
 
   // un locale vero si crea dalla registrazione, col PIN scelto dal titolare
-  const reg = await chiama('/registra', { metodo: 'POST', corpo: { nome: 'Prova Vuota', email: 'prova@esempio.it', pin: '5823' } });
+  const reg = await chiama('/registra', { metodo: 'POST', corpo: { nome: 'Prova Vuota', email: 'prova@esempio.it', pin: '5823', password: 'prova-vuota' } });
+  CHIAVE = (reg.dati || {}).chiave || '';
   verifica('la registrazione crea il locale', reg.stato === 200 && reg.dati.codice === LOCALE_PROVA, reg.dati);
   /* ---------------- 1. NASCE VUOTA ---------------- */
   titolo('1. L\'APP NASCE VUOTA');

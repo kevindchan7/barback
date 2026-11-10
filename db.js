@@ -32,7 +32,9 @@ CREATE TABLE IF NOT EXISTS locali (
   ultimo_accesso TEXT
 );`);
 // dati di chi si iscrive dal sito (pagina "Prova 14 giorni"): servono a te per fatturare
-for (const [col, decl] of [['referente', "TEXT DEFAULT ''"], ['piva', "TEXT DEFAULT ''"], ['piano', "TEXT DEFAULT ''"], ['promo', "TEXT DEFAULT ''"], ['note', "TEXT DEFAULT ''"]]) {
+for (const [col, decl] of [['referente', "TEXT DEFAULT ''"], ['piva', "TEXT DEFAULT ''"], ['piano', "TEXT DEFAULT ''"], ['promo', "TEXT DEFAULT ''"], ['note', "TEXT DEFAULT ''"],
+  // la password del locale: la sceglie il titolare e la da' allo staff (vuota = locale di prima, entra col solo codice)
+  ['pass_hash', "TEXT DEFAULT ''"]]) {
   if (!registro.prepare('PRAGMA table_info(locali)').all().some(c => c.name === col)) registro.exec(`ALTER TABLE locali ADD COLUMN ${col} ${decl}`);
 }
 
@@ -65,13 +67,14 @@ function impostaNome(d, nome) {
 
 /* Crea un locale nuovo, VUOTO, con il PIN del titolare scelto da lui.
    Gli altri profili nascono coi PIN di fabbrica: l'app chiede di cambiarli. */
-function creaLocale({ codice, nome, email, telefono, citta, pin, demo, referente, piva, piano, promo }) {
+function creaLocale({ codice, nome, email, telefono, citta, pin, demo, referente, piva, piano, promo, password }) {
   const c = pulisciCodice(codice || nome);
   if (c.length < 3) throw new Error('Codice del locale troppo corto (minimo 3 caratteri)');
   if (infoLocale(c)) throw new Error('Questo codice è già usato da un altro locale');
   registro.prepare(`INSERT INTO locali (codice,nome,email,telefono,citta,demo,creato_il,referente,piva,piano,promo)
     VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(c, nome, email || '', telefono || '', citta || '', demo ? 1 : 0, new Date().toISOString(),
     referente || '', piva || '', ['base', 'assistenza'].includes(piano) ? piano : '', promo || '');
+  if (password) registro.prepare('UPDATE locali SET pass_hash=? WHERE codice=?').run(bcrypt.hashSync(String(password), 10), c);
   const d = dbDel(c);
   impostaNome(d, nome);
   if (pin) {
@@ -110,6 +113,7 @@ db.__multi = {
   registro, contesto, dbDel, infoLocale, creaLocale, pulisciCodice, riseminaDemo, DATA_DIR,
   elenco: () => registro.prepare('SELECT * FROM locali ORDER BY creato_il DESC').all(),
   segnaAccesso: (c) => registro.prepare('UPDATE locali SET ultimo_accesso=? WHERE codice=?').run(new Date().toISOString(), c),
+  impostaPassword: (c, password) => registro.prepare('UPDATE locali SET pass_hash=? WHERE codice=?').run(bcrypt.hashSync(String(password), 10), pulisciCodice(c)),
   sospendi: (c, attivo) => registro.prepare('UPDATE locali SET attivo=? WHERE codice=?').run(attivo ? 1 : 0, pulisciCodice(c)),
 };
 

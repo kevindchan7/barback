@@ -33,10 +33,12 @@ const caso = () => { seme = (seme * 1103515245 + 12345) % 2147483648; return sem
 const fra = (a, b) => a + Math.floor(caso() * (b - a + 1));
 
 let ORA = null;   // l'ora finta mandata al server
+let CHIAVE = '';  // la chiave del locale: arriva con nome+password del locale
+const CHIAVI = {}; // quelle degli altri bar
 async function chiama(p, { metodo = 'GET', corpo, token, locale = LOCALE, ora = ORA } = {}) {
   const r = await fetch(BASE + '/api' + p, {
     method: metodo,
-    headers: { 'Content-Type': 'application/json', 'X-Locale': locale,
+    headers: { 'Content-Type': 'application/json', 'X-Locale': locale, ...((CHIAVI[locale] || CHIAVE) ? { 'X-Locale-Token': CHIAVI[locale] || CHIAVE } : {}),
       ...(ora ? { 'X-Ora-Prova': ora } : {}),
       ...(token ? { Authorization: 'Bearer ' + token } : {}) },
     body: corpo ? JSON.stringify(corpo) : undefined,
@@ -82,11 +84,20 @@ const giornoSett = (g) => ((new Date(g + 'T12:00:00Z').getUTCDay() + 6) % 7) + 1
   titolo('1. Registrazione e preparazione');
   ORA = oraItalia('2026-07-30', '11:00');
   const reg = await chiama('/registra', { metodo: 'POST', locale: '', corpo: {
-    nome: 'Bar Sport Testaccio', email: 'titolare@barsport.it', telefono: '+39 06 0000000', citta: 'Roma', pin: '4826' } });
+    nome: 'Bar Sport Testaccio', email: 'titolare@barsport.it', telefono: '+39 06 0000000', citta: 'Roma', pin: '4826', password: 'testaccio-26' } });
   verifica('il bar si registra e riceve il suo codice', reg.stato === 200 && reg.dati.codice === LOCALE, reg.dati);
   verifica('un secondo bar con lo stesso nome prende un altro codice',
-    (await chiama('/registra', { metodo: 'POST', locale: '', corpo: { nome: 'Bar Sport Testaccio', email: 'altro@x.it', pin: '7391' } })).dati.codice === LOCALE + '-2');
+    (await chiama('/registra', { metodo: 'POST', locale: '', corpo: { nome: 'Bar Sport Testaccio', email: 'altro@x.it', pin: '7391', password: 'altra-pass' } })).dati.codice === LOCALE + '-2');
+  CHIAVI[LOCALE + '-2'] = (await chiama('/locale/entra', { metodo: 'POST', corpo: { codice: LOCALE + '-2', password: 'altra-pass' } })).dati.chiave;
+  verifica('la chiave di un bar non apre i profili di un altro', (await chiama('/profiles', { locale: LOCALE + '-2', token: undefined })).stato === 200
+    && (await fetch(BASE + '/api/profiles', { headers: { 'X-Locale': LOCALE, 'X-Locale-Token': CHIAVI[LOCALE + '-2'] } })).status === 401);
 
+  verifica('senza password la registrazione e\' rifiutata',
+    (await chiama('/registra', { metodo: 'POST', locale: '', corpo: { nome: 'Senza Password', email: 'a@b.it', pin: '7391' } })).stato === 400);
+  verifica('senza la password del locale i profili NON si vedono', (await chiama('/profiles')).stato === 401);
+  verifica('con la password sbagliata non si entra', (await chiama('/locale/entra', { metodo: 'POST', corpo: { codice: LOCALE, password: 'sbagliata' } })).stato === 401);
+  CHIAVE = (await chiama('/locale/entra', { metodo: 'POST', corpo: { codice: 'Bar Sport Testaccio', password: 'testaccio-26' } })).dati.chiave;
+  verifica('con nome e password del locale arriva la chiave', !!CHIAVE);
   const profili0 = (await chiama('/profiles')).dati;
   const idTit = profili0.find(p => p.permissions.includes('all')).id;
   verifica('col PIN di fabbrica 1111 il titolare NON entra', !(await entra(idTit, '1111')));
@@ -265,7 +276,13 @@ const giornoSett = (g) => ((new Date(g + 'T12:00:00Z').getUTCDay() + 6) % 7) + 1
     corpo: { type: 'permesso', from_date: '2026-08-20' } })).stato === 409);
   const fs1 = (await chiama('/shift-changes', { metodo: 'POST', token: tok.Sara, corpo: { type: 'ferie', from_date: '2026-08-20', to_date: '2026-08-22' } })).dati.id;
   verifica('Marco non ritira la richiesta di Sara', (await chiama('/shift-changes/' + fs1, { metodo: 'DELETE', token: tok.Marco })).stato === 403);
-  verifica('il bar manager vede le richieste ma non decide', (await chiama('/shift-changes/' + fm.dati.id, { metodo: 'PUT', token: tok.Giulia, corpo: { status: 'approvato' } })).stato === 403);
+  // il bar manager fa tutto come il titolare (turni, task, ferie) TRANNE account e scaricare i resoconti
+  verifica('il bar manager NON scarica il resoconto PDF', (await chiama('/reports/monthly.pdf', { token: tok.Giulia })).stato === 403);
+  verifica('il bar manager NON tocca profili e password del locale',
+    (await chiama('/profiles', { metodo: 'POST', token: tok.Giulia, corpo: { name: 'X', role: 'barman', pin: '5912' } })).stato === 403
+    && (await chiama('/locale/password', { metodo: 'POST', token: tok.Giulia, corpo: { password: 'nuova-pass' } })).stato === 403);
+  const pdf = await fetch(BASE + '/api/reports/monthly.pdf', { headers: { Authorization: 'Bearer ' + T, 'X-Locale': LOCALE } });
+  verifica('il titolare scarica il resoconto PDF', pdf.status === 200 && Buffer.from(await pdf.arrayBuffer()).subarray(0, 4).toString() === '%PDF');
   const lista = (await chiama('/shift-changes', { token: tok.Paolo })).dati;
   verifica('chi decide vede i turni che restano scoperti', lista.rows.find(r => r.id === fm.dati.id).turniScoperti.length === 5);
   verifica('il responsabile approva Marco', (await chiama('/shift-changes/' + fm.dati.id, { metodo: 'PUT', token: tok.Paolo, corpo: { status: 'approvato' } })).stato === 200);

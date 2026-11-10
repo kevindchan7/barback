@@ -38,6 +38,8 @@ function mascot(size = 72) {
 }
 
 // fumetto della mascotte (per onboarding / empty state)
+// "text" puo' essere una lista: una sola bottiglia, un fumetto per messaggio
 function mascotSays(text, size = 64) {
-  return `<div class="mascot-row">${mascot(size)}<div class="bubble">${text}</div></div>`;
+  const fumetti = [].concat(text).map(x => `<div class="bubble">${x}</div>`).join('');
+  return `<div class="mascot-row">${mascot(size)}<div class="bubbles">${fumetti}</div></div>`;
 }

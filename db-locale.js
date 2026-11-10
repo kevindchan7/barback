@@ -200,7 +200,7 @@ function seedIfEmpty() {
       ['Proprietario',           '1111', ['all']],
       ['Admin 1 · Responsabile', '2222', ['turni.manage','turni.view','task.manage','task.view','ferie.view']],
       ['Admin 2 · Barman',       '3333', ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view']],
-      ['Admin 3 · Bar Manager',  '4444', ['turni.view','task.view','vuoti.view','vuoti.do','carico.do','magazzino.view','drinkcost.view','manuale.view','ferie.view']],
+      ['Admin 3 · Bar Manager',  '4444', ['turni.manage','task.manage','ferie.approve','turni.view','task.view','vuoti.view','vuoti.do','carico.do','magazzino.view','drinkcost.view','manuale.view','ferie.view']],
     ].forEach(([n, pin, perms]) => p.run(n, bcrypt.hashSync(pin, 10), JSON.stringify(perms)));
   }
 
@@ -297,12 +297,14 @@ function seedInventario() {
     'Proprietario':            [],   // ha 'all', non serve aggiungere niente
     'Admin 1 · Responsabile':  ['inventario.view', 'ferie.approve'],
     'Admin 2 · Barman':        ['inventario.view', 'inventario.do'],
-    'Admin 3 · Bar Manager':   ['inventario.view', 'inventario.do', 'inventario.close', 'task.check', 'drinkcost.view'],
+    'Admin 3 · Bar Manager':   ['inventario.view', 'inventario.do', 'inventario.close', 'task.check', 'drinkcost.view', 'turni.manage', 'task.manage', 'ferie.approve'],
   };
   const upd = db.prepare('UPDATE profiles SET permissions=? WHERE id=?');
   db.prepare('SELECT id,name,permissions FROM profiles').all().forEach(p => {
-    const da = nuovi[p.name]; if (!da || !da.length) return;
     const ora = JSON.parse(p.permissions || '[]');
+    // i bar manager creati a mano (nome diverso) si riconoscono da cio' che solo loro hanno
+    const barManager = ora.includes('drinkcost.view') && ora.includes('inventario.close');
+    const da = nuovi[p.name] || (barManager ? nuovi['Admin 3 · Bar Manager'] : null); if (!da || !da.length) return;
     if (ora.includes('all')) return;
     const dopo = ora.slice();
     da.forEach(c => { if (!dopo.includes(c)) dopo.push(c); });
