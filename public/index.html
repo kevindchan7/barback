@@ -44,7 +44,7 @@
       <input id="locale-password" type="password" autocomplete="current-password" placeholder="Password del locale" data-i18n-ph="locale_pw_ph" style="font-size:16px">
       <button type="submit" class="act" data-i18n="locale_entra">Entra</button>
     </form>
-    <p style="margin-top:10px;font-size:14px"><a href="#" onclick="chiediReset('password');return false" data-i18n="pw_dimenticata">Password dimenticata? Ricevi il link per email</a></p>
+    <p style="margin-top:10px;font-size:14px"><a href="#" onclick="chiediReset('password');return false" data-i18n="pw_dimenticata">Password dimenticata? Ricevi il link per email</a><br><a href="#" onclick="mostraRecupero('password');return false" data-i18n="rec_link">Usa il codice di recupero</a></p>
     <p class="muted" style="margin-top:18px;font-size:14px"><span data-i18n="locale_prova">Vuoi solo provarla?</span> <a href="#" onclick="entraLocale('demo');return false" data-i18n="locale_demo">Apri il bar demo</a> (PIN 1111)<br>
       <span data-i18n="locale_nuovo">Locale nuovo?</span> <a href="registra.html" data-i18n="locale_registra">Registralo qui</a></p>
   </div>
@@ -57,13 +57,14 @@
     <p class="muted" style="text-align:center" id="pin-for"></p>
     <div class="pin-dots" id="pin-dots"></div>
     <div class="pinpad" id="pinpad"></div>
-    <p id="pin-reset" class="hidden" style="text-align:center;margin-top:14px;font-size:14px"><a href="#" onclick="chiediReset('pin');return false" data-i18n="pin_dimenticato">PIN dimenticato? Ricevi il link per email</a></p>
+    <p id="pin-reset" class="hidden" style="text-align:center;margin-top:14px;font-size:14px"><a href="#" onclick="chiediReset('pin');return false" data-i18n="pin_dimenticato">PIN dimenticato? Ricevi il link per email</a><br><a href="#" onclick="mostraRecupero('pin');return false" data-i18n="rec_link">Usa il codice di recupero</a></p>
     <button class="ghost" style="margin:14px auto 0; display:block;" onclick="backToProfiles()" data-i18n="cambia_profilo">← Cambia profilo</button>
   </div>
   <!-- arrivando dal link dell'email: si sceglie il nuovo PIN o la nuova password -->
   <div id="reset-wrap" class="hidden" style="max-width:340px;margin:0 auto;text-align:center">
     <p class="muted" id="reset-titolo"></p>
     <form onsubmit="faiReset();return false" style="display:flex;flex-direction:column;gap:8px">
+      <input id="reset-codice" class="hidden" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9" placeholder="XXXX-XXXX" data-i18n-ph="rec_codice_ph" style="font-size:20px;text-align:center;letter-spacing:2px">
       <input id="reset-nuovo" autocomplete="new-password" style="font-size:16px">
       <button type="submit" class="act" data-i18n="salva">Salva</button>
     </form>
@@ -142,13 +143,6 @@
         <div id="cal-legend" class="cal-legend"></div>
         <div id="cal-day"></div>
       </div>
-      <div class="card">
-        <div class="row c3">
-          <div><label data-i18n="vista">Vista</label><select id="shift-range" onchange="loadShifts()"><option value="week" data-i18n="settimana">Settimana</option><option value="day" data-i18n="giorno">Giorno</option><option value="month" data-i18n="mese">Mese</option></select></div>
-          <div style="grid-column:span 2;"><label data-i18n="riferimento">Riferimento</label><input id="shift-date" type="date" onchange="loadShifts()"></div>
-        </div>
-        <div class="grid-scroll"><table class="shift-grid" id="shift-grid"></table></div>
-      </div>
       <div class="card hidden" id="personale-card">
         <h3 data-i18n="personale">Personale</h3>
         <p class="muted" style="font-size:12px;margin:4px 0 8px" data-i18n="personale_aiuto">Chi lavora nel locale. Servono per assegnare turni e task.</p>
@@ -159,8 +153,8 @@
           <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addEmployee()" data-i18n="aggiungi">+ Aggiungi</button></div>
         </div>
       </div>
-      <div class="card" id="sh-form">
-        <h3 data-i18n="gestione_turni">Gestione turni</h3>
+      <details class="card" id="sh-form">
+        <summary style="cursor:pointer;font-weight:700" data-i18n="gestione_turni">Più giorni in una volta</summary>
         <!-- un dipendente, un orario, tanti giorni: si toccano i giorni nel calendario e si salva una volta sola -->
         <div class="row c2">
           <div><label data-i18n="dipendente">Dipendente</label><select id="sh-emp" onchange="loadPicker()"></select></div>
@@ -178,15 +172,12 @@
           <button class="act" id="pick-add" onclick="addShifts()"></button>
         </div>
         <p class="muted" data-i18n="griglia_aiuto">Nella griglia, tocca un turno per modificarlo o eliminarlo.</p>
-      </div>
+      </details>
       <div class="card">
         <div class="cal-head"><h3 data-i18n="task_oggi">Task di oggi</h3><button class="ghost" onclick="toggleTaskHistory()" data-i18n="storico_task">📜 Storico</button></div>
         <div id="tasks-list"></div>
         <div id="task-history" class="hidden"></div>
-        <div id="task-add" class="row c2" style="margin-top:10px;">
-          <div><label data-i18n="nuova_task">Nuova task</label><input id="task-title" placeholder="es. Pulizia banco" data-i18n-ph="ph_task"></div>
-          <div style="display:flex;align-items:flex-end;"><button class="act" onclick="addTask()" data-i18n="aggiungi">+ Aggiungi</button></div>
-        </div>
+        <p class="muted" style="font-size:12px;margin-top:8px" data-i18n="task_aiuto_cal">Per aggiungere una task, tocca un giorno nel calendario.</p>
       </div>
       <div id="checklist-box"></div>
     </section>
@@ -235,12 +226,23 @@
 
     <!-- SEZ.4 — MAGAZZINO -->
     <section class="view" id="magazzino">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_inventario">Inventario</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_magazzino_t">Magazzino</h2></div>
       <div class="schede-inv"></div>
       <!-- scaricare i resoconti: solo il proprietario (non il bar manager) -->
       <div class="exports hidden" id="mz-exports">
         <button class="act" onclick="scaricaResoconto()" data-i18n="pdf_resoconto">⬇ Resoconto PDF</button>
         <button class="ghost" onclick="exportStock('xlsx')" data-i18n="excel_magazzino">⬇ Excel magazzino</button>
+      </div>
+      <div class="card">
+        <h3><span data-i18n="mz_giacenza_mese">Giacenza del mese</span> <span id="mz-month" class="muted"></span></h3>
+        <p class="muted" style="font-size:12.5px;margin:4px 0 8px" data-i18n="mz_aiuto">Inizio mese + carichi − vuoti = giacenza di adesso.</p>
+        <div class="search"><input id="mz-search" placeholder="🔍 Cerca prodotto..." data-i18n-ph="cerca_prodotto2" oninput="renderMz()"></div>
+        <div class="grid-scroll"><table class="wide mz"><thead><tr><th data-i18n="prodotto">Prodotto</th><th class="right" data-i18n="mz_inizio">Inizio mese</th><th class="right" data-i18n="mz_carichi">Carichi</th><th class="right" data-i18n="mz_vuoti">Vuoti</th><th class="right" data-i18n="mz_ora">Adesso</th><th class="right" id="mz-th-ord" data-i18n="mz_ordina">Ordina</th></tr></thead><tbody id="mz-list"></tbody></table></div>
+        <div id="mz-ordine-box" class="hidden" style="margin-top:12px">
+          <input id="mz-forn" maxlength="80" placeholder="Per quale fornitore (facoltativo)" data-i18n-ph="mz_forn_ph" style="width:100%;margin-bottom:8px">
+          <button class="act" style="width:100%;padding:14px" onclick="pdfOrdineMagazzino()" data-i18n="mz_pdf">📄 PDF dell'ordine</button>
+          <p class="muted" style="font-size:12px;margin-top:6px"><a href="#" onclick="go('ordini');return false" data-i18n="mz_fornitori">Fornitori e ordine scritto a mano</a></p>
+        </div>
       </div>
       <div class="kpis">
         
@@ -287,11 +289,6 @@
           <div class="row"><div><label data-i18n="giorno">Giorno</label><input id="mv-giorno" type="date"></div></div>
         </details>
         <button class="act" onclick="addMovement()" data-i18n="btn_registra_mov">+ Registra movimento</button>
-      </div>
-      <div class="card">
-        <h3>Giacenze e consumi <span id="mz-month" class="muted"></span></h3>
-        <div class="search"><input id="mz-search" placeholder="🔍 Cerca prodotto..." data-i18n-ph="cerca_prodotto2" oninput="renderMz()"></div>
-        <div class="grid-scroll"><table class="wide"><thead><tr><th data-i18n="prodotto">Prodotto</th><th data-i18n="entrato">Entrato</th><th data-i18n="uscito">Uscito</th><th data-i18n="netto">Netto</th><th class="right" data-i18n="residua">Residua</th><th class="right" data-i18n="da_ordinare">Da ordinare</th><th></th></tr></thead><tbody id="mz-list"></tbody></table></div>
       </div>
       <div id="storico-mov"></div>
     </section>

@@ -219,14 +219,14 @@ const giornoSett = (g) => ((new Date(g + 'T12:00:00Z').getUTCDay() + 6) % 7) + 1
   verifica('il barman vede i prodotti...', prodBarman.length === 32);
   verifica('...ma NON i costi', prodBarman.every(p => p.cost === undefined && p.price === undefined), prodBarman[0]);
   verifica('il barman non apre il drink cost', (await chiama('/foodcost', { token: tok.Marco })).stato === 403);
-  verifica('il barman non apre il report mensile', (await chiama('/reports/monthly', { token: tok.Marco })).stato === 403);
+  verifica('il bartender vede il magazzino del mese', (await chiama('/reports/monthly', { token: tok.Marco })).stato === 200);
   verifica('il barman non vede il valore del magazzino', (await chiama('/overview', { token: tok.Marco })).dati.giacenzaValore === undefined);
   verifica('il bar manager vede il drink cost (come promette il sito)', (await chiama('/foodcost', { token: tok.Giulia })).stato === 200);
   verifica('il bar manager vede i costi dei prodotti', (await chiama('/products', { token: tok.Giulia })).dati[0].cost !== undefined);
   verifica('il responsabile ora vede il magazzino (fa come il titolare)', (await chiama('/reports/monthly', { token: tok.Paolo })).stato === 200);
-  verifica('il barman non vede il magazzino', (await chiama('/reports/monthly', { token: tok.Marco })).stato === 403);
+  verifica('il bartender non vede costi nel magazzino', (await chiama('/reports/monthly', { token: tok.Marco })).dati.rows.every(r => r.price === undefined));
   verifica('il barman non crea cocktail', (await chiama('/products', { metodo: 'POST', token: tok.Marco, corpo: { name: 'X', category: 'Cocktail', recipe: [] } })).stato === 403);
-  verifica('il barman non fa carichi', (await chiama('/movements', { metodo: 'POST', token: tok.Marco, corpo: { productId: prodotti['Aperol'], type: 'carico', qty: 1 } })).stato === 403);
+  verifica('il bartender segna i carichi', (await chiama('/movements', { metodo: 'POST', token: tok.Marco, corpo: { productId: prodotti['Aperol'], type: 'carico', qty: 1 } })).stato === 200);
   verifica('il token di un altro bar non apre questo', (await chiama('/products', { token: await entra(1, '7391', LOCALE + '-2') })).dati.length === 0);
 
   /* ================= 3. CHECKLIST FISSE ================= */
@@ -399,9 +399,8 @@ const giornoSett = (g) => ((new Date(g + 'T12:00:00Z').getUTCDay() + 6) % 7) + 1
         }
         const rev = await chiama(`/inventory/${sid}/review`, { token: tok.Giulia, ora });
         verifica('revisione inventario di ' + giorno.slice(0, 7), rev.stato === 200, rev.dati);
-        verifica('il barback non chiude l\'inventario', (await chiama(`/inventory/${sid}/close`, { metodo: 'POST', token: tok.Luca, ora, corpo: {} })).stato === 403);
-        const cl = await chiama(`/inventory/${sid}/close`, { metodo: 'POST', token: tok.Giulia, ora, corpo: { nonContati: 'tieni' } });
-        verifica('il bar manager chiude l\'inventario di ' + giorno.slice(0, 7), cl.stato === 200, cl.dati);
+        const cl = await chiama(`/inventory/${sid}/close`, { metodo: 'POST', token: tok.Luca, ora, corpo: { nonContati: 'tieni' } });
+        verifica('il barback fa la giacenza di ' + giorno.slice(0, 7) + ' e la chiude', cl.stato === 200, cl.dati);
       }
     }
     giorno = piuGiorni(giorno, 1);

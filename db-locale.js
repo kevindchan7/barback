@@ -8,7 +8,7 @@ const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 // bar manager e responsabile: tutto tranne chiedere ferie per se' (e scaricare i resoconti, che resta al proprietario)
-const DIRIGE = ['turni.view','turni.manage','task.view','task.check','task.manage','ferie.view','ferie.approve','vuoti.view','vuoti.do','magazzino.view','carico.do','drinkcost.view','inventario.view','inventario.do','inventario.close','manuale.view','profili.manage'];
+const DIRIGE = ['turni.view','turni.manage','task.view','task.check','task.manage','ferie.view','ferie.approve','vuoti.view','vuoti.do','magazzino.view','carico.do','drinkcost.view','inventario.view','inventario.do','inventario.close','manuale.view','profili.manage','ferie.request','task.request','etichette.new'];
 
 /* Una sola funzione che apre (o crea) il database di UN locale.
    Ogni bar ha il suo file: i dati di uno non toccano mai quelli di un altro.
