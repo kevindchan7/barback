@@ -214,7 +214,9 @@ function buildBottomNav() {
     ['turni', '📅', t('nav_turni'), can('turni.view') || can('task.view')],
     ['richieste', '🏖', t('nav_ferie'), can('ferie.view') || can('ferie.request')],
     ['costi', '🍸', t('nav_costi'), can('drinkcost.view')],
-    ['magazzino', '📦', t('nav_magazzino'), can('inventario.view') || can('magazzino.view')],
+    ['magazzino', '📦', t('nav_magazzino'), can('magazzino.view') || can('vuoti.view') || can('carico.do')],
+    ['inventario', '📋', t('nav_inventario'), can('inventario.view')],
+    ['ordini', '🛒', t('nav_ordini'), can('magazzino.view')],
     ['manuale', '📖', t('nav_manuale'), can('manuale.view')],
   ].filter(i => i[3]);
   $('#bottomnav').innerHTML = items.map(i =>
@@ -282,7 +284,9 @@ async function loadHome() {
     ['turni', '📅', t('sez_turni'), t('d_turni'), can('turni.view') || can('task.view')],
     ['richieste', '🏖', t('sez_ferie'), t('d_ferie'), can('ferie.view') || can('ferie.request')],
     ['costi', '🍸', t('sez_costi_drink'), t('d_costi_drink'), can('drinkcost.view')],
-    ['magazzino', '📦', t('sez_magazzino_t'), t('d_inventario_tutto'), can('inventario.view') || can('magazzino.view')],
+    ['magazzino', '📦', t('sez_magazzino_t'), t('d_inventario_tutto'), can('magazzino.view') || can('vuoti.view') || can('carico.do')],
+    ['inventario', '📋', t('sez_inventario'), t('d_inventario'), can('inventario.view')],
+    ['ordini', '🛒', t('sez_ordini'), t('d_ordini'), can('magazzino.view')],
     ['manuale', '📖', t('sez_manuale'), t('d_manuale'), can('manuale.view')],
   ];
   // ogni riga e' un bottone grande: icona, nome, e il numero che conta (se c'e')
@@ -295,7 +299,7 @@ async function loadHome() {
 /* INVENTARIO = giacenze (quello che prima era "Magazzino") + conteggio.
    Una voce sola nel menu, due schede in alto per chi le puo' vedere entrambe. */
 function schedeInventario(attiva) {
-  const due = (can('magazzino.view') || can('vuoti.view') || can('carico.do')) && can('inventario.view');
+  const due = false;   // Magazzino e Inventario hanno ognuno la sua voce nel menu
   const html = due ? `<div class="schede">
       <button class="${attiva === 'magazzino' ? 'on' : ''}" onclick="go('magazzino')">${t('scheda_giacenze')}</button>
       <button class="${attiva === 'inventario' ? 'on' : ''}" onclick="go('inventario', false, true)">${t('scheda_conta')}</button></div>` : '';
@@ -303,7 +307,6 @@ function schedeInventario(attiva) {
 }
 function go(view, silent, proprioQuesta) {
   // "Inventario" dal menu: chi vede le giacenze parte da li'
-  if (view === 'inventario' && !proprioQuesta && !silent) view = 'magazzino';
   if (view === 'magazzino' || view === 'inventario') schedeInventario(view);
   currentView = view;
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === view));
@@ -416,6 +419,7 @@ async function loadMagazzino() {
   caricaStoricoMov();
 }
 function renderMz() {
+  renderMzOld();
   const q = (($('#mz-search') && $('#mz-search').value) || '').toLowerCase();
   const rows = (window._stockRows || []).filter(x => x.name.toLowerCase().includes(q));
   const gestisce = can('magazzino.view'), ord = window._ordine || {};
@@ -427,6 +431,19 @@ function renderMz() {
     ${gestisce ? `<td class="right"><input class="ord-q" type="number" inputmode="numeric" min="0" value="${ord[x.id] || ''}" placeholder="0" oninput="window._ordine[${x.id}]=this.value"></td>
 ` : ''}</tr>`).join("")
     || `<tr><td colspan="6" class="muted">${t('nessun_prodotto')}</td></tr>`;
+}
+// la tabella di prima: entrato / uscito / netto / residua / da ordinare, con modifica ed elimina
+function renderMzOld() {
+  const q = (($('#mz-search') && $('#mz-search').value) || '').toLowerCase();
+  const rows = (window._stockRows || []).filter(x => x.name.toLowerCase().includes(q));
+  const editable = can('magazzino.view');
+  $('#mz-list-old').innerHTML = rows.map(x => `<tr><td>${esc(x.name)}</td><td>${x.entrato}</td><td>${x.uscito}</td>
+    <td style="color:${x.netto < 0 ? 'var(--red)' : 'var(--green)'}">${x.netto > 0 ? '+' : ''}${x.netto}</td>
+    <td class="right">${x.residua} ${esc(x.unit)}</td>
+    <td class="right">${x.daOrdinare ? `<b style="color:var(--gold)">${x.daOrdinare}</b>` : '<span class="muted">—</span>'}</td>
+    <td class="right">${editable ? `<button class="iconbtn" onclick="editProduct(${x.id})" title="${t('modifica')}">✏️</button>
+      <button class="iconbtn" onclick="removeProduct(${x.id})" title="${t('elimina')}">🗑</button>` : ''}</td></tr>`).join('')
+    || `<tr><td colspan="7" class="muted">${t('nessun_prodotto')}</td></tr>`;
 }
 // il PDF del solo ordine: i prodotti con un numero scritto accanto
 async function pdfOrdineMagazzino() {
@@ -859,9 +876,21 @@ async function removeVendor(id) {
    e da li' si aggiungono.                                              */
 const pad2 = (n) => String(n).padStart(2, '0');
 const isoLocal = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-// il periodo del calendario (per l'Excel dei turni): il mese che si sta guardando
-function rangeDates() { const [y, m] = calYM.split('-').map(Number); return { from: calYM + '-01', to: isoLocal(new Date(y, m, 0)) }; }
+function rangeDates() {
+  const ref = $('#shift-date').value || todayISO();
+  const d = new Date(ref + 'T00:00'); const range = $('#shift-range').value;
+  let from, to;
+  if (range === 'day') { from = to = new Date(d); }
+  else if (range === 'week') { const wd = (d.getDay() + 6) % 7; from = new Date(d); from.setDate(d.getDate() - wd); to = new Date(from); to.setDate(from.getDate() + 6); }
+  else { from = new Date(d.getFullYear(), d.getMonth(), 1); to = new Date(d.getFullYear(), d.getMonth() + 1, 0); }
+  const days = []; for (let x = new Date(from); x <= to; x.setDate(x.getDate() + 1)) days.push(new Date(x));
+  // data locale, non toISOString: in Italia la mezzanotte locale e' ancora "ieri" in UTC
+  return { from: isoLocal(from), to: isoLocal(to), days };
+}
+
 async function loadTurni() {
+  if (!$('#shift-date').value) $('#shift-date').value = todayISO();
+  loadShifts();
   if (!calSel && calYM === isoLocal(new Date()).slice(0, 7)) calSel = todayISO();
   await loadCal();
   // turni su piu' giorni: form solo per chi ha turni.manage
@@ -878,11 +907,28 @@ async function loadTurni() {
   show('#personale-card', can('turni.manage'));
   if (can('turni.manage')) await loadEmployees();
 }
+async function loadShifts() {
+  const { from, to, days } = rangeDates();
+  const [shifts, emps] = await Promise.all([api(`/shifts?from=${from}&to=${to}`), api('/employees')]);
+  window._shiftRows = shifts;
+  const fmtDay = (s) => new Date(s + 'T00:00').toLocaleDateString(locale(), { weekday: 'short', day: '2-digit' });
+  const editable = can('turni.manage');
+  let html = `<tr><th>${t('dipendente')}</th>` + days.map(d => `<th>${fmtDay(isoLocal(d))}</th>`).join('') + '</tr>';
+  emps.forEach(e => {
+    html += `<tr><td style="text-align:left"><i class="dot" style="background:${e.color || '#888'}"></i>${e.name}</td>` + days.map(d => {
+      const k = isoLocal(d);
+      const cell = shifts.filter(s => s.employee_id === e.id && s.date === k).map(s =>
+        `<span class="chip" ${editable ? `onclick="editShift(${s.id})" title="${t('modifica_turno')}" style="cursor:pointer"` : ''}>${s.start}–${s.end}${editable ? ' ✏️' : ''}</span>`).join('');
+      return `<td class="${cell ? 'has' : ''}">${cell || ''}</td>`;
+    }).join('') + '</tr>';
+  });
+  $('#shift-grid').innerHTML = html;
+}
 async function deleteShift(id) {
   if (!confirm(t('conferma_elimina_turno'))) return;
   try { await api('/shifts/' + id, 'DELETE'); refreshTurni(); } catch (e) { alert(e.message); }
 }
-function refreshTurni() { return Promise.all([loadCal(), loadPicker()]); }
+function refreshTurni() { return Promise.all([loadShifts(), loadCal(), loadPicker()]); }
 
 /* --- calendario del mese: lunedi' in prima colonna --- */
 function monthDays(ym) {
@@ -906,7 +952,7 @@ async function loadCal() {
   const [shifts, emps, tasks] = await Promise.all([
     api(`/shifts?from=${calYM}-01&to=${calYM}-31`), api('/employees'),
     can('task.view') ? api(`/tasks/range?from=${calYM}-01&to=${calYM}-31`) : [] ]);
-  window._calShifts = shifts; window._shiftRows = shifts; window._calEmps = emps; window._calTasks = tasks;
+  window._calShifts = shifts; window._calEmps = emps; window._calTasks = tasks;
   const today = isoLocal(new Date());
   $('#cal-title').textContent = monthTitle(calYM);
   $('#cal-grid').innerHTML = calHtml(calYM, d => {

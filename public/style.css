@@ -21,9 +21,9 @@
   --blue:#5aa9ff;
 
   /* sfondi decorativi */
-  --glow1:rgba(62,207,142,.07); --glow2:rgba(62,207,142,.03);
-  --tint:rgba(62,207,142,.05); --tint2:rgba(62,207,142,.03);
-  --banner-bg:#11151c; --banner-grad:linear-gradient(90deg,rgba(62,207,142,.14),rgba(62,207,142,.04));
+  --glow1:rgba(124,58,237,.18); --glow2:rgba(219,39,119,.12);
+  --tint:rgba(124,58,237,.10); --tint2:rgba(124,58,237,.08);
+  --banner-bg:#11151c; --banner-grad:linear-gradient(90deg,rgba(124,58,237,.25),rgba(219,39,119,.18));
   --title-a:#fff; --title-b:#c9a24b;
 
   /* velature e ombre */
@@ -116,7 +116,7 @@ html{-webkit-text-size-adjust:100%;}
 
 /* ---- Homepage: 4 grandi pulsanti ---- */
 .home-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:16px;}
-.home-btn{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 14px;
+.home-btn{background:linear-gradient(160deg,var(--panel),var(--tint2)); border:1px solid var(--line); border-radius:16px; padding:20px 14px;
   text-align:center; cursor:pointer; min-height:130px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;}
 .home-btn:hover{border-color:var(--accent);}
 .home-btn .ico{font-size:34px;} .home-btn .t{font-size:14px; font-weight:700;} .home-btn .d{font-size:11px; color:var(--muted);}
@@ -463,13 +463,21 @@ textarea{background:var(--panel2); color:var(--txt); border:1px solid var(--line
 @media (max-width:899px){
   .home-kpis{display:none;}                       /* numeri non cliccabili: via dal telefono */
   .home-grid{grid-template-columns:1fr; gap:12px; padding:0;}
-  .home-btn{display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:14px; width:100%; text-align:left; padding:14px 16px; border-radius:16px;
-    border:1px solid var(--line); color:var(--txt); cursor:pointer; min-height:72px; background:var(--panel); box-shadow:var(--shadow-card);}
-  .home-btn:hover{border-color:var(--accent);}
-  .home-btn .ico{font-size:26px; width:48px; height:48px; flex:0 0 48px; display:grid; place-items:center; background:var(--accent-soft); border-radius:12px; filter:none;}
-  .home-btn .t{font-size:20px; font-weight:700; line-height:1.15; flex:1; color:var(--txt);}
-  .home-btn .n{font-size:13px; font-weight:700; background:var(--panel2); color:var(--muted); padding:4px 10px; border-radius:999px; white-space:nowrap;}
-  .home-btn .vai{font-size:26px; font-weight:400; color:var(--muted); line-height:1;}
+  .home-btn{display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:14px; width:100%; text-align:left; padding:16px; border-radius:20px;
+    border:0; color:#fff; cursor:pointer; min-height:76px; background:var(--hb, #2e7d5b); box-shadow:0 6px 18px rgba(0,0,0,.28);}
+  .home-btn:hover{border:0;}
+  .home-btn .ico{font-size:30px; width:52px; height:52px; flex:0 0 52px; display:grid; place-items:center; background:rgba(255,255,255,.2); border-radius:14px; filter:none;}
+  .home-btn .t{font-size:21px; font-weight:800; line-height:1.15; flex:1; color:#fff;}
+  .home-btn .n{font-size:14px; font-weight:800; background:rgba(0,0,0,.28); color:#fff; padding:5px 10px; border-radius:999px; white-space:nowrap;}
+  .home-btn .vai{font-size:30px; font-weight:700; opacity:.85; line-height:1;}
+  .hb-vuoti{--hb:linear-gradient(135deg,#12a36b,#0b7d55);}
+  .hb-turni{--hb:linear-gradient(135deg,#3b7bf6,#2456c9);}
+  .hb-richieste{--hb:linear-gradient(135deg,#f08a24,#d4620c);}
+  .hb-costi{--hb:linear-gradient(135deg,#e2457b,#b92a5d);}
+  .hb-inventario{--hb:linear-gradient(135deg,#8a56e8,#6535c4);}
+  .hb-magazzino{--hb:linear-gradient(135deg,#e0a21a,#b87d08);}
+  .hb-ordini{--hb:linear-gradient(135deg,#0fa3b8,#0b7c8e);}
+  .hb-manuale{--hb:linear-gradient(135deg,#5b6577,#3e4656);}
 }
 
 /* ===== ACCESSO: scritte grandi, bottoni grandi ===== */
