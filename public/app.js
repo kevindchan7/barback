@@ -192,6 +192,7 @@ async function submitPin() {
     const r = await api('/auth/pin', 'POST', { profileId: selProfile.id, pin: pinBuf });
     TOKEN = r.token; PROFILE = r.profile;
     localStorage.setItem('bb_token', TOKEN); localStorage.setItem('bb_profile', JSON.stringify(PROFILE));
+    salvaBar();
     enterApp();
   } catch (e) {
     $('#login-msg').textContent = '⚠ ' + e.message; pinBuf = ''; renderDots();
@@ -1611,6 +1612,12 @@ async function openSettings() {
         <p class="muted" style="font-size:11px;margin-bottom:8px">${infoBackup}</p>
         <button class="act gold" onclick="scaricaCopia()">${t('scarica_copia')}</button>
 
+        <h3 style="margin-top:20px">${t('copia_dati_titolo')}</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:8px">${t('copia_dati_aiuto')}</p>
+        <div class="toolbar"><button class="act" onclick="esportaDati()">${t('copia_esporta')}</button>
+          <label class="ghost" style="cursor:pointer;display:inline-flex;align-items:center;padding:10px 14px;border-radius:10px">${t('copia_importa_file')}<input type="file" accept=".json,application/json" hidden onchange="importaDaFile(this)"></label></div>
+        ${altriBar().map(b => `<button class="ghost" style="width:100%;margin-top:8px" onclick="importaDaBar('${b.codice}')">${t('copia_prendi_da')} <b>${esc(b.nome)}</b></button>`).join('')}
+
         ` : ''}
 
         <h3 style="margin-top:22px">${t('inst_titolo')}</h3>
@@ -1868,12 +1875,12 @@ async function caricaImpostazioni() {
   try {
     const i = await api('/impostazioni');
     LOCALE_NOME = i.locale_nome || '';
-    mostraNomeLocale();
+    mostraNomeLocale(); salvaBar();
   } catch {}
 }
 function mostraNomeLocale() {
   const h = document.querySelector('.banner h1');
-  if (h) h.textContent = LOCALE_NOME || t('app_nome');
+  if (h) { h.textContent = (LOCALE_NOME || t('app_nome')) + ' ▾'; h.style.cursor = 'pointer'; h.onclick = apriMieiBar; }
   document.title = (LOCALE_NOME ? LOCALE_NOME + ' · ' : '') + 'Barback';
 }
 async function salvaNomeLocale() {
@@ -2021,3 +2028,65 @@ function toggleTheme() {
 }
 applyTheme(temaCorrente());
 applicaLingua();
+
+
+/* ===================== PIU' BAR INSIEME (I miei bar) + COPIA DEI DATI ===================== */
+const leggiBar = () => { try { return JSON.parse(localStorage.getItem('bb_bars') || '{}'); } catch { return {}; } };
+function salvaBar() {
+  if (!LOCALE || !TOKEN) return;
+  try { const b = leggiBar(); b[LOCALE] = { nome: LOCALE_NOME || (b[LOCALE] && b[LOCALE].nome) || LOCALE, chiave: CHIAVE, token: TOKEN, profile: PROFILE }; localStorage.setItem('bb_bars', JSON.stringify(b)); } catch {}
+}
+function altriBar() { return Object.entries(leggiBar()).filter(([c, b]) => c !== LOCALE && b.token).map(([c, b]) => ({ codice: c, nome: b.nome || c, ...b })); }
+function apriMieiBar() {
+  const b = leggiBar(); salvaBar();
+  const righe = Object.entries(leggiBar()).map(([c, x]) => `<div class="cal-row"><button class="${c === LOCALE ? 'act' : 'ghost'}" style="flex:1;text-align:left" onclick="passaABar('${c}')">📍 ${esc(x.nome || c)}${x.profile ? ' <span class="muted">· ' + esc(nomeProfilo(x.profile.name || '')) + '</span>' : ''}${c === LOCALE ? ' ✓' : ''}</button>
+    ${c === LOCALE ? '' : `<button class="iconbtn" onclick="togliBar('${c}')" title="${t('elimina')}">✕</button>`}</div>`).join('');
+  $('#modal-root').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal"><h3>${t('bar_miei')}</h3>
+    <p class="muted" style="font-size:12px;margin-bottom:8px">${t('bar_miei_aiuto')}</p>${righe}
+    <button class="act" style="width:100%;margin-top:12px" onclick="closeModal();cambiaLocale()">＋ ${t('bar_aggiungi')}</button>
+    <div class="onb-actions" style="margin-top:12px"><button class="ghost" onclick="closeModal()">${t('chiudi')}</button></div></div></div>`;
+}
+function passaABar(codice) {
+  const b = leggiBar()[codice]; if (!b) return;
+  if (codice === LOCALE) return closeModal();
+  try {
+    localStorage.setItem('bb_locale', codice); localStorage.setItem('bb_chiave', b.chiave || '');
+    localStorage.setItem('bb_token', b.token || ''); localStorage.setItem('bb_profile', JSON.stringify(b.profile || null));
+    if (!b.token) localStorage.removeItem('bb_token');
+  } catch {}
+  location.href = location.pathname;
+}
+function togliBar(codice) { if (!confirm(t('conferma_elimina', { n: (leggiBar()[codice] || {}).nome || codice }))) return;
+  try { const b = leggiBar(); delete b[codice]; localStorage.setItem('bb_bars', JSON.stringify(b)); } catch {} apriMieiBar(); }
+async function esportaDati() {
+  try {
+    const r = await fetch('/api/copia/esporta', { headers: { Authorization: 'Bearer ' + TOKEN, 'X-Locale': LOCALE, ...(CHIAVE ? { 'X-Locale-Token': CHIAVE } : {}) } });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Errore ' + r.status);
+    const nome = ((r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/) || [])[1] || 'barback-dati.json';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(await r.blob()); a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { alert(e.message); }
+}
+async function importaDati(dati) {
+  const da = (dati && dati.locale && dati.locale.nome) || '?';
+  if (!confirm(t('copia_conferma', { da }))) return;
+  try {
+    const r = await api('/copia/importa', 'POST', { dati });
+    const tot = Object.entries(r.aggiunti || {}).map(([k, n]) => `${k}: ${n}`).join('\n') || t('copia_niente_nuovo');
+    alert(t('copia_fatta') + '\n' + tot);
+    closeModal && closeModal(); loadHome();
+  } catch (e) { alert(e.message); }
+}
+function importaDaFile(input) {
+  const f = input.files && input.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => { let d; try { d = JSON.parse(rd.result); } catch { return alert(t('copia_file_no')); } importaDati(d); };
+  rd.readAsText(f); input.value = '';
+}
+async function importaDaBar(codice) {
+  const b = leggiBar()[codice]; if (!b) return;
+  try {
+    const r = await fetch('/api/copia/esporta', { headers: { Authorization: 'Bearer ' + b.token, 'X-Locale': codice, ...(b.chiave ? { 'X-Locale-Token': b.chiave } : {}) } });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || t('sessione_scaduta'));
+    await importaDati(await r.json());
+  } catch (e) { alert(e.message); }
+}
