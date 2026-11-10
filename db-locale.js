@@ -198,11 +198,14 @@ function seedIfEmpty() {
     // pin_default=1: sono i PIN di fabbrica, l'app insiste finche' non si cambiano
     const p = db.prepare('INSERT INTO profiles (name,pin_hash,permissions,pin_default) VALUES (?,?,?,1)');
     // permissions = lista di "capacità". 'all' = il proprietario può tutto.
+    // Un locale vero nasce col solo Proprietario: gli altri utenti li aggiunge lui,
+    // li chiama come vuole e decide cosa possono fare. Il bar demo ne ha quattro d'esempio.
     [
       ['Proprietario',           '1111', ['all']],
+      ...(DEMO ? [
       ['Admin 1 · Responsabile', '2222', DIRIGE],
       ['Admin 2 · Barman',       '3333', ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view']],
-      ['Admin 3 · Bar Manager',  '4444', DIRIGE],
+      ['Admin 3 · Bar Manager',  '4444', DIRIGE]] : []),
     ].forEach(([n, pin, perms]) => p.run(n, bcrypt.hashSync(pin, 10), JSON.stringify(perms)));
   }
 

@@ -81,7 +81,6 @@
     <button class="langbtn themebtn" onclick="toggleLang()" title="Cambia lingua" data-i18n-title="cambia_lingua">IT</button>
     <button class="themebtn" id="btn-tema" onclick="toggleTheme()" title="Cambia tema" data-i18n-title="cambia_tema">🌙</button>
     <button class="themebtn" onclick="openSettings()" title="Impostazioni" data-i18n-title="impostazioni">⚙</button>
-    <button class="ghost" onclick="logout()" data-i18n="esci">Esci</button>
   </div>
 
   <main>
@@ -134,7 +133,6 @@
     <section class="view" id="turni">
       <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_turni">Turni & Task</h2></div>
       <div class="exports">
-        <button class="ghost" onclick="exportShifts('csv')" data-i18n="csv_turni">⬇ CSV turni</button>
         <button class="ghost" onclick="exportShifts('xlsx')" data-i18n="excel_turni">⬇ Excel turni</button>
       </div>
       <!-- calendario del mese: un puntino colorato per ogni dipendente in turno -->
@@ -237,11 +235,11 @@
 
     <!-- SEZ.4 — MAGAZZINO -->
     <section class="view" id="magazzino">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_magazzino">Magazzino & Giacenze</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_inventario">Inventario</h2></div>
+      <div class="schede-inv"></div>
       <!-- scaricare i resoconti: solo il proprietario (non il bar manager) -->
       <div class="exports hidden" id="mz-exports">
         <button class="act" onclick="scaricaResoconto()" data-i18n="pdf_resoconto">⬇ Resoconto PDF</button>
-        <button class="ghost" onclick="exportStock('csv')" data-i18n="csv_magazzino">⬇ CSV magazzino</button>
         <button class="ghost" onclick="exportStock('xlsx')" data-i18n="excel_magazzino">⬇ Excel magazzino</button>
       </div>
       <div class="kpis">
@@ -307,6 +305,7 @@
     <!-- INVENTARIO: sessione guidata, revisione, storico -->
     <section class="view" id="inventario">
       <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_inventario">Inventario</h2></div>
+      <div class="schede-inv"></div>
       <div id="inv-hello"></div>
 
       <!-- nessuna sessione aperta: si parte da qui -->
@@ -399,6 +398,18 @@
         <div class="kpi"><div class="v" id="or-prodotti">0</div><div class="l" data-i18n="prodotti_da_ordinare">Prodotti da ordinare</div></div>
       </div>
       <div id="ordini-list"></div>
+      <!-- ordine scritto a mano: diventa un PDF da mandare al fornitore -->
+      <div class="card">
+        <h3 data-i18n="om_titolo">Scrivi un ordine a mano</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:8px" data-i18n="om_aiuto">Una riga per prodotto, con la quantità in fondo. Esempio: Aperol 6</p>
+        <div class="row c2">
+          <div><label data-i18n="fornitore">Fornitore</label><select id="om-fornitore" onchange="show('#om-altro-wrap', !this.value)"></select></div>
+          <div id="om-altro-wrap"><label data-i18n="om_nome_fornitore">Nome del fornitore</label><input id="om-fornitore-altro" maxlength="80"></div>
+        </div>
+        <div class="row"><div><label data-i18n="om_prodotti">Prodotti</label><textarea id="om-righe" rows="6" style="width:100%" placeholder="Aperol 6&#10;Gin Tanqueray 3&#10;Acqua tonica 4 casse"></textarea></div></div>
+        <div class="row"><div><label data-i18n="om_note">Note (consegna, orari…)</label><input id="om-note" maxlength="300"></div></div>
+        <button class="act" onclick="pdfOrdineAMano()" data-i18n="pdf_fornitore">📄 PDF per il fornitore</button>
+      </div>
       <div class="card">
         <h3 data-i18n="fornitori">Fornitori</h3>
         <table><thead><tr><th data-i18n="nome">Nome</th><th data-i18n="telefono">Telefono</th><th data-i18n="email">Email</th><th></th></tr></thead><tbody id="vendor-list"></tbody></table>
