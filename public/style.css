@@ -478,3 +478,21 @@ textarea{background:var(--panel2); color:var(--txt); border:1px solid var(--line
   .hb-ordini{--hb:linear-gradient(135deg,#0fa3b8,#0b7c8e);}
   .hb-manuale{--hb:linear-gradient(135deg,#5b6577,#3e4656);}
 }
+
+/* ===== ACCESSO: scritte grandi, bottoni grandi ===== */
+.campo-pin{-webkit-text-security:disc; letter-spacing:6px; font-size:22px !important; text-align:center;}
+#login .login-head{margin:8px 0 18px;}
+#login .muted{font-size:16px;}
+#locale-wrap input, #reset-wrap input{font-size:19px !important; padding:15px 14px; border-radius:14px;}
+#locale-wrap button.act, #reset-wrap button.act{font-size:19px; padding:16px; border-radius:14px; font-weight:800;}
+#locale-nome{font-size:16px !important;}
+#profiles-wrap > p:nth-of-type(2){font-size:22px; font-weight:800; color:var(--txt); margin:6px 0 4px;}
+.profile{padding:18px 16px; border-radius:18px; min-height:78px;}
+.profile .pn{font-size:21px; font-weight:800;}
+.profile .pr{font-size:13px;}
+#pin-for{font-size:22px !important; font-weight:800; color:var(--txt) !important;}
+.pin-dots span{width:18px; height:18px;}
+.pinpad{max-width:320px; gap:12px;}
+.pinpad button{padding:0; height:68px; font-size:28px; border-radius:18px;}
+#pin-reset a, #locale-wrap a{font-size:16px;}
+#login-msg{font-size:17px; font-weight:700;}

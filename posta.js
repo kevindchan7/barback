@@ -1,20 +1,42 @@
 /* =====================================================================
    posta.js — Le email di Barback (link per reimpostare PIN e password).
-   Usa Resend (https://resend.com, gratis fino a 3.000 email al mese).
-   Serve la chiave RESEND_API_KEY su Render -> barback-app -> Environment.
-   Senza chiave non parte niente e l'app lo dice chiaramente.
+   Arrivano all'email che il titolare ha scritto quando ha registrato il locale.
+
+   Due modi, basta uno:
+   1. Gmail (consigliato, nessun dominio da comprare):
+        GMAIL_USER         = l'indirizzo Gmail che spedisce (es. barback@gmail.com)
+        GMAIL_APP_PASSWORD = "password per le app" di Google (16 lettere)
+   2. Resend: RESEND_API_KEY (serve un dominio verificato per scrivere a tutti)
+   Senza nessuno dei due non parte niente e l'app lo dice chiaramente.
    ===================================================================== */
 const fs = require('fs');
 
 // nelle prove automatiche le email finiscono in un file invece di partire
 const FILE_PROVA = process.env.BARBACK_PROVA === '1' ? process.env.POSTA_FILE : '';
-const attiva = () => !!(process.env.RESEND_API_KEY || FILE_PROVA);
+const gmail = () => !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+const attiva = () => !!(FILE_PROVA || gmail() || process.env.RESEND_API_KEY);
+
+let trasporto = null;
+function postino() {
+  if (!trasporto) {
+    const nodemailer = require('nodemailer');
+    trasporto = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: process.env.GMAIL_USER, pass: String(process.env.GMAIL_APP_PASSWORD).replace(/\s/g, '') },
+    });
+  }
+  return trasporto;
+}
 
 async function manda({ a, oggetto, testo }) {
   if (!a) return false;
   if (FILE_PROVA) { fs.appendFileSync(FILE_PROVA, JSON.stringify({ a, oggetto, testo }) + '\n'); return true; }
-  if (!process.env.RESEND_API_KEY) return false;
   try {
+    if (gmail()) {
+      await postino().sendMail({ from: `"Barback" <${process.env.GMAIL_USER}>`, to: a, subject: oggetto, text: testo });
+      return true;
+    }
+    if (!process.env.RESEND_API_KEY) return false;
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
