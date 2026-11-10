@@ -36,6 +36,7 @@ const ERRORI = {
   'Prodotto non trovato':  { en: 'Product not found', es: 'Producto no encontrado' },
   'Dipendente non trovato':{ en: 'Staff member not found', es: 'Empleado no encontrado' },
   'Profilo non trovato':   { en: 'Profile not found', es: 'Perfil no encontrado' },
+  'Scrivi almeno un prodotto da ordinare': { en: 'Write at least one product to order', es: 'Escribe al menos un producto para pedir' },
   'Solo il proprietario dà l\'accesso completo': { en: 'Only the owner can give full access', es: 'Solo el propietario da el acceso completo' },
   'Il profilo del proprietario lo cambia solo il proprietario': { en: 'Only the owner can change the owner profile', es: 'El perfil del propietario solo lo cambia el propietario' },
   'Richiesta non trovata': { en: 'Request not found', es: 'Petición no encontrada' },

@@ -181,9 +181,8 @@ function buildBottomNav() {
     ['vuoti', '🍾', t('nav_vuoti'), can('vuoti.view')],
     ['turni', '📅', t('nav_turni'), can('turni.view') || can('task.view')],
     ['richieste', '🏖', t('nav_ferie'), can('ferie.view') || can('ferie.request')],
-    ['magazzino', '📦', t('nav_magazzino'), can('magazzino.view')],
     ['costi', '🍸', t('nav_costi'), can('drinkcost.view')],
-    ['inventario', '📋', t('nav_inventario'), can('inventario.view')],
+    ['inventario', '📋', t('nav_inventario'), can('inventario.view') || can('magazzino.view')],
     ['ordini', '🛒', t('nav_ordini'), can('magazzino.view')],
     ['manuale', '📖', t('nav_manuale'), can('manuale.view')],
   ].filter(i => i[3]);
@@ -192,6 +191,7 @@ function buildBottomNav() {
   setActiveNav(currentView);
 }
 function setActiveNav(view) {
+  if (view === 'magazzino') view = 'inventario';   // le giacenze stanno dentro Inventario
   document.querySelectorAll('#bottomnav button').forEach(b => b.classList.toggle('active', b.dataset.nav === view));
 }
 
@@ -246,9 +246,8 @@ async function loadHome() {
     ['vuoti', '🍾', t('sez_vuoti'), t('d_vuoti'), can('vuoti.view')],
     ['turni', '📅', t('sez_turni'), t('d_turni'), can('turni.view') || can('task.view')],
     ['richieste', '🏖', t('sez_ferie'), t('d_ferie'), can('ferie.view') || can('ferie.request')],
-    ['magazzino', '📦', t('sez_magazzino'), t('d_magazzino'), can('magazzino.view')],
     ['costi', '🍸', t('sez_costi_drink'), t('d_costi_drink'), can('drinkcost.view')],
-    ['inventario', '📋', t('sez_inventario'), t('d_inventario'), can('inventario.view')],
+    ['inventario', '📋', t('sez_inventario'), t('d_inventario_tutto'), can('inventario.view') || can('magazzino.view')],
     ['ordini', '🛒', t('sez_ordini'), t('d_ordini'), can('magazzino.view')],
     ['manuale', '📖', t('sez_manuale'), t('d_manuale'), can('manuale.view')],
   ];
@@ -257,7 +256,19 @@ async function loadHome() {
 }
 
 /* ===================== NAVIGAZIONE ===================== */
-function go(view, silent) {
+/* INVENTARIO = giacenze (quello che prima era "Magazzino") + conteggio.
+   Una voce sola nel menu, due schede in alto per chi le puo' vedere entrambe. */
+function schedeInventario(attiva) {
+  const due = can('magazzino.view') && can('inventario.view');
+  const html = due ? `<div class="schede">
+      <button class="${attiva === 'magazzino' ? 'on' : ''}" onclick="go('magazzino')">${t('scheda_giacenze')}</button>
+      <button class="${attiva === 'inventario' ? 'on' : ''}" onclick="go('inventario', false, true)">${t('scheda_conta')}</button></div>` : '';
+  document.querySelectorAll('.schede-inv').forEach(e => { e.innerHTML = html; });
+}
+function go(view, silent, proprioQuesta) {
+  // "Inventario" dal menu: chi vede le giacenze parte da li'
+  if (view === 'inventario' && !proprioQuesta && !silent && can('magazzino.view')) view = 'magazzino';
+  if (view === 'magazzino' || view === 'inventario') schedeInventario(view);
   currentView = view;
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === view));
   setActiveNav(view);
@@ -739,14 +750,15 @@ async function loadOrdini() {
           <td class="right"><b style="color:var(--gold)">${r.qty}</b> ${r.unit}</td>
           </tr>`).join('')}</tbody></table></div>
       <div class="toolbar" style="margin-top:8px">
-        <button class="ghost" onclick="copiaOrdine(${i})">${t('copia_testo')}</button>
+        <button class="act" onclick="pdfOrdine(${i})">${t('pdf_fornitore')}</button>
         ${g.phone ? `<button class="act gold" onclick="whatsappOrdine(${i})">${t('manda_whatsapp')}</button>` : ''}
-        <button class="ghost" onclick="exportOrdine(${i},'csv')">⬇ CSV</button>
-        <button class="ghost" onclick="exportOrdine(${i},'xlsx')">⬇ Excel</button>
+        <button class="ghost" onclick="copiaOrdine(${i})">${t('copia_testo')}</button>
       </div>
     </div>`).join('')
     : `<div class="card">${mascotSays('Non c\'è niente da ordinare: nessun prodotto è arrivato alla soglia. 👍', 48)}</div>`;
 
+  // ordine scritto a mano: i fornitori nella tendina
+  $('#om-fornitore').innerHTML = `<option value="">${t('om_altro')}</option>` + vendors.map(v => `<option>${v.name.replace(/</g, '&lt;')}</option>`).join('');
   // elenco fornitori
   const editable = can('magazzino.view');
   $('#vendor-list').innerHTML = vendors.map(v => `<tr><td>${v.name}</td><td>${v.phone || '—'}</td><td>${v.email || '—'}</td>
@@ -1138,17 +1150,50 @@ async function exportShifts(fmt) {
   shifts.forEach(s => aoa.push([s.date, s.employee, s.start, s.end, s.role]));
   fmt === 'csv' ? downloadCSV('turni.csv', aoa) : downloadXLSX('turni.xlsx', aoa, 'Turni');
 }
+/* Un PDF creato dal server: sul telefono si apre "Condividi" (WhatsApp, Mail...)
+   cosi' lo si manda subito; dove non c'e', si scarica. */
+async function prendiPdf(percorso, corpo, nomeRiserva) {
+  const r = await fetch('/api' + percorso, {
+    method: corpo ? 'POST' : 'GET',
+    headers: { Authorization: 'Bearer ' + TOKEN, 'X-Lang': LANG, 'X-Locale': LOCALE, ...(corpo ? { 'Content-Type': 'application/json' } : {}) },
+    body: corpo ? JSON.stringify(corpo) : undefined });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Errore ' + r.status);
+  const m = (r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+  const nome = m ? m[1] : nomeRiserva;
+  const blob = await r.blob();
+  const file = new File([blob], nome, { type: 'application/pdf' });
+  const telefono = matchMedia('(pointer:coarse)').matches;
+  if (telefono && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: nome }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; }   // ha chiuso "Condividi": niente da fare
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
 // il resoconto del mese in PDF (carico, vuoti, scarico, giacenza): solo il proprietario
 async function scaricaResoconto() {
+  try { await prendiPdf('/reports/monthly.pdf', null, 'resoconto.pdf'); } catch (e) { alert(e.message); }
+}
+// l'ordine suggerito di un fornitore, in PDF da mandargli
+async function pdfOrdine(i) {
+  const g = window._ordini && window._ordini.gruppi[i]; if (!g) return;
   try {
-    const r = await fetch('/api/reports/monthly.pdf', { headers: { Authorization: 'Bearer ' + TOKEN, 'X-Lang': LANG } });
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Errore ' + r.status);
-    const nome = (r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(await r.blob());
-    a.download = nome ? nome[1] : 'resoconto.pdf';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    await prendiPdf('/orders/pdf', { fornitore: g.vendor_id ? g.vendor : '',
+      righe: g.righe.map(r => ({ nome: r.name + (r.format ? ' ' + r.format : ''), qta: r.qty + ' ' + (r.unit || '') })) }, 'ordine.pdf');
+  } catch (e) { alert(e.message); }
+}
+/* L'ordine scritto a mano: una riga per prodotto, es. "Aperol 6" o "6 casse acqua".
+   Il numero in fondo (o "x 6") diventa la quantita'; senza numero resta solo il nome. */
+async function pdfOrdineAMano() {
+  const righe = $('#om-righe').value.split('\n').map(x => x.trim()).filter(Boolean).map(x => {
+    const m = x.match(/^(.*?)[\s,;:x×-]+(\d+[.,]?\d*\s*[^\d\s]{0,12})$/i);
+    return m && m[1].trim() ? { nome: m[1].trim(), qta: m[2].trim() } : { nome: x, qta: '' };
+  });
+  if (!righe.length) return alert(t('om_vuoto'));
+  const sel = $('#om-fornitore');
+  try {
+    await prendiPdf('/orders/pdf', { fornitore: sel.value || $('#om-fornitore-altro').value, righe, note: $('#om-note').value }, 'ordine.pdf');
   } catch (e) { alert(e.message); }
 }
 async function exportStock(fmt) {

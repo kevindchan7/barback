@@ -610,6 +610,47 @@ api.get('/orders/suggested', need('magazzino.view'), (req, res) => {
   ok(res, { gruppi, totale: gruppi.reduce((s, g) => s + g.totale, 0), prodotti: rows.length });
 });
 
+/* L'ordine in PDF, da mandare al fornitore. Le righe arrivano dall'app:
+   quelle dell'ordine suggerito oppure scritte a mano. Niente prezzi: solo
+   cosa e quanto.                                                        */
+api.post('/orders/pdf', need('magazzino.view'), (req, res) => {
+  const b = req.body || {};
+  const fornitore = String(b.fornitore || '').trim().slice(0, 80);
+  const note = String(b.note || '').trim().slice(0, 600);
+  const righe = (Array.isArray(b.righe) ? b.righe : []).slice(0, 300)
+    .map(r => ({ nome: String((r && r.nome) || '').trim().slice(0, 90), qta: String((r && r.qta) || '').trim().slice(0, 20) }))
+    .filter(r => r.nome);
+  if (!righe.length) return bad(res, 400, 'Scrivi almeno un prodotto da ordinare');
+  const nomeLocale = leggiImp('locale_nome', '') || res.locals.info.nome;
+  const oggi = adesso().toLocaleDateString('it-IT', { timeZone: FUSO });
+  const PDFDocument = require('pdfkit');
+  const doc = new PDFDocument({ size: 'A4', margin: 48, info: { Title: 'Ordine ' + nomeLocale + (fornitore ? ' - ' + fornitore : '') } });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="ordine-${M.pulisciCodice(fornitore) || 'fornitore'}-${todayISO()}.pdf"`);
+  doc.pipe(res);
+  doc.font('Helvetica-Bold').fontSize(20).fillColor('#000').text('Ordine');
+  doc.moveDown(0.3).font('Helvetica').fontSize(11).fillColor('#333');
+  doc.text('Da: ' + nomeLocale + (res.locals.info.citta ? ' (' + res.locals.info.citta + ')' : ''));
+  if (res.locals.info.telefono) doc.text('Telefono: ' + res.locals.info.telefono);
+  if (fornitore) doc.text('Per: ' + fornitore);
+  doc.text('Data: ' + oggi);
+  doc.moveDown(1);
+  const riga = (a, c, grassetto) => {
+    if (doc.y > 760) doc.addPage();
+    const y = doc.y;
+    doc.font(grassetto ? 'Helvetica-Bold' : 'Helvetica').fontSize(11).fillColor('#000');
+    doc.text(a, 48, y, { width: 370, lineBreak: false, ellipsis: true });
+    doc.text(c, 430, y, { width: 117, align: 'right', lineBreak: false, ellipsis: true });
+    doc.y = y + 20;
+    doc.moveTo(48, doc.y - 5).lineTo(547, doc.y - 5).lineWidth(0.4).strokeColor('#bbb').stroke();
+  };
+  riga('Prodotto', 'Quantità', true);
+  righe.forEach(r => riga(r.nome, r.qta));
+  if (note) doc.moveDown(1).font('Helvetica').fontSize(11).fillColor('#000').text('Note: ' + note, 48, doc.y, { width: 499 });
+  doc.moveDown(2).fontSize(9).fillColor('#777').text('Ordine creato con Barback', 48, doc.y, { width: 499 });
+  doc.end();
+});
+
 /* ---------------- MOVIMENTI (permessi per tipo) ---------------- */
 api.post('/movements', (req, res) => {
   const { productId, type, qty, source, note } = req.body;

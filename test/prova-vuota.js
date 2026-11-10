@@ -71,7 +71,7 @@ async function chiama(p, { metodo = 'GET', corpo, token } = {}) {
   /* ---------------- 1. NASCE VUOTA ---------------- */
   titolo('1. L\'APP NASCE VUOTA');
   const profili = (await chiama('/profiles')).dati;
-  verifica('i profili di accesso ci sono (senza, non si entrerebbe)', profili.length === 4, profili.length);
+  verifica('un locale nuovo nasce col solo Proprietario (gli altri li aggiunge lui)', profili.length === 1 && profili[0].permissions.includes('all'), profili.length);
 
   const { token: T } = (await chiama('/auth/pin', { metodo: 'POST', corpo: { profileId: profili.find(p => p.permissions.includes('all')).id, pin: '5823' } })).dati;
   verifica('il proprietario entra', !!T);
@@ -160,7 +160,7 @@ async function chiama(p, { metodo = 'GET', corpo, token } = {}) {
   verifica('senza conferma non svuota', (await chiama('/dati', { metodo: 'DELETE', token: T, corpo: {} })).stato === 400);
   const vuota = await chiama('/dati', { metodo: 'DELETE', token: T, corpo: { conferma: 'AZZERA' } });
   verifica('con la conferma svuota', vuota.stato === 200 && vuota.dati.totale > 0, vuota.dati && vuota.dati.totale);
-  verifica('i profili restano (sennò nessuno entrerebbe piu\')', vuota.dati.profiliRimasti === 4, vuota.dati && vuota.dati.profiliRimasti);
+  verifica('i profili restano (sennò nessuno entrerebbe piu\')', vuota.dati.profiliRimasti === 1, vuota.dati && vuota.dati.profiliRimasti);
   verifica('i prodotti sono spariti', (await chiama('/products', { token: T })).dati.length === 0);
   verifica('i dipendenti sono spariti', (await chiama('/employees', { token: T })).dati.length === 0);
   verifica('gli inventari sono spariti', (await chiama('/inventory/history', { token: T })).dati.length === 0);
