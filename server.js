@@ -13,6 +13,7 @@ const fs = require('fs');
 const db = require('./db');
 const M = db.__multi;   // i locali: registro, apertura, creazione
 const { linguaDi, traduciErrore, REGOLE, PREPARAZIONI } = require('./messaggi');
+const posta = require('./posta');
 
 const app = express();
 // In locale usa 3100; in cloud (Render) usa la porta che assegna il servizio.
@@ -82,18 +83,49 @@ function troppi(ip, quanti, minuti) {
   return l.length > quanti;
 }
 const pinNuovoOk = (p) => /^\d{4}$/.test(String(p || ''));
+const PIN_FACILI = ['1111', '2222', '3333', '4444', '0000', '1234'];
+const passwordOk = (p) => typeof p === 'string' && p.length >= 6 && p.length <= 72;
+const ipDi = (req) => req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : req.ip;
+
+/* LA PASSWORD DEL LOCALE. Il titolare sceglie nome e password del locale e
+   li da' a chi vuole. Chi li scrive riceve una "chiave" che resta sul
+   telefono: solo con quella si vedono i profili e si prova il PIN.
+   Se il titolare cambia la password, le chiavi vecchie smettono di valere. */
+const impronta = (hash) => crypto.createHash('sha256').update(String(hash || '')).digest('hex').slice(0, 12);
+const chiaveLocale = (l) => jwt.sign({ t: 'L', loc: l.codice, v: impronta(l.pass_hash) }, JWT_SECRET, { expiresIn: '180d' });
+function chiaveValida(req, l) {
+  if (!l.pass_hash) return true;                       // locale senza password (demo, o creato prima)
+  try {
+    const k = jwt.verify(String(req.headers['x-locale-token'] || ''), JWT_SECRET);
+    return k.t === 'L' && k.loc === l.codice && k.v === impronta(l.pass_hash);
+  } catch { return false; }
+}
+function varco(req, res, next) {
+  if (!chiaveValida(req, res.locals.info)) return bad(res, 401, 'Serve la password del locale');
+  next();
+}
 
 // esiste questo locale? (la schermata d'accesso mostra il nome prima dei profili)
 app.get('/api/locale/:codice', (req, res) => {
   const l = M.infoLocale(req.params.codice);
   if (!l) return bad(res, 404, 'Locale non trovato: controlla il codice');
   if (!l.attivo) return bad(res, 403, 'Locale sospeso: contatta Barback');
-  ok(res, { codice: l.codice, nome: l.nome, demo: !!l.demo });
+  ok(res, { codice: l.codice, nome: l.nome, demo: !!l.demo, protetto: !!l.pass_hash });
+});
+
+// nome del locale + password: se sono giusti, il telefono riceve la chiave
+app.post('/api/locale/entra', (req, res) => {
+  const b = req.body || {};
+  const l = M.infoLocale(b.codice);
+  if (troppi('pw:' + ipDi(req) + ':' + M.pulisciCodice(b.codice), 10, 15)) return bad(res, 429, 'Troppi tentativi: riprova fra 15 minuti');
+  if (!l || !l.pass_hash || !bcrypt.compareSync(String(b.password || ''), l.pass_hash)) return bad(res, 401, 'Nome del locale o password errati');
+  if (!l.attivo) return bad(res, 403, 'Locale sospeso: contatta Barback');
+  ok(res, { codice: l.codice, nome: l.nome, chiave: chiaveLocale(l) });
 });
 
 // registrazione di un locale nuovo, da /registra.html
 app.post('/api/registra', (req, res) => {
-  const ip = req.headers['x-forwarded-for'] ? String(req.headers['x-forwarded-for']).split(',')[0].trim() : req.ip;
+  const ip = ipDi(req);
   if (troppi(ip, 5, 60)) return bad(res, 429, 'Troppe registrazioni da questa rete: riprova fra un\'ora');
   const b = req.body || {};
   const nome = String(b.nome || '').trim().slice(0, 60);
@@ -101,7 +133,8 @@ app.post('/api/registra', (req, res) => {
   if (nome.length < 2) return bad(res, 400, 'Scrivi il nome del locale');
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return bad(res, 400, 'Email non valida');
   if (!pinNuovoOk(b.pin)) return bad(res, 400, 'Il PIN deve essere di 4 cifre');
-  if (['1111', '2222', '3333', '4444', '0000', '1234'].includes(String(b.pin))) return bad(res, 400, 'Scegli un PIN meno facile da indovinare');
+  if (PIN_FACILI.includes(String(b.pin))) return bad(res, 400, 'Scegli un PIN meno facile da indovinare');
+  if (!passwordOk(b.password)) return bad(res, 400, 'La password del locale deve avere almeno 6 caratteri');
   // il codice: quello scelto, oppure ricavato dal nome; se e' preso, aggiungo un numero
   let base = M.pulisciCodice(b.codice || nome) || 'bar';
   if (base.length < 3) base = (base + '-bar').slice(0, 30);
@@ -109,12 +142,12 @@ app.post('/api/registra', (req, res) => {
   let codice = base, n = 2;
   while (M.infoLocale(codice)) { if (b.codice) return bad(res, 409, 'Questo codice è già usato da un altro locale'); codice = base.slice(0, 26) + '-' + n++; }
   try {
-    codice = M.creaLocale({ codice, nome, email, telefono: String(b.telefono || '').slice(0, 30), citta: String(b.citta || '').slice(0, 60), pin: b.pin,
+    codice = M.creaLocale({ codice, nome, email, telefono: String(b.telefono || '').slice(0, 30), citta: String(b.citta || '').slice(0, 60), pin: b.pin, password: b.password,
       referente: String(b.referente || '').slice(0, 80), piva: String(b.piva || '').replace(/\s/g, '').slice(0, 16),
       piano: String(b.piano || ''), promo: String(b.promo || '').toUpperCase().slice(0, 24) });
   } catch (e) { return bad(res, 400, e.message); }
   console.log('Nuovo locale registrato: ' + codice + ' (' + nome + ')');
-  ok(res, { codice, nome });
+  ok(res, { codice, nome, chiave: chiaveLocale(M.infoLocale(codice)) });
 });
 
 /* ---------------- PANNELLO DEL TITOLARE DI BARBACK ----------------
@@ -150,6 +183,7 @@ app.use('/api', (req, res, next) => {
   if (!info) return bad(res, 404, 'Locale non trovato: controlla il codice');
   if (!info.attivo) return bad(res, 403, 'Locale sospeso: contatta Barback');
   res.locals.locale = info.codice;
+  res.locals.info = info;
   M.contesto.run(M.dbDel(info.codice), next);
 });
 
@@ -175,12 +209,12 @@ function auth(req, res, next) {
 function can(req, cap) { const p = req.user.permissions || []; return p.includes('all') || p.includes(cap); }
 function need(cap) { return (req, res, next) => can(req, cap) ? next() : bad(res, 403, 'Permesso negato (' + cap + ')'); }
 
-app.get('/api/profiles', (req, res) =>
+app.get('/api/profiles', varco, (req, res) =>
   ok(res, db.prepare('SELECT id,name,permissions,pin_default,employee_id FROM profiles ORDER BY id').all()
     .map(p => ({ id: p.id, name: p.name, permissions: JSON.parse(p.permissions || '[]'), pin_default: !!p.pin_default,
       employee_id: p.employee_id || null }))));
 
-app.post('/api/auth/pin', (req, res) => {
+app.post('/api/auth/pin', varco, (req, res) => {
   const { profileId, pin } = req.body || {};
   const p = db.prepare('SELECT * FROM profiles WHERE id=?').get(profileId);
   if (!p || !bcrypt.compareSync(String(pin || ''), p.pin_hash)) return bad(res, 401, 'PIN errato');
@@ -190,8 +224,71 @@ app.post('/api/auth/pin', (req, res) => {
   ok(res, { token, profile: { id: p.id, name: p.name, permissions }, locale: res.locals.locale });
 });
 
+/* ---------------- PIN O PASSWORD DIMENTICATI ----------------
+   Si chiede un link: arriva all'email del titolare (quella della
+   registrazione). Il link vale 30 minuti e una volta sola: dentro c'e'
+   l'impronta del PIN/password di adesso, quindi dopo il cambio non vale piu'. */
+const mascheraEmail = (e) => String(e || '').replace(/^(.)[^@]*(@.*)$/, '$1•••$2');
+app.post('/api/reset/chiedi', async (req, res) => {
+  const l = res.locals.info, b = req.body || {};
+  const cosa = b.cosa === 'password' ? 'password' : 'pin';
+  if (l.demo) return bad(res, 400, 'Nel bar demo il PIN è 1111');
+  if (!l.email) return bad(res, 400, 'Questo locale non ha un\'email: scrivi a Barback');
+  if (!posta.attiva()) return bad(res, 503, 'L\'invio delle email non è ancora attivo: scrivi a Barback');
+  let dati, chi = '';
+  if (cosa === 'pin') {
+    if (!chiaveValida(req, l)) return bad(res, 401, 'Serve la password del locale');
+    const p = db.prepare('SELECT id,name,pin_hash FROM profiles WHERE id=?').get(b.profileId);
+    if (!p) return bad(res, 404, 'Profilo non trovato');
+    dati = { t: 'R', cosa, loc: l.codice, pid: p.id, nome: p.name, h: impronta(p.pin_hash) }; chi = p.name;
+  } else {
+    if (!l.pass_hash) return bad(res, 400, 'Questo locale non ha ancora una password');
+    dati = { t: 'R', cosa, loc: l.codice, h: impronta(l.pass_hash) };
+  }
+  if (troppi('reset:' + l.codice, 3, 30)) return bad(res, 429, 'Email già inviata: controlla la posta (anche lo spam) o riprova fra mezz\'ora');
+  const token = jwt.sign(dati, JWT_SECRET, { expiresIn: '30m' });
+  const base = process.env.APP_URL || ((req.headers['x-forwarded-proto'] || req.protocol) + '://' + req.get('host'));
+  const link = base + '/?l=' + encodeURIComponent(l.codice) + '&reset=' + token;
+  const inviata = await posta.manda({
+    a: l.email,
+    oggetto: cosa === 'pin' ? 'Barback · nuovo PIN per ' + chi + ' (' + l.nome + ')' : 'Barback · nuova password per ' + l.nome,
+    testo: 'Ciao,\n\n' + (cosa === 'pin'
+      ? 'qualcuno ha chiesto di reimpostare il PIN del profilo "' + chi + '" di ' + l.nome + '.'
+      : 'qualcuno ha chiesto di reimpostare la password del locale ' + l.nome + '.')
+      + '\nApri questo link per sceglierne ' + (cosa === 'pin' ? 'uno nuovo' : 'una nuova') + ' (vale 30 minuti):\n\n' + link
+      + '\n\nSe non sei stato tu, ignora questa email: non cambia niente.\n\nBarback',
+  });
+  if (!inviata) return bad(res, 502, 'Email non partita: riprova fra poco');
+  ok(res, { inviata: true, a: mascheraEmail(l.email) });
+});
+app.post('/api/reset/fai', (req, res) => {
+  const l = res.locals.info, b = req.body || {};
+  let k; try { k = jwt.verify(String(b.token || ''), JWT_SECRET); } catch { return bad(res, 400, 'Link scaduto o non valido: chiedine uno nuovo'); }
+  if (k.t !== 'R' || k.loc !== l.codice) return bad(res, 400, 'Link scaduto o non valido: chiedine uno nuovo');
+  if (k.cosa === 'pin') {
+    const p = db.prepare('SELECT id,pin_hash FROM profiles WHERE id=?').get(k.pid);
+    if (!p || impronta(p.pin_hash) !== k.h) return bad(res, 400, 'Link scaduto o non valido: chiedine uno nuovo');
+    if (!pinNuovoOk(b.nuovo)) return bad(res, 400, 'Il PIN deve essere di 4 cifre');
+    if (PIN_FACILI.includes(String(b.nuovo))) return bad(res, 400, 'Scegli un PIN meno facile da indovinare');
+    db.prepare('UPDATE profiles SET pin_hash=?, pin_default=0 WHERE id=?').run(bcrypt.hashSync(String(b.nuovo), 10), p.id);
+    return ok(res, { ok: true, cosa: 'pin', profileId: p.id, chiave: chiaveLocale(l) });   // chi ha il link del titolare entra senza riscrivere la password
+  }
+  if (impronta(l.pass_hash) !== k.h) return bad(res, 400, 'Link scaduto o non valido: chiedine uno nuovo');
+  if (!passwordOk(b.nuovo)) return bad(res, 400, 'La password del locale deve avere almeno 6 caratteri');
+  M.impostaPassword(l.codice, b.nuovo);
+  ok(res, { ok: true, cosa: 'password', chiave: chiaveLocale(M.infoLocale(l.codice)) });
+});
+
 const api = express.Router();
 api.use(auth);
+// il titolare sceglie o cambia la password del locale (le chiavi vecchie smettono di valere)
+api.post('/locale/password', need('all'), (req, res) => {
+  const l = res.locals.info;
+  if (l.demo) return bad(res, 400, 'Il bar demo resta aperto a tutti');
+  if (!passwordOk((req.body || {}).password)) return bad(res, 400, 'La password del locale deve avere almeno 6 caratteri');
+  M.impostaPassword(l.codice, req.body.password);
+  ok(res, { ok: true, chiave: chiaveLocale(M.infoLocale(l.codice)) });
+});
 app.use('/api', api);
 
 const product = (id) => db.prepare('SELECT * FROM products WHERE id=?').get(id);
@@ -367,7 +464,9 @@ const RUOLI = {
   'proprietario': ['all'],
   'responsabile': ['turni.manage','turni.view','task.manage','task.view','ferie.view','ferie.approve','inventario.view'],
   'barman':       ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
-  'bar manager':  ['turni.view','task.view','task.check','vuoti.view','vuoti.do','carico.do','magazzino.view','drinkcost.view','manuale.view','ferie.view','inventario.view','inventario.do','inventario.close'],
+  // come il proprietario nel lavoro di ogni giorno (turni, task, ferie, magazzino, costi);
+  // NON gestisce profili/PIN/password e NON scarica i resoconti (solo il proprietario)
+  'bar manager':  ['turni.manage','task.manage','ferie.approve','turni.view','task.view','task.check','vuoti.view','vuoti.do','carico.do','magazzino.view','drinkcost.view','manuale.view','ferie.view','inventario.view','inventario.do','inventario.close'],
   'barback':      ['turni.view','task.view','task.check','ferie.request','vuoti.view','vuoti.do','manuale.view','inventario.view','inventario.do'],
 };
 const pinValido = (p) => /^[0-9]{4}$/.test(String(p || ''));
@@ -621,6 +720,50 @@ api.get('/reports/monthly', need('magazzino.view'), (req, res) => {
   ok(res, { month: m, rows: senzaCosti(req, rows),
     totaleConsumato: can(req, 'drinkcost.view') ? rows.reduce((s, r) => s + r.consumato, 0) : undefined,
     sottoSoglia: db.prepare("SELECT COUNT(*) c FROM products WHERE category='Bottiglia' AND stock<=threshold").get().c });
+});
+
+/* Il resoconto del mese in PDF: carico, vuoti, scarico, giacenza.
+   Lo scarica SOLO il proprietario (non il bar manager).            */
+api.get('/reports/monthly.pdf', need('all'), (req, res) => {
+  const m = monthOf(req.query.month);
+  const rows = db.prepare(`SELECT p.name, p.price, p.stock AS residua,
+      COALESCE(SUM(CASE WHEN mv.type='carico' THEN mv.qty END),0) carico,
+      COALESCE(SUM(CASE WHEN mv.type='vuoto' THEN mv.qty END),0) vuoti,
+      COALESCE(SUM(CASE WHEN mv.type='scarico' THEN mv.qty END),0) scarico
+    FROM products p LEFT JOIN movements mv ON mv.product_id=p.id AND substr(mv.work_date,1,7)=?
+    WHERE p.category='Bottiglia' GROUP BY p.id ORDER BY p.name`).all(m);
+  const nomeLocale = res.locals.info.nome;
+  const PDFDocument = require('pdfkit');
+  const doc = new PDFDocument({ size: 'A4', margin: 40, info: { Title: 'Resoconto ' + m + ' - ' + nomeLocale } });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="resoconto-${res.locals.locale}-${m}.pdf"`);
+  doc.pipe(res);
+  const n = (x) => (Math.round(x * 100) / 100).toLocaleString('it-IT');
+  const euro = (x) => x.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const col = [40, 250, 305, 360, 415, 475];           // prodotto, carico, vuoti, scarico, giacenza, valore
+  const larg = [205, 50, 50, 50, 55, 80];
+  doc.font('Helvetica-Bold').fontSize(18).text('Resoconto magazzino');
+  doc.font('Helvetica').fontSize(11).fillColor('#444').text(nomeLocale + ' · ' + m + ' · creato il ' + adesso().toLocaleDateString('it-IT', { timeZone: FUSO }));
+  doc.moveDown(1);
+  const riga = (celle, grassetto) => {
+    if (doc.y > 770) { doc.addPage(); riga(['Prodotto', 'Carico', 'Vuoti', 'Scarico', 'Giacenza', 'Consumato'], true); }
+    const y = doc.y;
+    doc.font(grassetto ? 'Helvetica-Bold' : 'Helvetica').fontSize(9).fillColor('#000');
+    celle.forEach((c, i) => doc.text(String(c), col[i], y, { width: larg[i], align: i ? 'right' : 'left', lineBreak: false, ellipsis: true }));
+    doc.y = y + 14;
+    doc.moveTo(40, doc.y - 3).lineTo(555, doc.y - 3).lineWidth(0.3).strokeColor('#bbb').stroke();
+  };
+  riga(['Prodotto', 'Carico', 'Vuoti', 'Scarico', 'Giacenza', 'Consumato'], true);
+  const tot = { carico: 0, vuoti: 0, scarico: 0, valore: 0 };
+  rows.forEach(r => {
+    const valore = (r.vuoti + r.scarico) * (r.price || 0);
+    tot.carico += r.carico; tot.vuoti += r.vuoti; tot.scarico += r.scarico; tot.valore += valore;
+    riga([r.name, n(r.carico), n(r.vuoti), n(r.scarico), n(r.residua), euro(valore)]);
+  });
+  riga(['TOTALE', n(tot.carico), n(tot.vuoti), n(tot.scarico), '', euro(tot.valore)], true);
+  doc.moveDown(1).font('Helvetica').fontSize(8).fillColor('#666')
+    .text('Carico = bottiglie entrate. Vuoti = bottiglie finite al banco. Scarico = uscite per altri motivi. Giacenza = quante ce ne sono adesso. Consumato = (vuoti + scarico) x costo.', 40, doc.y, { width: 515 });
+  doc.end();
 });
 
 /* ---------------- POSTAZIONI ----------------

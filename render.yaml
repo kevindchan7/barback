@@ -31,6 +31,10 @@ services:
       # La trovi su Render -> barback-app -> Environment.
       - key: ADMIN_KEY
         generateValue: true
+      # Email "PIN/password dimenticati": chiave di https://resend.com (gratis).
+      # Si scrive a mano su Render -> barback-app -> Environment. Senza, le email non partono.
+      - key: RESEND_API_KEY
+        sync: false
     disk:
       name: disk
       mountPath: /barback/data

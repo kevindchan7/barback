@@ -43,11 +43,15 @@ ol{padding-left:20px;color:var(--muted)} ol li{margin:6px 0}
     <input id="citta" maxlength="60" placeholder="es. Roma">
     <label for="email">Email del titolare</label>
     <input id="email" type="email" required maxlength="120" placeholder="nome@esempio.it">
+    <div class="hint">Qui ti arriva il link se dimentichi il PIN o la password.</div>
     <label for="telefono">Telefono / WhatsApp</label>
     <input id="telefono" type="tel" maxlength="30" placeholder="+39 ...">
     <label for="pin">Scegli il tuo PIN da titolare (4 cifre)</label>
     <input id="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required autocomplete="new-password" placeholder="••••">
     <div class="hint">Con questo PIN entri come Proprietario e vedi tutto. Non usare 1111 o 1234.</div>
+    <label for="password">Scegli la password del locale (almeno 6 caratteri)</label>
+    <input id="password" type="text" minlength="6" maxlength="72" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="es. sport-2026">
+    <div class="hint">La dai tu allo staff: con nome e password del locale si arriva ai profili, poi ognuno mette il suo PIN. Puoi cambiarla quando vuoi.</div>
     <button id="invia" type="submit">Crea il mio locale</button>
     <div class="err" id="err"></div>
   </form>
@@ -56,15 +60,16 @@ ol{padding-left:20px;color:var(--muted)} ol li{margin:6px 0}
 
 <div class="card" id="ok-card" hidden>
   <h1>Fatto! 🎉</h1>
-  <p class="sub">Il tuo locale è pronto. Questo è il suo codice: tienilo, lo usa tutto lo staff per entrare.</p>
+  <p class="sub">Il tuo locale è pronto. Questo è il suo nome per entrare: lo usa tutto lo staff, insieme alla password.</p>
   <div class="codice" id="codice"></div>
+  <p class="sub" style="margin:0">Password del locale: <b id="password-ok"></b></p>
   <ol>
     <li>Entra come <b>Proprietario</b> col PIN che hai scelto.</li>
     <li>Cambia i PIN degli altri profili (l'app te lo ricorda).</li>
     <li>Aggiungi le tue bottiglie e i tuoi cocktail.</li>
   </ol>
   <a class="btn" id="apri" href="./">Apri Barback</a>
-  <div class="foot">Allo staff basta mandare questo link: <br><a id="link" href="./"></a></div>
+  <div class="foot">Allo staff manda questo link e la password del locale: <br><a id="link" href="./"></a></div>
 </div>
 
 <script>
@@ -84,7 +89,7 @@ $('#f').addEventListener('submit', async (e) => {
     const r = await fetch('/api/registra', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nome: $('#nome').value, citta: $('#citta').value, email: $('#email').value,
-        telefono: $('#telefono').value, pin: $('#pin').value,
+        telefono: $('#telefono').value, pin: $('#pin').value, password: $('#password').value,
         referente: dalSito.referente || '', piva: dalSito.piva || '', piano: dalSito.piano || '', promo: dalSito.promo || '' }),
     });
     const d = await r.json().catch(() => ({}));
@@ -92,7 +97,9 @@ $('#f').addEventListener('submit', async (e) => {
     const url = location.origin + '/?l=' + encodeURIComponent(d.codice);
     $('#codice').textContent = d.codice;
     $('#apri').href = url; $('#link').href = url; $('#link').textContent = url;
-    try { localStorage.setItem('bb_locale', d.codice); localStorage.removeItem('bb_token'); localStorage.removeItem('bb_profile'); } catch {}
+    try { localStorage.setItem('bb_locale', d.codice); localStorage.removeItem('bb_token'); localStorage.removeItem('bb_profile');
+      localStorage.setItem('bb_chiave', d.chiave || ''); } catch {}
+    $('#password-ok').textContent = $('#password').value;
     $('#form-card').hidden = true; $('#ok-card').hidden = false; scrollTo(0, 0);
   } catch (err) {
     $('#err').textContent = '⚠ ' + err.message;

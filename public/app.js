@@ -27,6 +27,10 @@ function aggiornaManifest() {
   if (l) l.href = 'manifest.webmanifest' + (LOCALE ? '?l=' + encodeURIComponent(LOCALE) : '');
 }
 aggiornaManifest();
+/* LA CHIAVE DEL LOCALE: la si riceve scrivendo nome e password del locale
+   (li sceglie il titolare). Resta sul telefono: la password si scrive una volta. */
+let CHIAVE = (() => { try { return localStorage.getItem('bb_chiave') || ''; } catch { return ''; } })();
+function salvaChiave(k) { CHIAVE = k || ''; try { k ? localStorage.setItem('bb_chiave', k) : localStorage.removeItem('bb_chiave'); } catch {} }
 let pollTimer = null;
 
 // can(cap): il profilo ha quella capacità? 'all' (proprietario) supera tutto.
@@ -37,7 +41,7 @@ function canProprio(cap) { return ((PROFILE && PROFILE.permissions) || []).inclu
 async function api(path, method = 'GET', body) {
   const res = await fetch('/api' + path, {
     method,
-    headers: { 'Content-Type': 'application/json', 'X-Lang': (typeof LANG !== 'undefined' ? LANG : 'it'), 'X-Locale': LOCALE,
+    headers: { 'Content-Type': 'application/json', 'X-Lang': (typeof LANG !== 'undefined' ? LANG : 'it'), 'X-Locale': LOCALE, ...(CHIAVE ? { 'X-Locale-Token': CHIAVE } : {}),
       ...(TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -51,39 +55,92 @@ const show = (sel, on) => { const e = $(sel); if (e) e.classList.toggle('hidden'
 let selProfile = null, pinBuf = '';
 async function initLogin() {
   $('#login-head').innerHTML = mascotSays(t('ciao'));
+  const reset = new URLSearchParams(location.search).get('reset');
+  if (reset && LOCALE) return mostraReset(reset);
   if (!LOCALE) return mostraCodiceLocale();
   let info;
   try { info = await api('/locale/' + encodeURIComponent(LOCALE)); }
   catch (e) { return mostraCodiceLocale(e.message); }
-  $('#locale-wrap').classList.add('hidden'); $('#profiles-wrap').classList.remove('hidden');
+  // locale con password: prima nome e password, solo dopo si scelgono i profili
+  if (info.protetto && !CHIAVE) return mostraCodiceLocale('', true);
+  let profiles;
+  try { profiles = await api('/profiles'); }
+  catch (e) { salvaChiave(''); return mostraCodiceLocale(info.protetto ? t('pw_cambiata') : e.message, info.protetto); }
+  $('#locale-wrap').classList.add('hidden'); $('#reset-wrap').classList.add('hidden'); $('#profiles-wrap').classList.remove('hidden');
   $('#locale-nome').innerHTML = '📍 <b>' + info.nome.replace(/</g, '&lt;') + '</b>' + (info.demo ? ' · PIN 1111' : '')
     + ' · <a href="#" onclick="cambiaLocale();return false">' + t('locale_cambia') + '</a>';
-  const profiles = await api('/profiles');
   $('#profiles').innerHTML = profiles.map(p => `
     <div class="profile" onclick="selectProfile(${p.id}, '${p.name.replace(/'/g, "\\'")}')">
       ${mascot(40)}
       <div><div class="pn">${nomeProfilo(p.name)}</div><div class="pr">${p.permissions.includes('all') ? t('accesso_completo') : t('permessi_n', { n: p.permissions.length })}</div></div>
     </div>`).join('');
 }
-function mostraCodiceLocale(errore) {
-  $('#profiles-wrap').classList.add('hidden'); $('#pin-wrap').classList.add('hidden');
+function mostraCodiceLocale(errore, allaPassword) {
+  $('#profiles-wrap').classList.add('hidden'); $('#pin-wrap').classList.add('hidden'); $('#reset-wrap').classList.add('hidden');
   $('#locale-wrap').classList.remove('hidden');
   $('#login-msg').textContent = errore ? '⚠ ' + errore : '';
-  const c = $('#locale-codice'); c.value = LOCALE || ''; setTimeout(() => c.focus(), 50);
+  const c = $('#locale-codice'); c.value = LOCALE || ''; $('#locale-password').value = '';
+  setTimeout(() => (allaPassword ? $('#locale-password') : c).focus(), 50);
 }
 async function entraLocale(codice) {
   const c = String(codice || $('#locale-codice').value || '').trim().toLowerCase();
   if (!c) return;
-  LOCALE = c;
-  try { localStorage.setItem('bb_locale', c); } catch {}
-  aggiornaManifest();
+  const password = codice ? '' : $('#locale-password').value;
   $('#login-msg').textContent = '';
+  try {
+    // si puo' scrivere il nome com'e' ("Bar Sport"): il server lo riconosce
+    const info = await api('/locale/' + encodeURIComponent(c));
+    if (info.codice !== LOCALE) salvaChiave('');
+    LOCALE = info.codice;
+    if (info.protetto) {
+      if (!password) { $('#login-msg').textContent = '⚠ ' + t('pw_scrivi'); return $('#locale-password').focus(); }
+      salvaChiave((await api('/locale/entra', 'POST', { codice: LOCALE, password })).chiave);
+    }
+  } catch (e) { $('#login-msg').textContent = '⚠ ' + e.message; return; }
+  try { localStorage.setItem('bb_locale', LOCALE); } catch {}
+  aggiornaManifest();
   await initLogin();
 }
 function cambiaLocale() {
-  LOCALE = ''; TOKEN = null; PROFILE = null;
+  LOCALE = ''; TOKEN = null; PROFILE = null; salvaChiave('');
   try { localStorage.removeItem('bb_locale'); localStorage.removeItem('bb_token'); localStorage.removeItem('bb_profile'); } catch {}
   mostraCodiceLocale();
+}
+
+/* ---- PIN o password dimenticati: il link arriva all'email del titolare ---- */
+async function chiediReset(cosa) {
+  const msg = $('#login-msg');
+  try {
+    if (cosa === 'password') {
+      const c = String($('#locale-codice').value || '').trim().toLowerCase();
+      if (!c) { msg.textContent = '⚠ ' + t('pw_serve_nome'); return $('#locale-codice').focus(); }
+      LOCALE = (await api('/locale/' + encodeURIComponent(c))).codice;
+    }
+    msg.textContent = t('invio');
+    const r = await api('/reset/chiedi', 'POST', { cosa, profileId: selProfile && selProfile.id });
+    msg.textContent = '✉️ ' + t('reset_inviato', { email: r.a });
+  } catch (e) { msg.textContent = '⚠ ' + e.message; }
+}
+let resetToken = null, resetDati = {};
+function mostraReset(token) {
+  resetToken = token;
+  try { resetDati = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { resetDati = {}; }
+  const pin = resetDati.cosa === 'pin';
+  ['#locale-wrap', '#profiles-wrap', '#pin-wrap'].forEach(s => $(s).classList.add('hidden'));
+  $('#reset-wrap').classList.remove('hidden');
+  $('#reset-titolo').textContent = pin ? t('reset_pin_titolo', { nome: nomeProfilo(resetDati.nome || '') }) : t('reset_pw_titolo');
+  const i = $('#reset-nuovo');
+  i.type = pin ? 'tel' : 'password'; i.maxLength = pin ? 4 : 72; i.inputMode = pin ? 'numeric' : 'text';
+  i.placeholder = pin ? t('ph_pin') : t('locale_pw_nuova_ph'); i.value = ''; setTimeout(() => i.focus(), 50);
+}
+async function faiReset() {
+  try {
+    const r = await api('/reset/fai', 'POST', { token: resetToken, nuovo: $('#reset-nuovo').value });
+    if (r.chiave) salvaChiave(r.chiave);
+    history.replaceState(null, '', location.pathname + '?l=' + encodeURIComponent(LOCALE));
+    await initLogin();
+    $('#login-msg').textContent = '✓ ' + t(r.cosa === 'pin' ? 'reset_pin_fatto' : 'reset_pw_fatto');
+  } catch (e) { $('#login-msg').textContent = '⚠ ' + e.message; }
 }
 function selectProfile(id, name) {
   selProfile = { id, name }; pinBuf = '';
@@ -91,7 +148,7 @@ function selectProfile(id, name) {
   $('#pin-for').textContent = t('pin_per') + ' ' + nomeProfilo(name);
   $('#pinpad').innerHTML = [1,2,3,4,5,6,7,8,9].map(d => `<button onclick="pinPress('${d}')">${d}</button>`).join('')
     + `<button onclick="pinDel()">⌫</button><button onclick="pinPress('0')">0</button><button onclick="submitPin()">✓</button>`;
-  renderDots(); $('#login-msg').textContent = '';
+  renderDots(); $('#login-msg').textContent = ''; $('#pin-reset').classList.toggle('hidden', LOCALE === 'demo');
 }
 function backToProfiles() { $('#pin-wrap').classList.add('hidden'); $('#profiles-wrap').classList.remove('hidden'); }
 function renderDots() { $('#pin-dots').innerHTML = [0,1,2,3].map(i => `<span class="${i < pinBuf.length ? 'on' : ''}"></span>`).join(''); }
@@ -103,12 +160,13 @@ async function submitPin() {
     TOKEN = r.token; PROFILE = r.profile;
     localStorage.setItem('bb_token', TOKEN); localStorage.setItem('bb_profile', JSON.stringify(PROFILE));
     enterApp();
-  } catch (e) { $('#login-msg').textContent = '⚠ ' + e.message; pinBuf = ''; renderDots(); }
+  } catch (e) {
+    $('#login-msg').textContent = '⚠ ' + e.message; pinBuf = ''; renderDots();
+  }
 }
 
 function enterApp() {
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  $('#banner-mascot').innerHTML = mascot(42);
   $('#banner-sub').textContent = nomeProfilo(PROFILE.name);
   applicaLingua();
   caricaImpostazioni();
@@ -167,18 +225,20 @@ function logout() { localStorage.removeItem('bb_token'); localStorage.removeItem
 /* ===================== HOMEPAGE (dinamica per permessi) ===================== */
 async function loadHome() {
   go('home', true);
-  $('#home-hello').innerHTML = mascotSays(t("bentornato", { nome: nomeProfilo(PROFILE.name) }));
+  const saluto = t("bentornato", { nome: nomeProfilo(PROFILE.name) });
+  $('#home-hello').innerHTML = mascotSays(saluto);
 
   // layout iniziale: giacenze / entrate / uscite
   let ov = null; try { ov = await api('/overview'); } catch {}
   if (ov && (can('magazzino.view') || can('vuoti.view'))) {
     $('#home-overview').innerHTML = `
-      ${ov.primoAvvio ? mascotSays(t('primo_avvio'), 48) : ''}
       <div class="kpis">
         <div class="kpi"><div class="v">${ov.giacenzaPezzi}</div><div class="l">${t('giacenza_pezzi')}</div></div>
         <div class="kpi"><div class="v">${ov.entrate}</div><div class="l">${t('entrate_mese')}</div></div>
         <div class="kpi"><div class="v">${ov.uscite}</div><div class="l">${t('uscite_mese')}</div></div>
       </div>`;
+    // una sola bottiglia in home: se c'e' un secondo messaggio lo dice lei, sotto il saluto
+    if (ov.primoAvvio) $('#home-hello').innerHTML = mascotSays([saluto, t('primo_avvio')]);
   } else $('#home-overview').innerHTML = '';
 
   // pulsanti visibili solo se permessi
@@ -295,6 +355,7 @@ async function loadMagazzino() {
   show('#mz-mvform', types.length > 0);
   // form per aggiungere un prodotto nuovo
   show('#mz-newprod', can('magazzino.view'));
+  show('#mz-exports', can('all'));
   $("#np-vendor").innerHTML = `<option value="">${t("nessuno")}</option>`
     + vendors.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
 
@@ -1077,7 +1138,21 @@ async function exportShifts(fmt) {
   shifts.forEach(s => aoa.push([s.date, s.employee, s.start, s.end, s.role]));
   fmt === 'csv' ? downloadCSV('turni.csv', aoa) : downloadXLSX('turni.xlsx', aoa, 'Turni');
 }
+// il resoconto del mese in PDF (carico, vuoti, scarico, giacenza): solo il proprietario
+async function scaricaResoconto() {
+  try {
+    const r = await fetch('/api/reports/monthly.pdf', { headers: { Authorization: 'Bearer ' + TOKEN, 'X-Lang': LANG } });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Errore ' + r.status);
+    const nome = (r.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await r.blob());
+    a.download = nome ? nome[1] : 'resoconto.pdf';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (e) { alert(e.message); }
+}
 async function exportStock(fmt) {
+  if (!can('all')) return alert(t('permesso_negato'));
   const rows = window._stockRows || (await api('/reports/monthly')).rows;
   const aoa = [['Prodotto', 'Entrato', 'Uscito', 'Netto', 'Giacenza residua', 'Scorta ideale', 'Da ordinare', 'Fornitore']];
   rows.forEach(r => aoa.push([r.name, r.entrato, r.uscito, r.netto, r.residua, r.par_level, r.daOrdinare, r.vendor || '']));
@@ -1179,6 +1254,15 @@ async function removeEmployee(id) {
   catch (e) { alert(e.message); }
 }
 
+// il titolare sceglie (o cambia) la password del locale
+async function salvaPasswordLocale() {
+  try {
+    const r = await api('/locale/password', 'POST', { password: $('#pw-locale').value });
+    salvaChiave(r.chiave);
+    alert(t('pw_locale_fatto')); openSettings();
+  } catch (e) { alert(e.message); }
+}
+
 /* --- impostazioni: PIN e profili di accesso --- */
 async function openSettings() {
   let profili = [], ruoli = [];
@@ -1222,6 +1306,12 @@ async function openSettings() {
         </div>
         <div class="row"><div><label>${t('pin_4_cifre')}</label><input id="npf-pin" inputmode="numeric" maxlength="4" placeholder="${t('ph_pin')}"></div></div>
         <button class="act" onclick="addProfile()">${t('crea_profilo')}</button>
+
+        <h3 style="margin-top:20px">${t('pw_locale')}</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:6px">${t('pw_locale_aiuto')}</p>
+        ${LOCALE !== 'demo' && !CHIAVE ? `<p style="font-size:12px;margin-bottom:6px;color:var(--red)">⚠ ${t('pw_locale_manca')}</p>` : ''}
+        <div class="row"><div><input id="pw-locale" type="text" autocomplete="off" autocapitalize="none" maxlength="72" placeholder="${t('locale_pw_nuova_ph')}"></div></div>
+        <button class="act" onclick="salvaPasswordLocale()">${t('pw_locale_salva')}</button>
 
         <h3 style="margin-top:20px">${t('link_staff')}</h3>
         <p class="muted" style="font-size:12px;margin-bottom:6px">${t('link_staff_aiuto')}</p>
