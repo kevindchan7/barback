@@ -229,6 +229,8 @@ const I18N = {
     cal_tocca: 'Tocca un giorno per vedere turni e task.', turni_del_giorno: 'Turni', task_del_giorno: 'Task', turno: 'Turno', task: 'Task', chiunque: 'Chiunque',
     task_aiuto_cal: 'Per aggiungere una task, tocca un giorno nel calendario.',
     consumi_mese: 'Giacenze e consumi',
+    cal_piu_giorni: '☑ Più giorni', cal_multi_aiuto: 'Tocca tutti i giorni che vuoi, poi scegli il turno o la task.', n_giorni_scelti: '{n} giorni scelti', svuota: 'Svuota',
+    tab_giacenze: 'Giacenze', tab_ordini: 'Ordini', tab_conta: 'Conta', mz_vedi_sugg: 'Vedi cosa ordinare per fornitore ›', or_scegli_tu: 'Scegli tu le quantità dalle giacenze ›',
     griglia_mese_corto: 'Calendario del mese',
   },
 
@@ -432,6 +434,8 @@ const I18N = {
     cal_tocca: 'Tap a day to see shifts and tasks.', turni_del_giorno: 'Shifts', task_del_giorno: 'Tasks', turno: 'Shift', task: 'Task', chiunque: 'Anyone',
     task_aiuto_cal: 'To add a task, tap a day in the calendar.',
     consumi_mese: 'Stock and usage',
+    cal_piu_giorni: '☑ Several days', cal_multi_aiuto: 'Tap all the days you want, then pick the shift or task.', n_giorni_scelti: '{n} days selected', svuota: 'Clear',
+    tab_giacenze: 'Stock', tab_ordini: 'Orders', tab_conta: 'Count', mz_vedi_sugg: 'See what to order by supplier ›', or_scegli_tu: 'Choose the quantities yourself from stock ›',
     griglia_mese_corto: 'Month calendar',
   },
 
@@ -635,6 +639,8 @@ const I18N = {
     cal_tocca: 'Toca un día para ver turnos y tareas.', turni_del_giorno: 'Turnos', task_del_giorno: 'Tareas', turno: 'Turno', task: 'Tarea', chiunque: 'Cualquiera',
     task_aiuto_cal: 'Para añadir una tarea, toca un día del calendario.',
     consumi_mese: 'Existencias y consumo',
+    cal_piu_giorni: '☑ Varios días', cal_multi_aiuto: 'Toca todos los días que quieras y elige el turno o la tarea.', n_giorni_scelti: '{n} días elegidos', svuota: 'Vaciar',
+    tab_giacenze: 'Existencias', tab_ordini: 'Pedidos', tab_conta: 'Recuento', mz_vedi_sugg: 'Ver qué pedir por proveedor ›', or_scegli_tu: 'Elige tú las cantidades desde existencias ›',
     griglia_mese_corto: 'Calendario del mes',
   },
 };

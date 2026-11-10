@@ -215,8 +215,6 @@ function buildBottomNav() {
     ['richieste', '🏖', t('nav_ferie'), can('ferie.view') || can('ferie.request')],
     ['costi', '🍸', t('nav_costi'), can('drinkcost.view')],
     ['magazzino', '📦', t('nav_magazzino'), can('magazzino.view') || can('vuoti.view') || can('carico.do')],
-    ['inventario', '📋', t('nav_inventario'), can('inventario.view')],
-    ['ordini', '🛒', t('nav_ordini'), can('magazzino.view')],
     ['manuale', '📖', t('nav_manuale'), can('manuale.view')],
   ].filter(i => i[3]);
   $('#bottomnav').innerHTML = items.map(i =>
@@ -224,7 +222,7 @@ function buildBottomNav() {
   setActiveNav(currentView);
 }
 function setActiveNav(view) {
-  document.querySelectorAll('#bottomnav button').forEach(b => b.classList.toggle('active', b.dataset.nav === view));
+  document.querySelectorAll('#bottomnav button').forEach(b => b.classList.toggle('active', b.dataset.nav === (view === 'inventario' || view === 'ordini' ? 'magazzino' : view)));
 }
 
 /* Onboarding guidato dal barback (solo al primo accesso) */
@@ -273,6 +271,7 @@ async function loadHome() {
   } else $('#home-overview').innerHTML = '';
 
   // inizio mese: va fatta la giacenza del magazzino a mano (finche' non e' fatta, resta qui)
+  window._contaDaFare = !!(ov && can('inventario.do') && ov.giacenzaMeseFatta === false);
   if (ov && can('inventario.do') && LOCALE !== 'demo' && ov.giacenzaMeseFatta === false) {
     $('#home-overview').insertAdjacentHTML('afterbegin', `<button class="avviso-mese" onclick="go('inventario', false, true)"><b>${t('mz_mese_tit')}</b><span>${t('mz_mese_txt')}</span><u>${t('mz_mese_vai')} ›</u></button>`);
     try { const k = 'bb_giacenza_' + ov.month; if (!localStorage.getItem(k)) { localStorage.setItem(k, '1'); notify(t('mz_mese_tit'), t('mz_mese_txt')); } } catch {}
@@ -285,8 +284,6 @@ async function loadHome() {
     ['richieste', '🏖', t('sez_ferie'), t('d_ferie'), can('ferie.view') || can('ferie.request')],
     ['costi', '🍸', t('sez_costi_drink'), t('d_costi_drink'), can('drinkcost.view')],
     ['magazzino', '📦', t('sez_magazzino_t'), t('d_inventario_tutto'), can('magazzino.view') || can('vuoti.view') || can('carico.do')],
-    ['inventario', '📋', t('sez_inventario'), t('d_inventario'), can('inventario.view')],
-    ['ordini', '🛒', t('sez_ordini'), t('d_ordini'), can('magazzino.view')],
     ['manuale', '📖', t('sez_manuale'), t('d_manuale'), can('manuale.view')],
   ];
   // ogni riga e' un bottone grande: icona, nome, e il numero che conta (se c'e')
@@ -299,10 +296,13 @@ async function loadHome() {
 /* INVENTARIO = giacenze (quello che prima era "Magazzino") + conteggio.
    Una voce sola nel menu, due schede in alto per chi le puo' vedere entrambe. */
 function schedeInventario(attiva) {
-  const due = false;   // Magazzino e Inventario hanno ognuno la sua voce nel menu
-  const html = due ? `<div class="schede">
-      <button class="${attiva === 'magazzino' ? 'on' : ''}" onclick="go('magazzino')">${t('scheda_giacenze')}</button>
-      <button class="${attiva === 'inventario' ? 'on' : ''}" onclick="go('inventario', false, true)">${t('scheda_conta')}</button></div>` : '';
+  const tabs = [
+    ['magazzino', t('tab_giacenze'), can('magazzino.view') || can('vuoti.view') || can('carico.do'), ''],
+    ['ordini', t('tab_ordini'), can('magazzino.view'), window._sottoSoglia ? `<i class="tab-n">${window._sottoSoglia}</i>` : ''],
+    ['inventario', t('tab_conta'), can('inventario.view'), window._contaDaFare ? '<i class="tab-n">!</i>' : ''],
+  ].filter(x => x[2]);
+  const html = tabs.length > 1 ? `<div class="schede">${tabs.map(x =>
+    `<button class="${attiva === x[0] ? 'on' : ''}" onclick="go('${x[0]}')">${x[1]}${x[3]}</button>`).join('')}</div>` : '';
   document.querySelectorAll('.schede-inv').forEach(e => { e.innerHTML = html; });
 }
 /* Semplice: le schede meno usate stanno chiuse. Si tocca il titolo e si apre. */
@@ -328,7 +328,7 @@ function rendiPieghevoli() {
 }
 function go(view, silent, proprioQuesta) {
   // "Inventario" dal menu: chi vede le giacenze parte da li'
-  if (view === 'magazzino' || view === 'inventario') schedeInventario(view);
+  if (['magazzino', 'inventario', 'ordini'].includes(view)) schedeInventario(view);
   currentView = view;
   rendiPieghevoli();
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === view));
@@ -437,6 +437,7 @@ async function loadMagazzino() {
   window._stockRows = r.rows;
   $('#mz-month').textContent = '(' + r.month + (r.sottoSoglia ? ' · ' + r.sottoSoglia + ' ' + t('sotto_soglia').toLowerCase() : '') + ')';
   $('#mz-low').textContent = r.sottoSoglia;
+  if (window._sottoSoglia !== r.sottoSoglia) { window._sottoSoglia = r.sottoSoglia; schedeInventario('magazzino'); }
   renderMz();
   caricaStoricoMov();
 }
@@ -823,6 +824,7 @@ async function loadOrdini() {
   window._vendors = vendors;
   window._ordini = o;
   $('#or-prodotti').textContent = o.prodotti;
+  window._sottoSoglia = o.prodotti; schedeInventario('ordini');
   
 
   $('#ordini-list').innerHTML = o.gruppi.length ? o.gruppi.map((g, i) => `
@@ -968,8 +970,13 @@ function calHtml(ym, cell) {
 }
 const shiftDots = (list) => list.map(s => `<i style="background:${s.color || '#888'}"></i>`).join('');
 
-let calYM = isoLocal(new Date()).slice(0, 7), calSel = null;
-function calMove(d) { calYM = shiftYM(calYM, d); calSel = null; loadCal(); }
+let calYM = isoLocal(new Date()).slice(0, 7), calSel = null, calMulti = false;
+const calSet = new Set();
+function calMultiToggle() {
+  calMulti = !calMulti; calSet.clear(); calSel = null;
+  const b = $('#cal-multi-btn'); b.className = calMulti ? 'act' : 'ghost'; loadCal();
+}
+function calMove(d) { calYM = shiftYM(calYM, d); calSel = null; loadCal(); }  // la scelta di piu' giorni resta fra un mese e l'altro
 async function loadCal() {
   const [shifts, emps, tasks] = await Promise.all([
     api(`/shifts?from=${calYM}-01&to=${calYM}-31`), api('/employees'),
@@ -981,14 +988,17 @@ async function loadCal() {
     const dei = shifts.filter(s => s.date === d), nt = tasks.filter(x => x.date === d && !x.template_id).length;
     const nomi = dei.slice(0, 3).map(s => `<i style="--c:${s.color || '#888'}">${esc(String(s.employee).split(' ')[0].slice(0, 5))}</i>`).join('')
       + (dei.length > 3 ? `<i class="piu">+${dei.length - 3}</i>` : '');
-    return `<button class="cal-d${d === today ? ' today' : ''}${d === calSel ? ' sel' : ''}" onclick="calPick('${d}')">
+    return `<button class="cal-d${d === today ? ' today' : ''}${d === calSel ? ' sel' : ''}${calSet.has(d) ? ' picked' : ''}" onclick="calPick('${d}')">
       <span class="n">${+d.slice(8)}</span><div class="nomi">${nomi}</div>${nt ? `<b class="tk">${nt}✓</b>` : ''}</button>`;
   });
   $('#cal-legend').innerHTML = '';
   calDay();
 }
-function calPick(d) { calSel = d; loadCal().then(() => { const e = $('#cal-day'); if (e && e.scrollIntoView) e.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }); }
+function calPick(d) {
+  if (calMulti) { calSet.has(d) ? calSet.delete(d) : calSet.add(d); return loadCal(); }
+  calSel = d; loadCal().then(() => { const e = $('#cal-day'); if (e && e.scrollIntoView) e.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }); }
 function calDay() {
+  if (calMulti) return calDayMulti();
   if (!calSel) { $('#cal-day').innerHTML = `<p class="muted" style="margin-top:10px">${t('cal_tocca')}</p>`; return; }
   const editable = can('turni.manage'), emps = window._calEmps || [];
   const list = (window._calShifts || []).filter(s => s.date === calSel);
@@ -1020,6 +1030,38 @@ function calDay() {
         <button class="act" onclick="addTaskGiorno()">+ ${t('task')}</button></div>`;
   }
   $('#cal-day').innerHTML = h;
+}
+function calDayMulti() {
+  const emps = window._calEmps || [], n = calSet.size;
+  const opz = (v) => emps.map(e => `<option value="${e.id}" ${String(e.id) === String(v) ? 'selected' : ''}>${esc(e.name)}</option>`).join('');
+  if (!n) { $('#cal-day').innerHTML = `<p class="muted" style="margin-top:10px">${t('cal_multi_aiuto')}</p>`; return; }
+  const ultimo = window._ultimoEmp || (emps[0] && emps[0].id);
+  let h = `<h3 style="margin-top:14px">${t('n_giorni_scelti', { n })} <button class="iconbtn" onclick="calSet.clear();loadCal()" title="${t('svuota')}">✕</button></h3>`;
+  if (can('turni.manage') && emps.length) h += `<h4 class="cal-sub">${t('turno')}</h4>
+    <div class="cal-add"><select id="gd-emp">${opz(ultimo)}</select>
+      <input id="gd-start" type="time" value="${window._ultimoInizio || '16:00'}"><input id="gd-end" type="time" value="${window._ultimoFine || '23:00'}">
+      <button class="act" onclick="addTurnoMulti()">+ ${t('turno')} × ${n}</button></div>`;
+  if (can('task.manage') || can('task.request')) h += `<h4 class="cal-sub">${t('task')}</h4>
+    <div class="cal-add"><input id="gd-task" maxlength="120" placeholder="${t('ph_task')}">
+      <select id="gd-who"><option value="">${t('chiunque')}</option>${opz('')}</select>
+      <button class="act" onclick="addTaskMulti()">+ ${t('task')} × ${n}</button></div>`;
+  $('#cal-day').innerHTML = h;
+}
+async function addTurnoMulti() {
+  const emp = +$('#gd-emp').value; if (!emp) return;
+  window._ultimoEmp = emp; window._ultimoInizio = $('#gd-start').value; window._ultimoFine = $('#gd-end').value;
+  const e = (window._calEmps || []).find(x => x.id === emp) || {};
+  try {
+    for (const d of [...calSet].sort()) await api('/shifts', 'POST', { employee_id: emp, date: d, start: $('#gd-start').value, end: $('#gd-end').value, role: e.role || '' });
+    calSet.clear(); await refreshTurni();
+  } catch (er) { alert(er.message); await refreshTurni(); }
+}
+async function addTaskMulti() {
+  const title = $('#gd-task').value.trim(); if (!title) return $('#gd-task').focus();
+  try {
+    for (const d of [...calSet].sort()) await api('/tasks', 'POST', { title, date: d, assignee_id: +$('#gd-who').value || null });
+    calSet.clear(); await loadCal(); loadTasks();
+  } catch (er) { alert(er.message); await loadCal(); }
 }
 async function addTurnoGiorno() {
   const emp = +$('#gd-emp').value; if (!emp) return;

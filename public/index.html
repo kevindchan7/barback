@@ -139,6 +139,7 @@
       <!-- calendario del mese: un puntino colorato per ogni dipendente in turno -->
       <div class="card">
         <div class="cal-head"><button class="iconbtn" onclick="calMove(-1)">‹</button><h3 id="cal-title"></h3><button class="iconbtn" onclick="calMove(1)">›</button></div>
+        <div class="toolbar" id="cal-multi-bar" style="margin:6px 0"><button class="ghost" id="cal-multi-btn" onclick="calMultiToggle()" data-i18n="cal_piu_giorni">☑ Più giorni</button></div>
         <div id="cal-grid" class="cal"></div>
         <div id="cal-legend" class="cal-legend"></div>
         <div id="cal-day"></div>
@@ -248,6 +249,7 @@
         <div id="mz-ordine-box" class="hidden" style="margin-top:12px">
           <input id="mz-forn" maxlength="80" placeholder="Per quale fornitore (facoltativo)" data-i18n-ph="mz_forn_ph" style="width:100%;margin-bottom:8px">
           <button class="act" style="width:100%;padding:14px" onclick="pdfOrdineMagazzino()" data-i18n="mz_pdf">📄 PDF dell'ordine</button>
+          <button class="ghost" style="width:100%;margin-top:8px" onclick="go('ordini')" data-i18n="mz_vedi_sugg">Vedi cosa ordinare per fornitore ›</button>
         </div>
       </div>
       <div class="kpis">
@@ -311,7 +313,7 @@
 
     <!-- INVENTARIO: sessione guidata, revisione, storico -->
     <section class="view" id="inventario">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_inventario">Inventario</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_magazzino_t">Magazzino</h2></div>
       <div class="schede-inv"></div>
       <div id="inv-hello"></div>
 
@@ -399,12 +401,14 @@
 
     <!-- ORDINI AI FORNITORI -->
     <section class="view" id="ordini">
-      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_ordini">Ordini ai fornitori</h2></div>
+      <div class="topbar"><button class="back" onclick="go('home')">←</button><h2 data-i18n="sez_magazzino_t">Magazzino</h2></div>
+      <div class="schede-inv"></div>
       <div id="ordini-hello"></div>
       <div class="kpis">
         <div class="kpi"><div class="v" id="or-prodotti">0</div><div class="l" data-i18n="prodotti_da_ordinare">Prodotti da ordinare</div></div>
       </div>
       <div id="ordini-list"></div>
+      <button class="ghost" style="width:100%;margin:0 0 12px" onclick="go('magazzino')" data-i18n="or_scegli_tu">Scegli tu le quantità dalle giacenze ›</button>
       <!-- ordine scritto a mano: diventa un PDF da mandare al fornitore -->
       <div class="card">
         <h3 data-i18n="om_titolo">Scrivi un ordine a mano</h3>
