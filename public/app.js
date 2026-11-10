@@ -305,10 +305,28 @@ function schedeInventario(attiva) {
       <button class="${attiva === 'inventario' ? 'on' : ''}" onclick="go('inventario', false, true)">${t('scheda_conta')}</button></div>` : '';
   document.querySelectorAll('.schede-inv').forEach(e => { e.innerHTML = html; });
 }
+/* Semplice: le schede meno usate stanno chiuse. Si tocca il titolo e si apre. */
+function piega(card, titolo) {
+  if (!card || card.dataset.piega) return;
+  card.dataset.piega = '1'; card.classList.add('piega');
+  const b = document.createElement('button');
+  b.className = 'piega-testa'; b.innerHTML = `<span>${titolo}</span><b>+</b>`;
+  b.onclick = () => { const a = card.classList.toggle('aperta'); b.lastChild.textContent = a ? '−' : '+'; };
+  card.prepend(b);
+}
+function rendiPieghevoli() {
+  const card = (sel) => { const e = document.querySelector(sel); return e && e.closest('.card'); };
+  piega(card('#personale-card'), t('personale'));
+  piega(card('#shift-range'), t('vista'));
+  piega(card('#mz-newprod'), t('agg_prodotto'));
+  piega(card('#mz-mvform'), t('carico_scarico'));
+  piega(card('#mz-list-old'), t('consumi_mese'));
+}
 function go(view, silent, proprioQuesta) {
   // "Inventario" dal menu: chi vede le giacenze parte da li'
   if (view === 'magazzino' || view === 'inventario') schedeInventario(view);
   currentView = view;
+  rendiPieghevoli();
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === view));
   setActiveNav(view);
   window.scrollTo(0, 0);

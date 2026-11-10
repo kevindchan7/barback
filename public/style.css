@@ -553,3 +553,10 @@ table.mz td:first-child{max-width:30vw;}
   .hb-ordini{--hb:linear-gradient(135deg,#9a52c9,#7a3da4);}
   .hb-manuale{--hb:linear-gradient(135deg,#5b6577,#3e4656);}
 }
+
+/* ===== schede che si aprono col tocco ===== */
+.card.piega > h3{display:none;}
+.card.piega:not(.aperta) > *:not(.piega-testa){display:none !important;}
+.piega-testa{display:flex; justify-content:space-between; align-items:center; width:100%; background:none; border:0; color:var(--txt); font:inherit; font-size:20px; font-weight:800; padding:6px 2px; cursor:pointer; text-align:left;}
+.piega-testa b{font-size:28px; font-weight:400; color:var(--accent); line-height:1;}
+.card.piega.aperta > .piega-testa{margin-bottom:10px;}
