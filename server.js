@@ -31,7 +31,7 @@ function segretoSalvato() {
   return v;
 }
 
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '30mb' }));
 /* L'app installata sul telefono deve aprirsi gia' nel bar giusto: su iPhone
    l'icona sulla schermata Home non vede i dati di Safari, quindi il codice
    del locale viaggia dentro il manifest (start_url /?l=codice).          */
@@ -1243,6 +1243,80 @@ api.get('/foodcost', need('drinkcost.view'), (req, res) => {
     },
     ultimoScostamento,
   });
+});
+
+/* ===== COPIA DEI DATI: estrarre tutto in un file e rimetterlo in un altro bar (o nello stesso) =====
+   Chi ha due o piu' bar/locali li usa insieme: scarica da uno, importa nell'altro.
+   L'importazione UNISCE: i nomi uguali (prodotti, fornitori, dipendenti...) non si duplicano,
+   lo storico si aggiunge senza toccare le giacenze di chi c'e' gia'. Profili e PIN non viaggiano. */
+const TABELLE_COPIA = ['vendors', 'locations', 'products', 'employees', 'shifts', 'tasks', 'task_templates', 'shift_changes',
+  'movements', 'inv_sessions', 'inv_counts', 'manual_rules', 'manual_recipes'];
+api.get('/copia/esporta', need('all'), (req, res) => {
+  const tabelle = {};
+  TABELLE_COPIA.forEach(t => { try { tabelle[t] = db.prepare(`SELECT * FROM ${t}`).all(); } catch { tabelle[t] = []; } });
+  const out = { formato: 'barback-copia', versione: 1, creato: now(), locale: { codice: res.locals.locale, nome: leggiImp('locale_nome', '') || res.locals.info.nome }, tabelle };
+  res.setHeader('Content-Disposition', `attachment; filename="barback-${res.locals.locale}-${todayISO()}.json"`);
+  ok(res, out);
+});
+const colonne = (t) => db.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name);
+function inserisciRiga(tab, riga, extra = {}) {
+  const cols = colonne(tab).filter(c => c !== 'id');
+  const r = { ...riga, ...extra };
+  const usa = cols.filter(c => r[c] !== undefined);
+  return db.prepare(`INSERT INTO ${tab} (${usa.join(',')}) VALUES (${usa.map(() => '?').join(',')})`).run(...usa.map(c => r[c])).lastInsertRowid;
+}
+api.post('/copia/importa', need('all'), (req, res) => {
+  const b = req.body && req.body.dati;
+  if (!b || b.formato !== 'barback-copia' || !b.tabelle) return bad(res, 400, 'Questo non è un file di copia di Barback');
+  const T = (n) => (Array.isArray(b.tabelle[n]) ? b.tabelle[n] : []);
+  const conta = {}; const add = (k) => { conta[k] = (conta[k] || 0) + 1; };
+  const low = (x) => String(x || '').trim().toLowerCase();
+  const mappa = { vendors: {}, locations: {}, products: {}, employees: {}, inv_sessions: {}, task_templates: {} };
+  db.exec('BEGIN');
+  try {
+    // per nome: se esiste gia' si riusa, altrimenti si crea
+    const perNome = (tab, campo, extraKey) => {
+      const esist = db.prepare(`SELECT id, ${campo} n${extraKey ? ', ' + extraKey + ' k' : ''} FROM ${tab}`).all();
+      T(tab).forEach(r => {
+        const trov = esist.find(e => low(e.n) === low(r[campo]) && (!extraKey || low(e.k) === low(r[extraKey])));
+        if (trov) mappa[tab][r.id] = trov.id;
+        else { const id = inserisciRiga(tab, r, tab === 'products' ? { vendor_id: r.vendor_id ? mappa.vendors[r.vendor_id] || null : null } : {}); mappa[tab][r.id] = id; esist.push({ id, n: r[campo], k: r[extraKey] }); add(tab); }
+      });
+    };
+    perNome('vendors', 'name'); perNome('locations', 'name'); perNome('products', 'name', 'category'); perNome('employees', 'name');
+    // le ricette dei cocktail nuovi puntano ai prodotti nuovi
+    T('products').forEach(r => { if (r.category === 'Cocktail') {
+      const nuovo = db.prepare('SELECT id, recipe FROM products WHERE id=?').get(mappa.products[r.id]);
+      if (nuovo && nuovo.recipe === r.recipe) {
+        try { const rc = JSON.parse(r.recipe || '[]').map(x => ({ ...x, ing: mappa.products[x.ing] || x.ing })); db.prepare('UPDATE products SET recipe=? WHERE id=?').run(JSON.stringify(rc), nuovo.id); } catch {}
+      } } });
+    // storico movimenti: si aggiunge, senza doppioni e senza muovere le giacenze
+    const haMov = db.prepare('SELECT 1 FROM movements WHERE product_id=? AND type=? AND qty=? AND created_at=?');
+    T('movements').forEach(r => { const pid = mappa.products[r.product_id]; if (!pid || haMov.get(pid, r.type, r.qty, r.created_at)) return;
+      inserisciRiga('movements', r, { product_id: pid, profile_id: null }); add('movements'); });
+    const haTurno = db.prepare('SELECT 1 FROM shifts WHERE employee_id=? AND date=? AND start=?');
+    T('shifts').forEach(r => { const eid = mappa.employees[r.employee_id]; if (!eid || haTurno.get(eid, r.date, r.start)) return;
+      inserisciRiga('shifts', r, { employee_id: eid }); add('shifts'); });
+    const haTask = db.prepare('SELECT 1 FROM tasks WHERE title=? AND date=?');
+    T('tasks').forEach(r => { if (haTask.get(r.title, r.date)) return;
+      inserisciRiga('tasks', r, { assignee_id: r.assignee_id ? mappa.employees[r.assignee_id] || null : null, template_id: null, done_by_emp: r.done_by_emp ? mappa.employees[r.done_by_emp] || null : null }); add('tasks'); });
+    const tmpl = db.prepare('SELECT id, title FROM task_templates').all();
+    T('task_templates').forEach(r => { if (tmpl.some(x => low(x.title) === low(r.title))) return;
+      inserisciRiga('task_templates', r, { assignee_id: r.assignee_id ? mappa.employees[r.assignee_id] || null : null }); add('task_templates'); });
+    const regole = db.prepare('SELECT testo FROM manual_rules').all().map(x => low(x.testo));
+    T('manual_rules').forEach(r => { if (regole.includes(low(r.testo))) return; inserisciRiga('manual_rules', r); add('manual_rules'); });
+    const ric = db.prepare('SELECT nome FROM manual_recipes').all().map(x => low(x.nome));
+    T('manual_recipes').forEach(r => { if (ric.includes(low(r.nome))) return; inserisciRiga('manual_recipes', r); add('manual_recipes'); });
+    // inventari passati
+    const haSess = db.prepare('SELECT id FROM inv_sessions WHERE started_at=?');
+    T('inv_sessions').forEach(r => { const e = haSess.get(r.started_at); if (e) { mappa.inv_sessions[r.id] = e.id; return; }
+      mappa.inv_sessions[r.id] = inserisciRiga('inv_sessions', r, { profile_id: null }); add('inv_sessions'); });
+    T('inv_counts').forEach(r => { const sid = mappa.inv_sessions[r.session_id], pid = mappa.products[r.product_id];
+      if (!sid || !pid || db.prepare('SELECT 1 FROM inv_counts WHERE session_id=? AND product_id=? AND COALESCE(location_id,0)=?').get(sid, pid, mappa.locations[r.location_id] || 0)) return;
+      inserisciRiga('inv_counts', r, { session_id: sid, product_id: pid, location_id: r.location_id ? mappa.locations[r.location_id] || null : null }); add('inv_counts'); });
+    db.exec('COMMIT');
+  } catch (e) { db.exec('ROLLBACK'); return bad(res, 500, 'Importazione non riuscita: ' + e.message); }
+  ok(res, { ok: true, aggiunti: conta, da: (b.locale && b.locale.nome) || '' });
 });
 
 /* ---------------- MANUALE DIPENDENTE (regole + ricettario) ---------------- */
